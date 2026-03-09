@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HOVA?! - A tökéletes hely</title>
+  <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <h1 class="sidebar-title">HOVA?! - A tökéletes hely</h1>
+
+    <div class="control-group">
+      <label for="erdo_szint" class="control-label">Erdei magány</label>
+      <div class="slider-row">
+        <input type="range" id="erdo_szint" class="slider" min="0" max="100" value="50">
+        <span id="erdo_szint-value" class="slider-value">50</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label for="kultura_szint" class="control-label">Kulturális pezsgés</label>
+      <div class="slider-row">
+        <input type="range" id="kultura_szint" class="slider" min="0" max="100" value="50">
+        <span id="kultura_szint-value" class="slider-value">50</span>
+      </div>
+    </div>
+
+    <button type="button" id="search-btn" class="search-btn">Tökéletes hely keresése</button>
+
+    <div id="result-box" class="result-box" aria-live="polite"></div>
+  </aside>
+
+  <main id="map-container" class="map-container" aria-label="Térkép"></main>
+
+  <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
