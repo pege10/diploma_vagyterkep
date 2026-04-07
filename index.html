@@ -18,6 +18,8 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
+  <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
   <aside class="sidebar">

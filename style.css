@@ -166,128 +166,118 @@ body {
 
 /* =============================================================
    MOBIL APP-SZERŰ ELRENDEZÉS
-   Csak érintőképernyős eszközökön (telefon, tablet) aktiválódik.
-   pointer: coarse = ujjal vezérelt eszköz → soha nem aktiválódik
-   desktop egér/trackpad esetén (pointer: fine).
+   A html.is-touch class-t egy inline <script> adja hozzá a
+   <head>-ben, touch érzékelés alapján – MIELŐTT a CSS renderel.
+   Így érintőképernyős laptopon sem aktiválódik véletlenül.
+   Az asztali elrendezés teljesen érintetlen marad.
    ============================================================= */
-@media (pointer: coarse) {
-  body {
-    display: block;
-    overflow: hidden;
-  }
+html.is-touch body {
+  display: block;
+  overflow: hidden;
+}
 
-  /* Térkép: teljes képernyő, a sidebar fölé nyúlik */
-  .map-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-  }
+/* Térkép: teljes képernyő, a sidebar alulról fedi */
+html.is-touch .map-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
 
-  /* Sidebar: fix panel az oldal alján, a térkép fölé rétegelve */
-  .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    min-width: unset;
-    height: auto;
-    max-height: 48vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    border-right: none;
-    border-top: 1px solid #2a2a32;
-    padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-    gap: 12px;
-    background: linear-gradient(0deg, #141418 0%, rgba(20, 20, 24, 0.98) 100%);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    z-index: 50;
-  }
+/* Sidebar: fix panel az oldal alján */
+html.is-touch .sidebar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: unset;
+  height: auto;
+  max-height: 48vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-right: none;
+  border-top: 1px solid #2a2a32;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+  background: linear-gradient(0deg, #141418 0%, rgba(20, 20, 24, 0.98) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 50;
+}
 
-  .sidebar-title {
-    font-size: 1rem;
-    padding-bottom: 6px;
-  }
+html.is-touch .sidebar-title {
+  font-size: 1rem;
+  padding-bottom: 6px;
+}
 
-  .control-group {
-    gap: 6px;
-  }
+html.is-touch .control-group {
+  gap: 6px;
+}
 
-  .control-label {
-    font-size: 0.82rem;
-  }
+html.is-touch .control-label {
+  font-size: 0.82rem;
+}
 
-  .slider {
-    height: 6px;
-  }
+html.is-touch .slider {
+  height: 6px;
+}
 
-  .slider::-webkit-slider-thumb {
-    width: 26px;
-    height: 26px;
-  }
+html.is-touch .slider::-webkit-slider-thumb {
+  width: 26px;
+  height: 26px;
+}
 
-  .search-btn {
-    width: 100%;
-    padding: 16px 20px;
-    font-size: 1.05rem;
-    margin-top: 4px;
-    border-radius: 12px;
-    min-height: 54px;
-  }
+html.is-touch .search-btn {
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 1.05rem;
+  margin-top: 4px;
+  border-radius: 12px;
+  min-height: 54px;
+}
 
-  .result-box {
-    font-size: 0.9rem;
-    padding: 10px 14px;
-    min-height: 38px;
-  }
-
-  /* MapLibre zoom gombok ne essenek a sidebar mögé */
-  .maplibregl-ctrl-bottom-right,
-  .maplibregl-ctrl-bottom-left {
-    bottom: 52vh;
-  }
+/* Infodoboz elrejtve mobilon – a ticket overlay mutatja az eredményt */
+html.is-touch .result-box {
+  display: none;
 }
 
 /* =============================================================
    INDÍTÓKÉPERNYŐ
-   Csak érintőképernyős eszközökön jelenik meg (pointer: coarse).
-   Desktoplon (pointer: fine) soha nem látható, nincs hatása.
+   Csak érintőképernyős eszközökön látható (html.is-touch).
+   Desktopon soha nem jelenik meg.
    ============================================================= */
 .start-overlay {
   display: none;
 }
 
-@media (pointer: coarse) {
-  .start-overlay {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10000;
-    background: #0a0a0e;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    opacity: 1;
-    transition: opacity 0.45s ease;
-  }
+html.is-touch .start-overlay {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  background: #0a0a0e;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
 
-  .start-overlay.start-overlay--hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
+html.is-touch .start-overlay.start-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .start-content {
@@ -355,11 +345,9 @@ body {
 }
 
 /* Látható állapot: nincs hidden attribútum ÉS érintőképernyős eszköz */
-@media (pointer: coarse) {
-  .ticket-overlay:not([hidden]) {
-    display: flex;
-    animation: overlay-fade-in 0.3s ease;
-  }
+html.is-touch .ticket-overlay:not([hidden]) {
+  display: flex;
+  animation: overlay-fade-in 0.3s ease;
 }
 
 @keyframes overlay-fade-in {
