@@ -160,6 +160,12 @@ body {
   filter: invert(1) hue-rotate(180deg);
 }
 
+/* Attribution doboz elrejtve mobilon */
+html.is-touch .maplibregl-ctrl-attrib,
+html.is-touch .maplibregl-ctrl-logo {
+  display: none !important;
+}
+
 .maplibregl-marker {
   cursor: default;
 }
