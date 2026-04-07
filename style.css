@@ -163,3 +163,196 @@ body {
 .maplibregl-marker {
   cursor: default;
 }
+
+/* =============================================================
+   MOBIL APP-SZERŰ ELRENDEZÉS (≤ 768 px)
+   Az asztali elrendezés (sidebar bal oldalt, térkép jobbra)
+   változatlan marad. Mobilon a sidebar alulra kerül.
+   ============================================================= */
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    overflow: hidden;
+    /* Safe area iPhone X+ notch/home bar */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* A sidebar fix panel az oldal alján */
+  .sidebar {
+    order: 2;
+    width: 100%;
+    min-width: unset;
+    height: auto;
+    max-height: 46vh;
+    overflow-y: auto;
+    /* Saját scroll, nem az egész oldal */
+    -webkit-overflow-scrolling: touch;
+    border-right: none;
+    border-top: 1px solid #2a2a32;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+    /* Kis frosted glass hatás */
+    background: linear-gradient(0deg, #141418 0%, rgba(26, 26, 32, 0.97) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Cím mobilon kisebb, kevesebb helyet foglal */
+  .sidebar-title {
+    font-size: 1rem;
+    padding-bottom: 6px;
+  }
+
+  .control-group {
+    gap: 6px;
+  }
+
+  .control-label {
+    font-size: 0.82rem;
+  }
+
+  .slider {
+    height: 6px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Gomb: fix a panel alján, könnyen elérhető hüvelykujjal */
+  .search-btn {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 1.05rem;
+    margin-top: 4px;
+    border-radius: 12px;
+    /* Kicsit nagyobb tapintási célterület */
+    min-height: 52px;
+  }
+
+  .result-box {
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    min-height: 38px;
+  }
+
+  /* A térkép a fennmaradó helyet tölti ki */
+  .map-container {
+    order: 1;
+    flex: 1;
+    height: 0;          /* fontos: flex-grow számít, nem a statikus magasság */
+    min-height: 0;
+  }
+
+  /* MapLibre vezérlők ne fedjék el a tartalmat */
+  .maplibregl-ctrl-top-right {
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* =============================================================
+   SORSZÁM OVERLAY
+   Mindig a DOM-ban van, JS a hidden attribútumot kezeli.
+   Asztali gépen (> 768px) soha nem jelenik meg – 
+   ott a result-box mutatja a sorszámot.
+   ============================================================= */
+.ticket-overlay {
+  /* Alapból el van rejtve (hidden attr + display:none) */
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(10, 10, 14, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Csak mobilon jelenik meg, és csak ha nincs hidden attribútuma */
+@media (max-width: 768px) {
+  .ticket-overlay:not([hidden]) {
+    display: flex;
+    animation: overlay-fade-in 0.3s ease;
+  }
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ticket-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(145deg, #1a1a22 0%, #141418 100%);
+  border: 1px solid #2e2e3e;
+  border-radius: 24px;
+  padding: 40px 32px 32px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(92, 124, 250, 0.15);
+  animation: card-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.8) translateY(20px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);       opacity: 1; }
+}
+
+.ticket-label {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8080a0;
+  text-align: center;
+}
+
+.ticket-number {
+  font-size: clamp(5rem, 28vw, 9rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #748ffc 0%, #4c6ef5 60%, #364fc7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+}
+
+.ticket-city {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #c0c0d8;
+  text-align: center;
+  letter-spacing: 0.02em;
+  min-height: 1.5em;
+}
+
+.ticket-close {
+  margin-top: 8px;
+  padding: 14px 36px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #b0b0c8;
+  background: #22222c;
+  border: 1px solid #32323e;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  /* Nagy tapintási célterület */
+  min-height: 50px;
+}
+
+.ticket-close:hover,
+.ticket-close:focus-visible {
+  background: #2a2a36;
+  color: #f0f0f4;
+  outline: none;
+}

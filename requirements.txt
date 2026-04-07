@@ -1,0 +1,2 @@
+# For bridge.py (Supabase realtime -> plotter G-code)
+supabase>=2.0.0

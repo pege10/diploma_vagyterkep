@@ -24,6 +24,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     kulturaValue: null,
     searchBtn: null,
     resultBox: null,
+    ticketOverlay: null,
+    ticketNumber: null,
+    ticketCity: null,
+    ticketClose: null,
   };
 
   function initElements() {
@@ -34,6 +38,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     elements.kulturaValue = document.getElementById('kultura_szint-value');
     elements.searchBtn = document.getElementById('search-btn');
     elements.resultBox = document.getElementById('result-box');
+    elements.ticketOverlay = document.getElementById('ticket-overlay');
+    elements.ticketNumber = document.getElementById('ticket-number');
+    elements.ticketCity = document.getElementById('ticket-city');
+    elements.ticketClose = document.getElementById('ticket-close');
   }
 
   function initMap() {
@@ -57,6 +65,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function fetchCities() {
+    elements.resultBox.textContent = 'Települések betöltése…';
     try {
       const { data, error } = await supabase
         .from('telepulesek')
@@ -69,6 +78,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
 
       citiesData = Array.isArray(data) ? data : [];
+
+      if (citiesData.length === 0) {
+        elements.resultBox.textContent =
+          'Nincs település az adatbázisban. Ellenőrizd a \'telepulesek\' táblát és az RLS (Row Level Security) szabályokat a Supabase dashboardon.';
+      } else {
+        elements.resultBox.textContent = citiesData.length + ' település betöltve. Állítsd a csúszkákat és kattints a keresésre.';
+      }
     } catch (err) {
       console.error('Fetch error:', err);
       citiesData = [];
@@ -76,6 +92,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
   }
 
+  /**
+   * Find best matching city. Returns { city, finalScore } or null.
+   * finalScore = erdo_diff + kultura_diff (max 200).
+   */
   function findBestMatch(sliderErdo, sliderKultura) {
     if (!citiesData.length) return null;
 
@@ -86,8 +106,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const city = citiesData[i];
       const erdo = Number(city.erdo_szint) || 0;
       const kultura = Number(city.kultura_szint) || 0;
-      const diff =
-        Math.abs(sliderErdo - erdo) + Math.abs(sliderKultura - kultura);
+      const diff = Math.abs(sliderErdo - erdo) + Math.abs(sliderKultura - kultura);
 
       if (diff < minDiff) {
         minDiff = diff;
@@ -95,52 +114,122 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
     }
 
-    return best;
+    if (!best) return null;
+    return { city: best, finalScore: minDiff };
+  }
+
+  /** Convert difference (0 = perfect, max 200) to match percentage 0–100 (100 = perfect). */
+  function diffToMatchPercent(finalScore) {
+    const MAX_DIFF = 200;
+    const percent = 100 - (finalScore / MAX_DIFF) * 100;
+    return Math.round(Math.max(0, Math.min(100, percent)));
   }
 
   function removeWinningMarker() {
     if (winningMarker) {
-      winningMarker.remove();
+      try {
+        winningMarker.remove();
+      } catch (e) {
+        console.warn('Marker remove:', e);
+      }
       winningMarker = null;
     }
   }
 
-  function showResult(winningCity) {
-    elements.resultBox.textContent = 'A te helyed: ' + (winningCity.nev || '–');
+  function showResult(winningCity, matchPercent, ticketId) {
+    const name = winningCity.nev || '–';
+    const percentText = matchPercent != null ? ` – ${matchPercent}% egyezés` : '';
+    const ticketText = ticketId != null ? ` (#${ticketId})` : '';
+    elements.resultBox.textContent = name + percentText + ticketText;
 
     const lng = Number(winningCity.lng);
     const lat = Number(winningCity.lat);
 
-    if (Number.isFinite(lng) && Number.isFinite(lat)) {
-      map.flyTo({
-        center: [lng, lat],
-        zoom: RESULT_ZOOM,
-        duration: 1500,
-        essential: true,
-      });
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
-      removeWinningMarker();
-      winningMarker = new maplibregl.Marker({ color: '#4c6ef5' })
-        .setLngLat([lng, lat])
-        .addTo(map);
+    removeWinningMarker();
+
+    map.flyTo({
+      center: [lng, lat],
+      zoom: RESULT_ZOOM,
+      duration: 1500,
+      essential: true,
+    });
+
+    winningMarker = new maplibregl.Marker({ color: '#4c6ef5' })
+      .setLngLat([lng, lat])
+      .addTo(map);
+  }
+
+  /**
+   * Save the current search result to the 'talalatok' table in Supabase.
+   * egyezes_pontszam = match percentage 0–100 (100 = perfect match).
+   * Returns the inserted row id (ticket number), or null on failure.
+   */
+  async function saveSearchResult(winningCity, erdoErtek, kulturaErtek, egyezesPontszam) {
+    try {
+      const row = {
+        telepules_nev: winningCity.nev ?? null,
+        lat: winningCity.lat ?? null,
+        lng: winningCity.lng ?? null,
+        erdo_ertek: erdoErtek,
+        kultura_ertek: kulturaErtek,
+        egyezes_pontszam: egyezesPontszam != null ? Number(egyezesPontszam) : null,
+      };
+      const { data, error } = await supabase
+        .from('talalatok')
+        .insert(row)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Találat mentése sikertelen:', error.message, error);
+        return null;
+      }
+      console.log('Találat sikeresen mentve a "talalatok" táblába:', row, '→ id:', data?.id);
+      return data?.id ?? null;
+    } catch (err) {
+      console.error('Találat mentése közben hiba:', err);
+      return null;
     }
   }
 
-  function onSearchClick() {
-    const sliderErdo = parseInt(elements.erdoSlider.value, 10) || 0;
-    const sliderKultura = parseInt(elements.kulturaSlider.value, 10) || 0;
+  /** Megmutatja a sorszám overlayt (mobilon CSS-en át látható, desktopon rejtve). */
+  function showTicketOverlay(ticketId, cityName) {
+    if (!elements.ticketOverlay || !elements.ticketNumber) return;
+    elements.ticketNumber.textContent = ticketId != null ? String(ticketId) : '–';
+    if (elements.ticketCity) {
+      elements.ticketCity.textContent = cityName ? cityName : '';
+    }
+    elements.ticketOverlay.removeAttribute('hidden');
+    elements.ticketOverlay.setAttribute('aria-hidden', 'false');
+  }
 
-    const winningCity = findBestMatch(sliderErdo, sliderKultura);
+  /** Elrejti a sorszám overlayt. */
+  function hideTicketOverlay() {
+    if (!elements.ticketOverlay) return;
+    elements.ticketOverlay.setAttribute('hidden', '');
+    elements.ticketOverlay.setAttribute('aria-hidden', 'true');
+  }
 
-    if (winningCity) {
-      showResult(winningCity);
+  async function onSearchClick() {
+    const sliderErdo = parseInt(elements.erdoSlider?.value ?? 50, 10) || 0;
+    const sliderKultura = parseInt(elements.kulturaSlider?.value ?? 50, 10) || 0;
+
+    const result = findBestMatch(sliderErdo, sliderKultura);
+
+    if (result) {
+      const matchPercent = diffToMatchPercent(result.finalScore);
+      const ticketId = await saveSearchResult(result.city, sliderErdo, sliderKultura, matchPercent);
+      showResult(result.city, matchPercent, ticketId);
+      showTicketOverlay(ticketId, result.city.nev);
     } else {
       elements.resultBox.textContent = 'Nincs találat. Töltsd be az adatokat, vagy ellenőrizd a kapcsolatot.';
       removeWinningMarker();
     }
   }
 
-  function init() {
+  async function init() {
     initElements();
     initMap();
     bindSliderDisplay(elements.erdoSlider, elements.erdoValue);
@@ -148,11 +237,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     elements.searchBtn.addEventListener('click', onSearchClick);
 
-    fetchCities();
+    if (elements.ticketClose) {
+      elements.ticketClose.addEventListener('click', hideTicketOverlay);
+    }
+    if (elements.ticketOverlay) {
+      elements.ticketOverlay.addEventListener('click', function (e) {
+        if (e.target === elements.ticketOverlay) hideTicketOverlay();
+      });
+    }
+
+    await fetchCities();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', function () {
+      init();
+    });
   } else {
     init();
   }

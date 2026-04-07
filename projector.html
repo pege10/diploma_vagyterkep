@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projektor – Sorszámok</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: #0a0a0e;
+      color: #f0f0f4;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== Fejléc ===== */
+    .proj-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid #1e1e28;
+      background: #0f0f14;
+    }
+
+    .proj-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #5c7cfa;
+    }
+
+    .proj-status {
+      font-size: 0.85rem;
+      color: #555568;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #40c057;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.offline {
+      background: #fa5252;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ===== Fő terület ===== */
+    .proj-body {
+      display: flex;
+      height: calc(100vh - 65px);
+      overflow: hidden;
+    }
+
+    /* ===== Aktuális (nagy) sorszám ===== */
+    .current-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: radial-gradient(ellipse at center, #12121a 0%, #0a0a0e 70%);
+      border-right: 1px solid #1e1e28;
+    }
+
+    .current-label {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6868a0;
+      margin-bottom: 24px;
+    }
+
+    .current-number {
+      font-size: clamp(8rem, 22vw, 18rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #748ffc 0%, #4c6ef5 50%, #364fc7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  opacity 0.25s ease;
+    }
+
+    .current-number.animate-in {
+      animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes pop-in {
+      0% { transform: scale(0.7); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .current-city {
+      margin-top: 28px;
+      font-size: clamp(1.4rem, 3vw, 2.5rem);
+      font-weight: 600;
+      color: #b0b0c8;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    .current-match {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #5c7cfa;
+      font-weight: 500;
+    }
+
+    /* ===== Oldal lista ===== */
+    .queue-panel {
+      width: 340px;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      background: #0f0f14;
+      overflow: hidden;
+    }
+
+    .queue-header {
+      padding: 20px 24px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #555568;
+      border-bottom: 1px solid #1e1e28;
+    }
+
+    .queue-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .queue-list::-webkit-scrollbar { width: 4px; }
+    .queue-list::-webkit-scrollbar-track { background: transparent; }
+    .queue-list::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 2px; }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      border-bottom: 1px solid #13131a;
+      transition: background 0.2s;
+    }
+
+    .queue-item:hover {
+      background: #13131e;
+    }
+
+    .queue-item.queue-item--new {
+      animation: slide-in 0.4s ease;
+    }
+
+    @keyframes slide-in {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .queue-item-num {
+      font-size: 2rem;
+      font-weight: 800;
+      min-width: 64px;
+      color: #5c7cfa;
+      line-height: 1;
+      text-align: right;
+    }
+
+    .queue-item-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .queue-item-city {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #d0d0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-item-meta {
+      font-size: 0.78rem;
+      color: #606078;
+      margin-top: 2px;
+    }
+
+    .queue-item--current .queue-item-num {
+      background: linear-gradient(135deg, #748ffc, #4c6ef5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .queue-item--current {
+      background: #13131e;
+    }
+
+    /* ===== Üres állapot ===== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #404058;
+      font-size: 1rem;
+      gap: 12px;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+    }
+
+    /* ===== Betöltés ===== */
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #1e1e28;
+      border-top-color: #5c7cfa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="proj-header">
+    <span class="proj-title">HOVA?! – Sorszámok</span>
+    <span class="proj-status">
+      <span id="status-dot" class="status-dot offline"></span>
+      <span id="status-text">Csatlakozás…</span>
+    </span>
+  </header>
+
+  <div class="proj-body">
+
+    <!-- Aktuális nagy sorszám -->
+    <section class="current-panel" aria-label="Aktuális sorszám">
+      <p class="current-label">Aktuális sorszám</p>
+      <div id="current-number" class="current-number">–</div>
+      <div id="current-city" class="current-city"></div>
+      <div id="current-match" class="current-match"></div>
+    </section>
+
+    <!-- Sor lista -->
+    <aside class="queue-panel" aria-label="Előző sorszámok">
+      <div class="queue-header">Legutóbbi találatok</div>
+      <div id="queue-list" class="queue-list">
+        <div class="empty-state">
+          <div class="loading-spinner"></div>
+          <span>Betöltés…</span>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      const SUPABASE_URL = 'https://dubcsyrgrtlzvefxuhni.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1YmNzeXJncnRsenZlZnh1aG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjQ3MTYsImV4cCI6MjA4ODY0MDcxNn0.rldtsMn7LCqtLtfDFPWTM96Ly0EQEm50LhkbTFey0R4';
+
+      const MAX_QUEUE = 20;
+
+      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const els = {
+        currentNumber: document.getElementById('current-number'),
+        currentCity: document.getElementById('current-city'),
+        currentMatch: document.getElementById('current-match'),
+        queueList: document.getElementById('queue-list'),
+        statusDot: document.getElementById('status-dot'),
+        statusText: document.getElementById('status-text'),
+      };
+
+      let entries = [];
+
+      function setStatus(online) {
+        els.statusDot.className = 'status-dot' + (online ? '' : ' offline');
+        els.statusText.textContent = online ? 'Élő kapcsolat' : 'Kapcsolat megszakadt';
+      }
+
+      function formatTime(isoString) {
+        if (!isoString) return '';
+        try {
+          const d = new Date(isoString);
+          return d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function renderCurrent(entry) {
+        if (!entry) {
+          els.currentNumber.textContent = '–';
+          els.currentCity.textContent = '';
+          els.currentMatch.textContent = '';
+          return;
+        }
+        els.currentNumber.textContent = entry.id;
+        els.currentNumber.classList.remove('animate-in');
+        void els.currentNumber.offsetWidth;
+        els.currentNumber.classList.add('animate-in');
+
+        els.currentCity.textContent = entry.telepules_nev || '';
+        els.currentMatch.textContent =
+          entry.egyezes_pontszam != null
+            ? entry.egyezes_pontszam + '% egyezés'
+            : '';
+      }
+
+      function renderQueue() {
+        if (!entries.length) {
+          els.queueList.innerHTML =
+            '<div class="empty-state"><span class="empty-state-icon">🎯</span><span>Még nincs találat</span></div>';
+          return;
+        }
+
+        const html = entries
+          .map((entry, idx) => {
+            const isCurrent = idx === 0;
+            const timeStr = formatTime(entry.created_at);
+            const matchStr =
+              entry.egyezes_pontszam != null
+                ? entry.egyezes_pontszam + '% egyezés'
+                : '';
+            const metaParts = [timeStr, matchStr].filter(Boolean).join(' · ');
+
+            return `<div class="queue-item${isCurrent ? ' queue-item--current' : ''}${entry._isNew ? ' queue-item--new' : ''}" data-id="${entry.id}">
+  <span class="queue-item-num">${entry.id}</span>
+  <div class="queue-item-info">
+    <div class="queue-item-city">${entry.telepules_nev || '–'}</div>
+    ${metaParts ? `<div class="queue-item-meta">${metaParts}</div>` : ''}
+  </div>
+</div>`;
+          })
+          .join('');
+
+        els.queueList.innerHTML = html;
+      }
+
+      function prependEntry(newEntry) {
+        newEntry._isNew = true;
+        entries.unshift(newEntry);
+        if (entries.length > MAX_QUEUE) entries = entries.slice(0, MAX_QUEUE);
+        renderCurrent(entries[0]);
+        renderQueue();
+        setTimeout(() => {
+          const el = els.queueList.querySelector('[data-id="' + newEntry.id + '"]');
+          if (el) el.classList.remove('queue-item--new');
+          newEntry._isNew = false;
+        }, 1000);
+      }
+
+      async function loadInitial() {
+        const { data, error } = await sb
+          .from('talalatok')
+          .select('id, telepules_nev, egyezes_pontszam, created_at')
+          .order('id', { ascending: false })
+          .limit(MAX_QUEUE);
+
+        if (error) {
+          console.error('Kezdeti betöltés sikertelen:', error);
+          els.queueList.innerHTML =
+            '<div class="empty-state"><span>Hiba: nem sikerült betölteni az adatokat.</span></div>';
+          return;
+        }
+
+        entries = (data || []).map((e) => ({ ...e, _isNew: false }));
+        renderCurrent(entries[0] || null);
+        renderQueue();
+      }
+
+      function subscribeRealtime() {
+        sb
+          .channel('projector-talalatok')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'talalatok' },
+            (payload) => {
+              prependEntry({ ...payload.new, _isNew: true });
+            }
+          )
+          .subscribe((status) => {
+            setStatus(status === 'SUBSCRIBED');
+          });
+      }
+
+      async function main() {
+        await loadInitial();
+        subscribeRealtime();
+      }
+
+      main();
+    })();
+  </script>
+</body>
+</html>

@@ -2,8 +2,18 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>HOVA?! - A tökéletes hely</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4c6ef5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Darts">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -34,8 +44,32 @@
 
   <main id="map-container" class="map-container" aria-label="Térkép"></main>
 
+  <!-- Sorszám overlay – csak mobilon látható (CSS dönti el) -->
+  <div id="ticket-overlay" class="ticket-overlay" role="alertdialog" aria-modal="true" aria-label="A te sorszámod" hidden>
+    <div class="ticket-card">
+      <p class="ticket-label">A te sorszámod:</p>
+      <p id="ticket-number" class="ticket-number">–</p>
+      <p id="ticket-city" class="ticket-city"></p>
+      <button type="button" id="ticket-close" class="ticket-close">Bezár ✕</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker
+          .register('/service-worker.js')
+          .then(function (reg) {
+            console.log('Service Worker regisztrálva:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('Service Worker regisztráció sikertelen:', err);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
