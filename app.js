@@ -26,8 +26,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     resultBox: null,
     ticketOverlay: null,
     ticketNumber: null,
-    ticketCity: null,
     ticketClose: null,
+    fullscreenBtn: null,
+    fsIconExpand: null,
+    fsIconCollapse: null,
   };
 
   function initElements() {
@@ -40,8 +42,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     elements.resultBox = document.getElementById('result-box');
     elements.ticketOverlay = document.getElementById('ticket-overlay');
     elements.ticketNumber = document.getElementById('ticket-number');
-    elements.ticketCity = document.getElementById('ticket-city');
     elements.ticketClose = document.getElementById('ticket-close');
+    elements.fullscreenBtn = document.getElementById('fullscreen-btn');
+    elements.fsIconExpand = document.getElementById('fs-icon-expand');
+    elements.fsIconCollapse = document.getElementById('fs-icon-collapse');
   }
 
   function initMap() {
@@ -195,43 +199,49 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   /** Megmutatja a sorszám overlayt (mobilon CSS-en át látható, desktopon rejtve). */
-  function showTicketOverlay(ticketId, cityName) {
+  function showTicketOverlay(ticketId) {
     if (!elements.ticketOverlay || !elements.ticketNumber) return;
     elements.ticketNumber.textContent = ticketId != null ? String(ticketId) : '–';
-    if (elements.ticketCity) {
-      elements.ticketCity.textContent = cityName ? cityName : '';
-    }
     elements.ticketOverlay.removeAttribute('hidden');
     elements.ticketOverlay.setAttribute('aria-hidden', 'false');
-    // Mobilon a result-box-ot elrejtjük, mert az overlay mutatja az eredményt
-    if (elements.resultBox) elements.resultBox.setAttribute('data-ticket-open', '');
   }
 
-  /** Elrejti a sorszám overlayt, és visszaállítja a nézetet (result-box + marker). */
+  /** Elrejti a sorszám overlayt, törli a markert és a result-box szövegét. */
   function hideTicketOverlay() {
     if (!elements.ticketOverlay) return;
     elements.ticketOverlay.setAttribute('hidden', '');
     elements.ticketOverlay.setAttribute('aria-hidden', 'true');
-
-    // Eredményt töröljük – a következő látogató tiszta lappal kezd
-    if (elements.resultBox) {
-      elements.resultBox.textContent = '';
-      elements.resultBox.removeAttribute('data-ticket-open');
-    }
+    if (elements.resultBox) elements.resultBox.textContent = '';
     removeWinningMarker();
   }
 
-  /** Teljes képernyő kérés (Androidon működik, iOS Safariban nem támogatott). */
-  function requestFullscreenIfNeeded() {
+  /** Fullscreen be/ki váltás – a jobb felső gomb hívja. */
+  function toggleFullscreen() {
     const el = document.documentElement;
-    if (document.fullscreenElement) return;
-    try {
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(function () {});
-      } else if (el.webkitRequestFullscreen) {
-        el.webkitRequestFullscreen();
-      }
-    } catch (_) {}
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      try {
+        if (el.requestFullscreen) {
+          el.requestFullscreen().catch(function () {});
+        } else if (el.webkitRequestFullscreen) {
+          el.webkitRequestFullscreen();
+        }
+      } catch (_) {}
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(function () {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      } catch (_) {}
+    }
+  }
+
+  /** Frissíti a fullscreen gomb ikonját az aktuális állapot alapján. */
+  function updateFullscreenIcon() {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (elements.fsIconExpand) elements.fsIconExpand.style.display = isFs ? 'none' : '';
+    if (elements.fsIconCollapse) elements.fsIconCollapse.style.display = isFs ? '' : 'none';
   }
 
   async function onSearchClick() {
@@ -244,7 +254,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const matchPercent = diffToMatchPercent(result.finalScore);
       const ticketId = await saveSearchResult(result.city, sliderErdo, sliderKultura, matchPercent);
       showResult(result.city, matchPercent, ticketId);
-      showTicketOverlay(ticketId, result.city.nev);
+      showTicketOverlay(ticketId);
     } else {
       elements.resultBox.textContent = 'Nincs találat. Töltsd be az adatokat, vagy ellenőrizd a kapcsolatot.';
       removeWinningMarker();
@@ -257,10 +267,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     bindSliderDisplay(elements.erdoSlider, elements.erdoValue);
     bindSliderDisplay(elements.kulturaSlider, elements.kulturaValue);
 
-    elements.searchBtn.addEventListener('click', function () {
-      requestFullscreenIfNeeded();
-      onSearchClick();
-    });
+    elements.searchBtn.addEventListener('click', onSearchClick);
 
     if (elements.ticketClose) {
       elements.ticketClose.addEventListener('click', hideTicketOverlay);
@@ -270,6 +277,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         if (e.target === elements.ticketOverlay) hideTicketOverlay();
       });
     }
+
+    if (elements.fullscreenBtn) {
+      elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+    }
+    document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
 
     await fetchCities();
   }

@@ -253,18 +253,56 @@ body {
 }
 
 /* =============================================================
+   TELJES KÉPERNYŐ GOMB – jobb felső sarok, mindig látható
+   ============================================================= */
+.fullscreen-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 32, 0.85);
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  color: #a0a0b8;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.fullscreen-btn:hover,
+.fullscreen-btn:focus-visible {
+  background: rgba(76, 110, 245, 0.2);
+  border-color: #4c6ef5;
+  color: #748ffc;
+  outline: none;
+}
+
+/* Mobilon MapLibre jobb felső kontrollja ne takarja a gombot */
+@media (max-width: 768px) {
+  .maplibregl-ctrl-top-right {
+    top: 60px;
+    right: 8px;
+  }
+}
+
+/* =============================================================
    SORSZÁM OVERLAY
-   Mindig a DOM-ban van, JS a hidden attribútumot kezeli.
-   Asztali gépen (> 768px) soha nem jelenik meg – 
-   ott a result-box mutatja a sorszámot.
+   JS kezeli a hidden attribútumot. Mobilon jelenik meg,
+   de nem media-query zárja el – a JS dönti el mikor kell.
+   Position:fixed, így minden képernyőméreten lefedi az oldalt.
    ============================================================= */
 .ticket-overlay {
-  /* Alapból el van rejtve (hidden attr + display:none) */
   display: none;
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(10, 10, 14, 0.92);
+  background: rgba(10, 10, 14, 0.93);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   align-items: center;
@@ -272,8 +310,8 @@ body {
   padding: 24px;
 }
 
-/* Csak mobilon jelenik meg, és csak ha nincs hidden attribútuma */
-@media (max-width: 768px) {
+/* Látható állapot: nincs hidden attribútum ÉS mobil képernyő */
+@media (max-width: 900px) {
   .ticket-overlay:not([hidden]) {
     display: flex;
     animation: overlay-fade-in 0.3s ease;
@@ -289,11 +327,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   background: linear-gradient(145deg, #1a1a22 0%, #141418 100%);
   border: 1px solid #2e2e3e;
   border-radius: 24px;
-  padding: 40px 32px 32px;
+  padding: 44px 32px 36px;
   width: 100%;
   max-width: 360px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(92, 124, 250, 0.15);
@@ -326,18 +364,9 @@ body {
   text-align: center;
 }
 
-.ticket-city {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #c0c0d8;
-  text-align: center;
-  letter-spacing: 0.02em;
-  min-height: 1.5em;
-}
-
 .ticket-close {
-  margin-top: 8px;
-  padding: 14px 36px;
+  margin-top: 4px;
+  padding: 14px 40px;
   font-size: 0.95rem;
   font-weight: 600;
   color: #b0b0c8;
@@ -346,8 +375,8 @@ body {
   border-radius: 12px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
-  /* Nagy tapintási célterület */
-  min-height: 50px;
+  min-height: 52px;
+  width: 100%;
 }
 
 .ticket-close:hover,
