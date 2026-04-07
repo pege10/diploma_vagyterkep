@@ -203,13 +203,35 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
     elements.ticketOverlay.removeAttribute('hidden');
     elements.ticketOverlay.setAttribute('aria-hidden', 'false');
+    // Mobilon a result-box-ot elrejtjük, mert az overlay mutatja az eredményt
+    if (elements.resultBox) elements.resultBox.setAttribute('data-ticket-open', '');
   }
 
-  /** Elrejti a sorszám overlayt. */
+  /** Elrejti a sorszám overlayt, és visszaállítja a nézetet (result-box + marker). */
   function hideTicketOverlay() {
     if (!elements.ticketOverlay) return;
     elements.ticketOverlay.setAttribute('hidden', '');
     elements.ticketOverlay.setAttribute('aria-hidden', 'true');
+
+    // Eredményt töröljük – a következő látogató tiszta lappal kezd
+    if (elements.resultBox) {
+      elements.resultBox.textContent = '';
+      elements.resultBox.removeAttribute('data-ticket-open');
+    }
+    removeWinningMarker();
+  }
+
+  /** Teljes képernyő kérés (Androidon működik, iOS Safariban nem támogatott). */
+  function requestFullscreenIfNeeded() {
+    const el = document.documentElement;
+    if (document.fullscreenElement) return;
+    try {
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(function () {});
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      }
+    } catch (_) {}
   }
 
   async function onSearchClick() {
@@ -235,7 +257,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     bindSliderDisplay(elements.erdoSlider, elements.erdoValue);
     bindSliderDisplay(elements.kulturaSlider, elements.kulturaValue);
 
-    elements.searchBtn.addEventListener('click', onSearchClick);
+    elements.searchBtn.addEventListener('click', function () {
+      requestFullscreenIfNeeded();
+      onSearchClick();
+    });
 
     if (elements.ticketClose) {
       elements.ticketClose.addEventListener('click', hideTicketOverlay);
