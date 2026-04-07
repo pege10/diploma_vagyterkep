@@ -27,9 +27,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     ticketOverlay: null,
     ticketNumber: null,
     ticketClose: null,
-    fullscreenBtn: null,
-    fsIconExpand: null,
-    fsIconCollapse: null,
+    startOverlay: null,
   };
 
   function initElements() {
@@ -43,9 +41,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     elements.ticketOverlay = document.getElementById('ticket-overlay');
     elements.ticketNumber = document.getElementById('ticket-number');
     elements.ticketClose = document.getElementById('ticket-close');
-    elements.fullscreenBtn = document.getElementById('fullscreen-btn');
-    elements.fsIconExpand = document.getElementById('fs-icon-expand');
-    elements.fsIconCollapse = document.getElementById('fs-icon-collapse');
+    elements.startOverlay = document.getElementById('start-overlay');
   }
 
   function initMap() {
@@ -215,33 +211,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     removeWinningMarker();
   }
 
-  /** Fullscreen be/ki váltás – a jobb felső gomb hívja. */
-  function toggleFullscreen() {
+  /** Fullscreen kérés (csak mobilon hívódik, user gesture-ből). */
+  function requestFullscreen() {
     const el = document.documentElement;
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      try {
-        if (el.requestFullscreen) {
-          el.requestFullscreen().catch(function () {});
-        } else if (el.webkitRequestFullscreen) {
-          el.webkitRequestFullscreen();
-        }
-      } catch (_) {}
-    } else {
-      try {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(function () {});
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
-      } catch (_) {}
-    }
+    try {
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(function () {});
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      }
+    } catch (_) {}
   }
 
-  /** Frissíti a fullscreen gomb ikonját az aktuális állapot alapján. */
-  function updateFullscreenIcon() {
-    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    if (elements.fsIconExpand) elements.fsIconExpand.style.display = isFs ? 'none' : '';
-    if (elements.fsIconCollapse) elements.fsIconCollapse.style.display = isFs ? '' : 'none';
+  /** Indítóképernyő elrejtése – koppintásra fullscreen + fade out. */
+  function dismissStartOverlay() {
+    if (!elements.startOverlay) return;
+    requestFullscreen();
+    elements.startOverlay.classList.add('start-overlay--hidden');
+    elements.startOverlay.addEventListener('transitionend', function () {
+      elements.startOverlay.remove();
+    }, { once: true });
   }
 
   async function onSearchClick() {
@@ -278,11 +267,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       });
     }
 
-    if (elements.fullscreenBtn) {
-      elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+    if (elements.startOverlay) {
+      elements.startOverlay.addEventListener('click', dismissStartOverlay);
     }
-    document.addEventListener('fullscreenchange', updateFullscreenIcon);
-    document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
 
     await fetchCities();
   }

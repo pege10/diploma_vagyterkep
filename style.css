@@ -253,42 +253,78 @@ body {
 }
 
 /* =============================================================
-   TELJES KÉPERNYŐ GOMB – jobb felső sarok, mindig látható
+   INDÍTÓKÉPERNYŐ – csak mobilon jelenik meg
+   Koppintásra fullscreen + fade out animáció.
    ============================================================= */
-.fullscreen-btn {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 500;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(26, 26, 32, 0.85);
-  border: 1px solid #2a2a3a;
-  border-radius: 10px;
-  color: #a0a0b8;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+.start-overlay {
+  display: none; /* desktopon nem jelenik meg */
 }
 
-.fullscreen-btn:hover,
-.fullscreen-btn:focus-visible {
-  background: rgba(76, 110, 245, 0.2);
-  border-color: #4c6ef5;
-  color: #748ffc;
-  outline: none;
-}
-
-/* Mobilon MapLibre jobb felső kontrollja ne takarja a gombot */
-@media (max-width: 768px) {
-  .maplibregl-ctrl-top-right {
-    top: 60px;
-    right: 8px;
+@media (max-width: 900px) {
+  .start-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #0a0a0e;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: opacity 0.5s ease;
   }
+
+  .start-overlay--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.start-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 32px;
+}
+
+.start-title {
+  font-size: clamp(3.5rem, 16vw, 6rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(135deg, #748ffc 0%, #4c6ef5 60%, #364fc7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.start-subtitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #606078;
+  letter-spacing: 0.04em;
+}
+
+.start-tap-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 48px;
+  color: #404058;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  animation: hint-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.4; transform: translateY(0); }
+  50%       { opacity: 1;   transform: translateY(-4px); }
 }
 
 /* =============================================================
@@ -341,15 +377,6 @@ body {
 @keyframes card-pop {
   from { transform: scale(0.8) translateY(20px); opacity: 0; }
   to   { transform: scale(1) translateY(0);       opacity: 1; }
-}
-
-.ticket-label {
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #8080a0;
-  text-align: center;
 }
 
 .ticket-number {

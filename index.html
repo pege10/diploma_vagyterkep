@@ -46,22 +46,23 @@
 
   <main id="map-container" class="map-container" aria-label="Térkép"></main>
 
-  <!-- Teljes képernyő gomb – jobb felső sarok -->
-  <button type="button" id="fullscreen-btn" class="fullscreen-btn" title="Teljes képernyő">
-    <svg id="fs-icon-expand" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
-      <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-    </svg>
-    <svg id="fs-icon-collapse" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-      <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
-      <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
-    </svg>
-  </button>
+  <!-- Indítóképernyő – csak mobilon látható, koppintásra fullscreen + eltűnik -->
+  <div id="start-overlay" class="start-overlay">
+    <div class="start-content">
+      <p class="start-title">HOVA?!</p>
+      <p class="start-subtitle">A tökéletes hely</p>
+      <div class="start-tap-hint">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 8 16 8"/>
+        </svg>
+        <span>Koppints az indításhoz</span>
+      </div>
+    </div>
+  </div>
 
   <!-- Sorszám overlay – csak mobilon látható (CSS dönti el) -->
   <div id="ticket-overlay" class="ticket-overlay" role="alertdialog" aria-modal="true" aria-label="A te sorszámod" hidden>
     <div class="ticket-card">
-      <p class="ticket-label">A te sorszámod:</p>
       <p id="ticket-number" class="ticket-number">–</p>
       <button type="button" id="ticket-close" class="ticket-close">Bezár ✕</button>
     </div>
