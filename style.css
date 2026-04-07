@@ -165,39 +165,50 @@ body {
 }
 
 /* =============================================================
-   MOBIL APP-SZERŰ ELRENDEZÉS (≤ 768 px)
-   Az asztali elrendezés (sidebar bal oldalt, térkép jobbra)
-   változatlan marad. Mobilon a sidebar alulra kerül.
+   MOBIL APP-SZERŰ ELRENDEZÉS
+   Csak érintőképernyős eszközökön (telefon, tablet) aktiválódik.
+   pointer: coarse = ujjal vezérelt eszköz → soha nem aktiválódik
+   desktop egér/trackpad esetén (pointer: fine).
    ============================================================= */
-@media (max-width: 768px) {
+@media (pointer: coarse) {
   body {
-    flex-direction: column;
+    display: block;
     overflow: hidden;
-    /* Safe area iPhone X+ notch/home bar */
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* A sidebar fix panel az oldal alján */
+  /* Térkép: teljes képernyő, a sidebar fölé nyúlik */
+  .map-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Sidebar: fix panel az oldal alján, a térkép fölé rétegelve */
   .sidebar {
-    order: 2;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
     min-width: unset;
     height: auto;
-    max-height: 46vh;
+    max-height: 48vh;
     overflow-y: auto;
-    /* Saját scroll, nem az egész oldal */
     -webkit-overflow-scrolling: touch;
     border-right: none;
     border-top: 1px solid #2a2a32;
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
     gap: 12px;
-    /* Kis frosted glass hatás */
-    background: linear-gradient(0deg, #141418 0%, rgba(26, 26, 32, 0.97) 100%);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: linear-gradient(0deg, #141418 0%, rgba(20, 20, 24, 0.98) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    z-index: 50;
   }
 
-  /* Cím mobilon kisebb, kevesebb helyet foglal */
   .sidebar-title {
     font-size: 1rem;
     padding-bottom: 6px;
@@ -216,19 +227,17 @@ body {
   }
 
   .slider::-webkit-slider-thumb {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
   }
 
-  /* Gomb: fix a panel alján, könnyen elérhető hüvelykujjal */
   .search-btn {
     width: 100%;
     padding: 16px 20px;
     font-size: 1.05rem;
     margin-top: 4px;
     border-radius: 12px;
-    /* Kicsit nagyobb tapintási célterület */
-    min-height: 52px;
+    min-height: 54px;
   }
 
   .result-box {
@@ -237,34 +246,32 @@ body {
     min-height: 38px;
   }
 
-  /* A térkép a fennmaradó helyet tölti ki */
-  .map-container {
-    order: 1;
-    flex: 1;
-    height: 0;          /* fontos: flex-grow számít, nem a statikus magasság */
-    min-height: 0;
-  }
-
-  /* MapLibre vezérlők ne fedjék el a tartalmat */
-  .maplibregl-ctrl-top-right {
-    top: 8px;
-    right: 8px;
+  /* MapLibre zoom gombok ne essenek a sidebar mögé */
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: 52vh;
   }
 }
 
 /* =============================================================
-   INDÍTÓKÉPERNYŐ – csak mobilon jelenik meg
-   Koppintásra fullscreen + fade out animáció.
+   INDÍTÓKÉPERNYŐ
+   Csak érintőképernyős eszközökön jelenik meg (pointer: coarse).
+   Desktoplon (pointer: fine) soha nem látható, nincs hatása.
    ============================================================= */
 .start-overlay {
-  display: none; /* desktopon nem jelenik meg */
+  display: none;
 }
 
-@media (max-width: 900px) {
+@media (pointer: coarse) {
   .start-overlay {
     display: flex;
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
     z-index: 10000;
     background: #0a0a0e;
     align-items: center;
@@ -273,10 +280,11 @@ body {
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    transition: opacity 0.5s ease;
+    opacity: 1;
+    transition: opacity 0.45s ease;
   }
 
-  .start-overlay--hidden {
+  .start-overlay.start-overlay--hidden {
     opacity: 0;
     pointer-events: none;
   }
@@ -346,8 +354,8 @@ body {
   padding: 24px;
 }
 
-/* Látható állapot: nincs hidden attribútum ÉS mobil képernyő */
-@media (max-width: 900px) {
+/* Látható állapot: nincs hidden attribútum ÉS érintőképernyős eszköz */
+@media (pointer: coarse) {
   .ticket-overlay:not([hidden]) {
     display: flex;
     animation: overlay-fade-in 0.3s ease;

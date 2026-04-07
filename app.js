@@ -226,11 +226,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   /** Indítóképernyő elrejtése – koppintásra fullscreen + fade out. */
   function dismissStartOverlay() {
     if (!elements.startOverlay) return;
+
+    // Fullscreen kérés a user gesture kontextusában
     requestFullscreen();
+
+    // Fade out CSS transition-nel
     elements.startOverlay.classList.add('start-overlay--hidden');
-    elements.startOverlay.addEventListener('transitionend', function () {
-      elements.startOverlay.remove();
-    }, { once: true });
+
+    // Overlay eltávolítása 500ms után (transition vége után) – setTimeout
+    // megbízhatóbb mint transitionend, mert az néha nem sül el mobilon.
+    setTimeout(function () {
+      if (elements.startOverlay) {
+        elements.startOverlay.style.display = 'none';
+      }
+      // MapLibre újraméretezés, ha fullscreen miatt változott a viewport
+      if (map) {
+        map.resize();
+      }
+    }, 500);
   }
 
   async function onSearchClick() {
@@ -270,6 +283,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if (elements.startOverlay) {
       elements.startOverlay.addEventListener('click', dismissStartOverlay);
     }
+
+    // Fullscreen/viewport váltáskor MapLibre újraméretezés
+    document.addEventListener('fullscreenchange', function () {
+      if (map) setTimeout(function () { map.resize(); }, 100);
+    });
+    document.addEventListener('webkitfullscreenchange', function () {
+      if (map) setTimeout(function () { map.resize(); }, 100);
+    });
+    window.addEventListener('resize', function () {
+      if (map) map.resize();
+    });
 
     await fetchCities();
   }
