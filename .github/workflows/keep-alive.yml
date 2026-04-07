@@ -1,0 +1,31 @@
+name: Supabase Keep-Alive Ping
+
+# Minden 4. nap fut le éjjel 3:00-kor (UTC),
+# így a 7 napos inaktivitási küszöb sosem telik le.
+on:
+  schedule:
+    - cron: '0 3 */4 * *'
+  # Kézi indítás is lehetséges a GitHub Actions fülről
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase REST API ping (telepulesek tábla)
+        run: |
+          HTTP_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            --max-time 15 \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            "https://dubcsyrgrtlzvefxuhni.supabase.co/rest/v1/telepulesek?select=id&limit=1")
+
+          echo "HTTP státusz: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Supabase él és válaszol."
+          else
+            echo "Figyelem: Supabase $HTTP_STATUS státuszt adott vissza."
+            exit 1
+          fi
