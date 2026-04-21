@@ -1,8 +1,11 @@
 (function () {
   'use strict';
 
-  const GEOJSON_URL =
-    '/data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.geojson';
+  /** Relatív útvonal: GitHub Pages almappában (/repo/) a `/data/...` a host gyökerére mutatna és 404 lenne. */
+  const GEOJSON_URL = new URL(
+    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.geojson',
+    window.location.href
+  ).href;
 
   // --- Supabase config (replace with your project values) ---
   const SUPABASE_URL = 'https://dubcsyrgrtlzvefxuhni.supabase.co';

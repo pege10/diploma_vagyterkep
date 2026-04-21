@@ -4,13 +4,13 @@
    dinamikus Supabase API hívásokra.
    ========================================================== */
 
-const CACHE_NAME = 'darts-cache-v9';
+const CACHE_NAME = 'darts-cache-v10';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=9',
-  '/app.js?v=9',
+  '/style.css?v=10',
+  '/app.js?v=10',
   '/manifest.json',
 ];
 
