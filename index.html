@@ -19,7 +19,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -34,6 +34,10 @@
           <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
         </button>
       </div>
+      <div class="ref-city-row">
+        <input type="text" id="erdo-ref-city" class="ref-city-input" placeholder="vagy írd be a település nevét…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Referencia település neve (erdei magány)">
+        <button type="button" id="erdo-ref-apply" class="ref-city-apply">Alkalmaz</button>
+      </div>
       <p id="erdo-ref-line" class="ref-line" hidden></p>
       <div class="slider-row">
         <input type="range" id="erdo_szint" class="slider" min="0" max="100" value="50">
@@ -47,6 +51,10 @@
         <button type="button" id="pick-kultura-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település kijelölése a térképen (kultúra)" title="Térképen">
           <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
         </button>
+      </div>
+      <div class="ref-city-row">
+        <input type="text" id="kultura-ref-city" class="ref-city-input" placeholder="vagy írd be a település nevét…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Referencia település neve (kulturális pezsgés)">
+        <button type="button" id="kultura-ref-apply" class="ref-city-apply">Alkalmaz</button>
       </div>
       <p id="kultura-ref-line" class="ref-line" hidden></p>
       <div class="slider-row">
@@ -94,7 +102,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

@@ -55,6 +55,10 @@
     mapPickingBanner: null,
     mapPickingBannerText: null,
     mapPickingCancel: null,
+    erdoRefCity: null,
+    erdoRefApply: null,
+    kulturaRefCity: null,
+    kulturaRefApply: null,
   };
 
   function initElements() {
@@ -75,6 +79,10 @@
     elements.mapPickingBanner = document.getElementById('map-picking-banner');
     elements.mapPickingBannerText = document.getElementById('map-picking-banner-text');
     elements.mapPickingCancel = document.getElementById('map-picking-cancel');
+    elements.erdoRefCity = document.getElementById('erdo-ref-city');
+    elements.erdoRefApply = document.getElementById('erdo-ref-apply');
+    elements.kulturaRefCity = document.getElementById('kultura-ref-city');
+    elements.kulturaRefApply = document.getElementById('kultura-ref-apply');
   }
 
   function initMap() {
@@ -113,6 +121,73 @@
       if (!c || !c.nev) continue;
       cityByNormName.set(normalizeSettlementName(String(c.nev)), c);
     }
+  }
+
+  /**
+   * Szabad szavas településnév → táblabeli sor. Pontos egyezés, majd „eleje egyezik”,
+   * egyébként „tartalmazza”; több találatnál felsorolás.
+   */
+  function findCityByTypedQuery(raw) {
+    const q = normalizeSettlementName(String(raw || ''));
+    if (!q.length) {
+      return { ok: false, message: 'Írj be egy településnevet.' };
+    }
+
+    const exact = cityByNormName.get(q);
+    if (exact) return { ok: true, city: exact };
+
+    const matches = [];
+    for (let i = 0; i < citiesData.length; i++) {
+      const c = citiesData[i];
+      const n = normalizeSettlementName(String(c.nev || ''));
+      if (!n.length) continue;
+      if (n.indexOf(q) === 0) {
+        matches.push({ c: c, w: 0 });
+      } else if (n.indexOf(q) !== -1) {
+        matches.push({ c: c, w: 1 });
+      }
+    }
+
+    if (matches.length === 0) {
+      return { ok: false, message: 'Nincs ilyen település az adatbázisban.' };
+    }
+
+    matches.sort(function (a, b) {
+      if (a.w !== b.w) return a.w - b.w;
+      return String(a.c.nev).length - String(b.c.nev).length;
+    });
+
+    const starts = matches.filter(function (m) {
+      return m.w === 0;
+    });
+    if (starts.length === 1) return { ok: true, city: starts[0].c };
+    if (starts.length > 1) {
+      const names = starts
+        .slice(0, 5)
+        .map(function (m) {
+          return m.c.nev;
+        })
+        .join(', ');
+      return {
+        ok: false,
+        message: 'Több találat — pontosíts vagy válassz a listából: ' + names,
+      };
+    }
+
+    const contains = matches.filter(function (m) {
+      return m.w === 1;
+    });
+    if (contains.length === 1) return { ok: true, city: contains[0].c };
+    const names2 = contains
+      .slice(0, 5)
+      .map(function (m) {
+        return m.c.nev;
+      })
+      .join(', ');
+    return {
+      ok: false,
+      message: 'Több találat — pontosíts: ' + names2,
+    };
   }
 
   function ringBBox(ring) {
@@ -319,6 +394,93 @@
       .addTo(map);
   }
 
+  /**
+   * @param {'erdo'|'kultura'} param
+   * @param {object} city — Supabase település sor
+   * @param {{ lng: number, lat: number } | null} clickLngLat — térképes kattintás; egyébként city lat/lng
+   */
+  function applyReferenceFromDbCity(param, city, clickLngLat) {
+    const erdoVal = Math.max(0, Math.min(100, Math.round(Number(city.erdo_szint) || 0)));
+    const kultVal = Math.max(0, Math.min(100, Math.round(Number(city.kultura_szint) || 0)));
+    const displayName = city.nev || '–';
+
+    let lng = clickLngLat && Number.isFinite(clickLngLat.lng) ? clickLngLat.lng : Number(city.lng);
+    let lat = clickLngLat && Number.isFinite(clickLngLat.lat) ? clickLngLat.lat : Number(city.lat);
+    const hasCoords = Number.isFinite(lng) && Number.isFinite(lat);
+
+    if (param === 'erdo') {
+      if (elements.erdoSlider) {
+        elements.erdoSlider.value = String(erdoVal);
+        elements.erdoSlider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (elements.erdoRefLine) {
+        elements.erdoRefLine.hidden = false;
+        elements.erdoRefLine.classList.remove('ref-line--warn');
+        elements.erdoRefLine.textContent =
+          'Referencia: ' +
+          displayName +
+          ' — erdei magány (táblázat): ' +
+          erdoVal +
+          '. Finomítás a csúszkával.';
+      }
+      if (hasCoords) setRefMarker('erdo', lng, lat);
+      else removeRefMarker('erdo');
+    } else {
+      if (elements.kulturaSlider) {
+        elements.kulturaSlider.value = String(kultVal);
+        elements.kulturaSlider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (elements.kulturaRefLine) {
+        elements.kulturaRefLine.hidden = false;
+        elements.kulturaRefLine.classList.remove('ref-line--warn');
+        elements.kulturaRefLine.textContent =
+          'Referencia: ' +
+          displayName +
+          ' — kulturális pezsgés (táblázat): ' +
+          kultVal +
+          '. Finomítás a csúszkával.';
+      }
+      if (hasCoords) setRefMarker('kultura', lng, lat);
+      else removeRefMarker('kultura');
+    }
+
+    if (map && hasCoords) {
+      map.flyTo({
+        center: [lng, lat],
+        zoom: Math.max(map.getZoom(), 10),
+        duration: 900,
+        essential: true,
+      });
+    }
+  }
+
+  function applyTypedReference(param) {
+    const input = param === 'erdo' ? elements.erdoRefCity : elements.kulturaRefCity;
+    const line = param === 'erdo' ? elements.erdoRefLine : elements.kulturaRefLine;
+    if (!input) return;
+
+    if (!citiesData.length) {
+      if (line) {
+        line.hidden = false;
+        line.classList.add('ref-line--warn');
+        line.textContent = 'Előbb töltsd be a település-adatbázist.';
+      }
+      return;
+    }
+
+    const result = findCityByTypedQuery(input.value);
+    if (!result.ok) {
+      if (line) {
+        line.hidden = false;
+        line.classList.add('ref-line--warn');
+        line.textContent = result.message;
+      }
+      return;
+    }
+
+    applyReferenceFromDbCity(param, result.city, null);
+  }
+
   function updatePickButtonActive() {
     const eActive = pickMode === 'erdo';
     const kActive = pickMode === 'kultura';
@@ -379,51 +541,7 @@
       return;
     }
 
-    const erdoVal = Math.max(0, Math.min(100, Math.round(Number(city.erdo_szint) || 0)));
-    const kultVal = Math.max(0, Math.min(100, Math.round(Number(city.kultura_szint) || 0)));
-    const displayName = city.nev || settlementName;
-
-    if (param === 'erdo') {
-      if (elements.erdoSlider) {
-        elements.erdoSlider.value = String(erdoVal);
-        elements.erdoSlider.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      if (elements.erdoRefLine) {
-        elements.erdoRefLine.hidden = false;
-        elements.erdoRefLine.classList.remove('ref-line--warn');
-        elements.erdoRefLine.textContent =
-          'Referencia: ' +
-          displayName +
-          ' — erdei magány (táblázat): ' +
-          erdoVal +
-          '. Finomítás a csúszkával.';
-      }
-      setRefMarker('erdo', lng, lat);
-    } else {
-      if (elements.kulturaSlider) {
-        elements.kulturaSlider.value = String(kultVal);
-        elements.kulturaSlider.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      if (elements.kulturaRefLine) {
-        elements.kulturaRefLine.hidden = false;
-        elements.kulturaRefLine.classList.remove('ref-line--warn');
-        elements.kulturaRefLine.textContent =
-          'Referencia: ' +
-          displayName +
-          ' — kulturális pezsgés (táblázat): ' +
-          kultVal +
-          '. Finomítás a csúszkával.';
-      }
-      setRefMarker('kultura', lng, lat);
-    }
-
-    map.flyTo({
-      center: [lng, lat],
-      zoom: Math.max(map.getZoom(), 10),
-      duration: 900,
-      essential: true,
-    });
-
+    applyReferenceFromDbCity(param, city, { lng: lng, lat: lat });
     endPick();
   }
 
@@ -505,7 +623,7 @@
       } else {
         elements.resultBox.textContent =
           citiesData.length +
-          ' település betöltve. Állítsd a csúszkákat, kérhetsz referenciát a 📍 gombbal, majd keresés.';
+          ' település betöltve. Referencia: írd be a nevet (Alkalmaz / Enter), vagy 📍 a térképen; majd keresés.';
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -698,6 +816,34 @@
         startPick('kultura');
       });
     }
+
+    if (elements.erdoRefApply) {
+      elements.erdoRefApply.addEventListener('click', function () {
+        applyTypedReference('erdo');
+      });
+    }
+    if (elements.erdoRefCity) {
+      elements.erdoRefCity.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyTypedReference('erdo');
+        }
+      });
+    }
+    if (elements.kulturaRefApply) {
+      elements.kulturaRefApply.addEventListener('click', function () {
+        applyTypedReference('kultura');
+      });
+    }
+    if (elements.kulturaRefCity) {
+      elements.kulturaRefCity.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyTypedReference('kultura');
+        }
+      });
+    }
+
     if (elements.mapPickingCancel) {
       elements.mapPickingCancel.addEventListener('click', function () {
         endPick();

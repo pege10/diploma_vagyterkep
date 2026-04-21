@@ -196,6 +196,58 @@ body {
   background: rgba(0, 0, 0, 0.06);
 }
 
+.ref-city-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ref-city-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: var(--font-app);
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  outline: none;
+}
+
+.ref-city-input::placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.ref-city-input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+
+.ref-city-apply {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-family: var(--font-app);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ref-city-apply:hover,
+.ref-city-apply:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  outline: none;
+}
+
 .map-picking-banner {
   position: fixed;
   left: 0;
