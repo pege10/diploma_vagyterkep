@@ -105,10 +105,33 @@
     update();
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str == null ? '' : String(str);
-    return div.innerHTML;
+  function buildRefLabelEl(labelText) {
+    const wrap = document.createElement('div');
+    wrap.className = 'map-ref-marker';
+    const span = document.createElement('span');
+    span.className = 'map-ref-marker__label';
+    span.textContent = labelText;
+    wrap.appendChild(span);
+    return wrap;
+  }
+
+  function buildWinningCardEl(cityName) {
+    const wrap = document.createElement('div');
+    wrap.className = 'map-win-marker';
+    wrap.setAttribute('role', 'img');
+    wrap.setAttribute('aria-label', 'Tökéletes hely: ' + (cityName || ''));
+    const stack = document.createElement('div');
+    stack.className = 'map-win-marker__stack';
+    const title = document.createElement('span');
+    title.className = 'map-win-marker__title';
+    title.textContent = 'Tökéletes hely';
+    const city = document.createElement('span');
+    city.className = 'map-win-marker__city';
+    city.textContent = cityName || '–';
+    stack.appendChild(title);
+    stack.appendChild(city);
+    wrap.appendChild(stack);
+    return wrap;
   }
 
   function normalizeSettlementName(s) {
@@ -381,36 +404,32 @@
   }
 
   function removeRefMarker(which) {
-    const m = refMarkers[which];
-    if (m) {
-      try {
-        m.remove();
-      } catch (e) {
-        console.warn('Ref marker remove:', e);
-      }
-      refMarkers[which] = null;
+    const pair = refMarkers[which];
+    if (!pair) return;
+    try {
+      if (pair.pin) pair.pin.remove();
+      if (pair.label) pair.label.remove();
+    } catch (e) {
+      console.warn('Ref marker remove:', e);
     }
+    refMarkers[which] = null;
   }
 
   function setRefMarker(which, lng, lat) {
     removeRefMarker(which);
     if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
-    const label = which === 'erdo' ? 'Erdei magány' : 'Kulturális pezsgés';
-    const marker = new maplibregl.Marker({ color: '#0a0a0a', scale: 1 })
+    const labelText = which === 'erdo' ? 'Erdei magány' : 'Kulturális pezsgés';
+    const pinMarker = new maplibregl.Marker({ color: '#0a0a0a', scale: 1 })
       .setLngLat([lng, lat])
       .addTo(map);
-    const popup = new maplibregl.Popup({
-      offset: [0, -40],
-      closeButton: false,
-      closeOnClick: false,
-      maxWidth: '220px',
-      className: 'hse-marker-popup hse-marker-popup--ref',
-    }).setHTML(
-      '<div class="map-marker-popup-label">' + escapeHtml(label) + '</div>'
-    );
-    marker.setPopup(popup);
-    marker.togglePopup();
-    refMarkers[which] = marker;
+    const labelMarker = new maplibregl.Marker({
+      element: buildRefLabelEl(labelText),
+      anchor: 'bottom',
+      offset: [0, -48],
+    })
+      .setLngLat([lng, lat])
+      .addTo(map);
+    refMarkers[which] = { pin: pinMarker, label: labelMarker };
   }
 
   /**
@@ -693,14 +712,14 @@
   }
 
   function removeWinningMarker() {
-    if (winningMarker) {
-      try {
-        winningMarker.remove();
-      } catch (e) {
-        console.warn('Marker remove:', e);
-      }
-      winningMarker = null;
+    if (!winningMarker) return;
+    try {
+      if (winningMarker.pin) winningMarker.pin.remove();
+      if (winningMarker.card) winningMarker.card.remove();
+    } catch (e) {
+      console.warn('Marker remove:', e);
     }
+    winningMarker = null;
   }
 
   function showResult(winningCity, matchPercent, ticketId) {
@@ -714,8 +733,6 @@
 
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
-    removeRefMarker('erdo');
-    removeRefMarker('kultura');
     removeWinningMarker();
 
     map.flyTo({
@@ -725,27 +742,18 @@
       essential: true,
     });
 
-    winningMarker = new maplibregl.Marker({
-      color: '#d81515',
-      scale: 1.35,
+    const pinMarker = new maplibregl.Marker({ color: '#d81515', scale: 1.35 })
+      .setLngLat([lng, lat])
+      .addTo(map);
+    const cardMarker = new maplibregl.Marker({
+      element: buildWinningCardEl(name),
+      anchor: 'bottom',
+      offset: [0, -58],
     })
       .setLngLat([lng, lat])
       .addTo(map);
 
-    const winPopup = new maplibregl.Popup({
-      offset: [0, -52],
-      closeButton: false,
-      closeOnClick: false,
-      maxWidth: '260px',
-      className: 'hse-marker-popup hse-marker-popup--win',
-    }).setHTML(
-      '<div class="map-marker-popup-win">' +
-      '<strong>Tökéletes hely</strong><br>' +
-      escapeHtml(name) +
-      '</div>'
-    );
-    winningMarker.setPopup(winPopup);
-    winningMarker.togglePopup();
+    winningMarker = { pin: pinMarker, card: cardMarker };
   }
 
   /**
