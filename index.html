@@ -3,29 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>HOVA?! - A tökéletes hely</title>
+  <title>Holistic Search Engine</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <!-- Sötét szín: az Android Chrome sáv beleolvad a designba -->
   <meta name="theme-color" content="#111111">
-  <meta name="description" content="HOVA?! — A tökéletes magyarországi település keresője erdei magány és kulturális pezsgés alapján." />
+  <meta name="description" content="Holistic Search Engine — magyarországi település kereső erdei magány és kulturális pezsgés alapján." />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- black-translucent: iOS-on a status bar átlátszó, az app tartalom alatta folytatódik -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Darts">
+  <meta name="apple-mobile-web-app-title" content="Holistic Search">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
   <aside class="sidebar">
-    <h1 class="sidebar-title">HOVA?! - A tökéletes hely</h1>
+    <h1 class="sidebar-title">Holistic Search Engine</h1>
 
     <div class="control-group">
       <label for="erdo_szint" class="control-label">Erdei magány</label>
@@ -53,8 +53,8 @@
   <!-- Indítóképernyő – csak mobilon látható, koppintásra fullscreen + eltűnik -->
   <div id="start-overlay" class="start-overlay">
     <div class="start-content">
-      <p class="start-title">HOVA?!</p>
-      <p class="start-subtitle">A tökéletes hely</p>
+      <p class="start-title">Holistic Search Engine</p>
+      <p class="start-subtitle">Magyarországi település kereső</p>
       <div class="start-tap-hint">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 8 16 8"/>
@@ -74,7 +74,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

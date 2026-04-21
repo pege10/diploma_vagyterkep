@@ -1,7 +1,7 @@
 {
-  "name": "Darts Projekt",
-  "short_name": "Darts",
-  "description": "HOVA?! – A tökéletes hely keresője",
+  "name": "Holistic Search Engine",
+  "short_name": "Holistic",
+  "description": "Holistic Search Engine — település kereső",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

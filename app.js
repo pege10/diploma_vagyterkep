@@ -230,6 +230,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     // Fullscreen kérés a user gesture kontextusában
     requestFullscreen();
 
+    // Mobil játék nézet: térkép rejtve, csak a vezérlőpanel (CSS: html.app-started)
+    document.documentElement.classList.add('app-started');
+
     // Fade out CSS transition-nel
     elements.startOverlay.classList.add('start-overlay--hidden');
 
