@@ -1,9 +1,13 @@
 (function () {
   'use strict';
 
-  /** Relatív útvonal: GitHub Pages almappában (/repo/) a `/data/...` a host gyökerére mutatna és 404 lenne. */
-  const GEOJSON_URL = new URL(
-    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.geojson',
+  /**
+   * Település-határok: `fetch()` a file:// protokollnál (dupla kattintásos index.html) böngészőben
+   * blokkolva van — ezért a JSON egy .js bundle-ben töltődik (window.__…), ami file:// alatt is működik.
+   * HTTP(S) és GitHub Pages alatt is ugyanez a fájl (new URL relatív az oldalhoz).
+   */
+  const BUNDLE_SCRIPT_SRC = new URL(
+    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js',
     window.location.href
   ).href;
 
@@ -222,23 +226,62 @@
     return null;
   }
 
+  function loadSettlementBoundariesScript() {
+    return new Promise(function (resolve, reject) {
+      if (window.__HSE_SETTLEMENT_BOUNDARIES) {
+        var pre = window.__HSE_SETTLEMENT_BOUNDARIES;
+        delete window.__HSE_SETTLEMENT_BOUNDARIES;
+        resolve(pre);
+        return;
+      }
+      var scriptId = 'hse-settlement-boundaries-bundle';
+      if (document.getElementById(scriptId)) {
+        reject(new Error('Település-határ script már töltődik.'));
+        return;
+      }
+      var s = document.createElement('script');
+      s.id = scriptId;
+      s.async = true;
+      s.src = BUNDLE_SCRIPT_SRC;
+      s.onload = function () {
+        var gj = window.__HSE_SETTLEMENT_BOUNDARIES;
+        delete window.__HSE_SETTLEMENT_BOUNDARIES;
+        if (!gj || gj.type !== 'FeatureCollection') {
+          var bad = document.getElementById(scriptId);
+          if (bad) bad.remove();
+          reject(new Error('Érvénytelen határadat a bundle-ben.'));
+          return;
+        }
+        resolve(gj);
+      };
+      s.onerror = function () {
+        var failed = document.getElementById(scriptId);
+        if (failed) failed.remove();
+        reject(new Error('Nem sikerült betölteni: ' + BUNDLE_SCRIPT_SRC));
+      };
+      document.head.appendChild(s);
+    });
+  }
+
   async function ensureGeoIndexed() {
     if (geoIndexed) return;
     if (geoLoadPromise) {
-      await geoLoadPromise;
-      return;
+      try {
+        await geoLoadPromise;
+      } catch (_) {
+        geoLoadPromise = null;
+      }
+      if (geoIndexed) return;
     }
     geoLoadPromise = (async function () {
-      const res = await fetch(GEOJSON_URL);
-      if (!res.ok) throw new Error('GeoJSON HTTP ' + res.status);
-      const gj = await res.json();
-      const feats = gj.features || [];
-      const list = [];
-      for (let i = 0; i < feats.length; i++) {
-        const f = feats[i];
-        const geom = f.geometry;
-        const props = f.properties || {};
-        const name = props['name:hu'] || props.name;
+      var gj = await loadSettlementBoundariesScript();
+      var feats = gj.features || [];
+      var list = [];
+      for (var i = 0; i < feats.length; i++) {
+        var f = feats[i];
+        var geom = f.geometry;
+        var props = f.properties || {};
+        var name = props['name:hu'] || props.name;
         if (!name || typeof name !== 'string' || !geom) continue;
         list.push({
           name: name,
@@ -248,7 +291,12 @@
       }
       geoIndexed = list;
     })();
-    await geoLoadPromise;
+    try {
+      await geoLoadPromise;
+    } catch (e) {
+      geoLoadPromise = null;
+      throw e;
+    }
   }
 
   function removeRefMarker(which) {
@@ -404,7 +452,8 @@
       if (line) {
         line.hidden = false;
         line.classList.add('ref-line--warn');
-        line.textContent = 'A település-határok betöltése nem sikerült. Ellenőrizd a hálózatot, és próbáld újra.';
+        line.textContent =
+          'A település-határok fájlja nem töltődött be (data/…bundle.js). Frissíts, vagy nyisd meg lokális szerverről (pl. python3 -m http.server).';
       }
       return;
     }
