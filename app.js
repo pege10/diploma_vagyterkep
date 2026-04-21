@@ -105,6 +105,38 @@
     update();
   }
 
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function buildRefMarkerEl(labelText) {
+    const wrap = document.createElement('div');
+    wrap.className = 'map-ref-marker';
+    wrap.innerHTML =
+      '<span class="map-ref-marker__label">' +
+      escapeHtml(labelText) +
+      '</span><span class="map-ref-marker__pin" aria-hidden="true"></span>';
+    return wrap;
+  }
+
+  function buildWinningMarkerEl(cityName) {
+    const wrap = document.createElement('div');
+    wrap.className = 'map-win-marker';
+    wrap.setAttribute('role', 'img');
+    wrap.setAttribute('aria-label', 'Tökéletes hely: ' + (cityName || ''));
+    wrap.innerHTML =
+      '<div class="map-win-marker__stack">' +
+      '<span class="map-win-marker__title">Tökéletes hely</span>' +
+      '<span class="map-win-marker__city">' +
+      escapeHtml(cityName) +
+      '</span>' +
+      '<span class="map-win-marker__pin" aria-hidden="true"></span>' +
+      '</div>';
+    return wrap;
+  }
+
   function normalizeSettlementName(s) {
     if (!s || typeof s !== 'string') return '';
     return s
@@ -389,7 +421,9 @@
   function setRefMarker(which, lng, lat) {
     removeRefMarker(which);
     if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
-    refMarkers[which] = new maplibregl.Marker({ color: '#0a0a0a' })
+    const label = which === 'erdo' ? 'Erdei magány' : 'Kulturális pezsgés';
+    const el = buildRefMarkerEl(label);
+    refMarkers[which] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
       .setLngLat([lng, lat])
       .addTo(map);
   }
@@ -407,6 +441,13 @@
     let lng = clickLngLat && Number.isFinite(clickLngLat.lng) ? clickLngLat.lng : Number(city.lng);
     let lat = clickLngLat && Number.isFinite(clickLngLat.lat) ? clickLngLat.lat : Number(city.lat);
     const hasCoords = Number.isFinite(lng) && Number.isFinite(lat);
+
+    if (param === 'erdo' && elements.erdoRefCity) {
+      elements.erdoRefCity.value = displayName;
+    }
+    if (param === 'kultura' && elements.kulturaRefCity) {
+      elements.kulturaRefCity.value = displayName;
+    }
 
     if (param === 'erdo') {
       if (elements.erdoSlider) {
@@ -688,6 +729,8 @@
 
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
+    removeRefMarker('erdo');
+    removeRefMarker('kultura');
     removeWinningMarker();
 
     map.flyTo({
@@ -697,7 +740,10 @@
       essential: true,
     });
 
-    winningMarker = new maplibregl.Marker({ color: '#0a0a0a' })
+    winningMarker = new maplibregl.Marker({
+      element: buildWinningMarkerEl(name),
+      anchor: 'bottom',
+    })
       .setLngLat([lng, lat])
       .addTo(map);
   }
