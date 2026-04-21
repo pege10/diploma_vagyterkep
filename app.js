@@ -648,18 +648,47 @@
   async function fetchCities() {
     elements.resultBox.textContent = 'Települések betöltése…';
     try {
-      const { data, error } = await supabase
-        .from('telepulesek')
-        .select('id, nev, lat, lng, erdo_szint, kultura_szint');
+      /* PostgREST alapértelmezés: max. ~1000 sor / kérés — lapozva töltjük az egész táblát. */
+      const pageSize = 1000;
+      const all = [];
+      let from = 0;
+      let fetchError = null;
 
-      if (error) {
-        console.error('Supabase error:', error);
+      for (;;) {
+        const { data, error } = await supabase
+          .from('telepulesek')
+          .select('id, nev, lat, lng, erdo_szint, kultura_szint')
+          .order('id', { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          fetchError = error;
+          break;
+        }
+
+        const chunk = Array.isArray(data) ? data : [];
+        for (let i = 0; i < chunk.length; i++) {
+          all.push(chunk[i]);
+        }
+
+        if (chunk.length < pageSize) {
+          break;
+        }
+        from += pageSize;
+        if (from > 500000) {
+          console.warn('fetchCities: biztonsági határ, megállítva.');
+          break;
+        }
+      }
+
+      if (fetchError) {
+        console.error('Supabase error:', fetchError);
         elements.resultBox.textContent =
-          'Hiba: ' + (error.message || 'Nem sikerült betölteni az adatokat.');
+          'Hiba: ' + (fetchError.message || 'Nem sikerült betölteni az adatokat.');
         return;
       }
 
-      citiesData = Array.isArray(data) ? data : [];
+      citiesData = all;
       rebuildCityIndex();
 
       if (citiesData.length === 0) {
