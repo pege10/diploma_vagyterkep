@@ -19,7 +19,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -64,17 +64,20 @@
     </div>
   </div>
 
-  <!-- Sorszám overlay – csak mobilon látható (CSS dönti el) -->
-  <div id="ticket-overlay" class="ticket-overlay" role="alertdialog" aria-modal="true" aria-label="A te sorszámod" hidden>
+  <!-- Sorszám overlay – csak mobilon látható (CSS dönti el); bezárás: háttérre koppintás -->
+  <div id="ticket-overlay" class="ticket-overlay" role="dialog" aria-modal="true" aria-labelledby="ticket-heading" aria-describedby="ticket-hint" hidden>
     <div class="ticket-card">
+      <p id="ticket-heading" class="ticket-heading">A te sorszámod</p>
       <p id="ticket-number" class="ticket-number">–</p>
-      <button type="button" id="ticket-close" class="ticket-close">Bezár ✕</button>
+      <p id="ticket-hint" class="ticket-hint">
+        Ha látod a sorszámodat a kivetítőn, dobj egyet a darts táblára — így derül ki, mi számodra a tökéletes hely.
+      </p>
     </div>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

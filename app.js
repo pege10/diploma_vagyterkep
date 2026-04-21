@@ -26,7 +26,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     resultBox: null,
     ticketOverlay: null,
     ticketNumber: null,
-    ticketClose: null,
     startOverlay: null,
   };
 
@@ -40,7 +39,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     elements.resultBox = document.getElementById('result-box');
     elements.ticketOverlay = document.getElementById('ticket-overlay');
     elements.ticketNumber = document.getElementById('ticket-number');
-    elements.ticketClose = document.getElementById('ticket-close');
     elements.startOverlay = document.getElementById('start-overlay');
   }
 
@@ -274,9 +272,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     elements.searchBtn.addEventListener('click', onSearchClick);
 
-    if (elements.ticketClose) {
-      elements.ticketClose.addEventListener('click', hideTicketOverlay);
-    }
     if (elements.ticketOverlay) {
       elements.ticketOverlay.addEventListener('click', function (e) {
         if (e.target === elements.ticketOverlay) hideTicketOverlay();

@@ -1345,6 +1345,16 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 }
 
+.ticket-heading {
+  font-family: var(--font-app);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+  margin: 0 0 8px;
+}
+
 .ticket-number {
   font-family: var(--font-app);
   font-size: clamp(4rem, 24vw, 7.5rem);
@@ -1355,27 +1365,16 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   color: var(--ink);
   -webkit-text-fill-color: var(--ink);
   background: none;
+  margin: 0;
 }
 
-.ticket-close {
-  width: 100%;
-  padding: 13px 20px;
+.ticket-hint {
   font-family: var(--font-app);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-  background: #fff;
-  border: 2px solid var(--ink);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.ticket-close:hover,
-.ticket-close:focus-visible {
-  background: var(--ink);
-  color: #fff;
-  outline: none;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink-soft);
+  margin: 8px 0 0;
+  max-width: 28ch;
 }
