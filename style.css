@@ -248,88 +248,39 @@ body {
   outline: none;
 }
 
-/* MapLibre — referenciák (fekete) vs. tökéletes találat (piros, nagyobb) */
+/* MapLibre alap jelölő (csepp) + felirat popupban */
 
-.map-ref-marker {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  pointer-events: none;
-}
-
-.map-ref-marker__label {
+.hse-marker-popup .maplibregl-popup-content {
   font-family: var(--font-app);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
-  max-width: 140px;
-  text-align: center;
-  color: var(--ink);
-  background: #fff;
-  border: 1px solid var(--ink);
-  padding: 3px 6px;
+  padding: 6px 10px;
+  border: 1px solid #000;
   border-radius: 2px;
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+  background: #fff;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-.map-ref-marker__pin {
-  display: block;
-  width: 12px;
-  height: 12px;
-  background: var(--ink);
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--ink);
-}
-
-.map-win-marker {
-  pointer-events: none;
-}
-
-.map-win-marker__stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-
-.map-win-marker__title {
-  font-family: var(--font-app);
+.map-marker-popup-label {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #fff;
-  background: #b01010;
-  border: 2px solid #000;
-  padding: 5px 10px;
-  border-radius: 2px;
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
-}
-
-.map-win-marker__city {
-  font-family: var(--font-app);
-  font-size: 13px;
   font-weight: 700;
-  color: var(--ink);
-  background: #fff;
-  border: 2px solid #000;
-  padding: 4px 10px;
-  border-radius: 2px;
-  max-width: 220px;
-  text-align: center;
   line-height: 1.25;
+  color: var(--ink);
 }
 
-.map-win-marker__pin {
+.map-marker-popup-win {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.map-marker-popup-win strong {
   display: block;
-  width: 28px;
-  height: 28px;
-  background: #d81515;
-  border: 3px solid #000;
-  border-radius: 50%;
-  box-shadow: 0 4px 14px rgba(216, 21, 21, 0.45);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b01010;
+  margin-bottom: 2px;
 }
 
 .map-picking-banner {

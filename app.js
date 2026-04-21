@@ -111,32 +111,6 @@
     return div.innerHTML;
   }
 
-  function buildRefMarkerEl(labelText) {
-    const wrap = document.createElement('div');
-    wrap.className = 'map-ref-marker';
-    wrap.innerHTML =
-      '<span class="map-ref-marker__label">' +
-      escapeHtml(labelText) +
-      '</span><span class="map-ref-marker__pin" aria-hidden="true"></span>';
-    return wrap;
-  }
-
-  function buildWinningMarkerEl(cityName) {
-    const wrap = document.createElement('div');
-    wrap.className = 'map-win-marker';
-    wrap.setAttribute('role', 'img');
-    wrap.setAttribute('aria-label', 'Tökéletes hely: ' + (cityName || ''));
-    wrap.innerHTML =
-      '<div class="map-win-marker__stack">' +
-      '<span class="map-win-marker__title">Tökéletes hely</span>' +
-      '<span class="map-win-marker__city">' +
-      escapeHtml(cityName) +
-      '</span>' +
-      '<span class="map-win-marker__pin" aria-hidden="true"></span>' +
-      '</div>';
-    return wrap;
-  }
-
   function normalizeSettlementName(s) {
     if (!s || typeof s !== 'string') return '';
     return s
@@ -422,10 +396,21 @@
     removeRefMarker(which);
     if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
     const label = which === 'erdo' ? 'Erdei magány' : 'Kulturális pezsgés';
-    const el = buildRefMarkerEl(label);
-    refMarkers[which] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    const marker = new maplibregl.Marker({ color: '#0a0a0a', scale: 1 })
       .setLngLat([lng, lat])
       .addTo(map);
+    const popup = new maplibregl.Popup({
+      offset: [0, -40],
+      closeButton: false,
+      closeOnClick: false,
+      maxWidth: '220px',
+      className: 'hse-marker-popup hse-marker-popup--ref',
+    }).setHTML(
+      '<div class="map-marker-popup-label">' + escapeHtml(label) + '</div>'
+    );
+    marker.setPopup(popup);
+    marker.togglePopup();
+    refMarkers[which] = marker;
   }
 
   /**
@@ -741,11 +726,26 @@
     });
 
     winningMarker = new maplibregl.Marker({
-      element: buildWinningMarkerEl(name),
-      anchor: 'bottom',
+      color: '#d81515',
+      scale: 1.35,
     })
       .setLngLat([lng, lat])
       .addTo(map);
+
+    const winPopup = new maplibregl.Popup({
+      offset: [0, -52],
+      closeButton: false,
+      closeOnClick: false,
+      maxWidth: '260px',
+      className: 'hse-marker-popup hse-marker-popup--win',
+    }).setHTML(
+      '<div class="map-marker-popup-win">' +
+      '<strong>Tökéletes hely</strong><br>' +
+      escapeHtml(name) +
+      '</div>'
+    );
+    winningMarker.setPopup(winPopup);
+    winningMarker.togglePopup();
   }
 
   /**
