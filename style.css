@@ -1,8 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   TripBlend-stílusú UI — adaptálva a HOVA?! struktúrához
-   (#map-container, .sidebar, #search-btn, .control-group)
-   A nem használt TripBlend osztályok megmaradtak (kompatibilitás).
+   Holistic Search Engine — fekete–fehér, kontúr-alapú UI, Open Sans
    ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --font-app: 'Open Sans', system-ui, -apple-system, sans-serif;
+  --ink: #0a0a0a;
+  --ink-soft: #2a2a2a;
+  --paper: #fafafa;
+  --line: rgba(0, 0, 0, 0.2);
+  --line-strong: rgba(0, 0, 0, 0.55);
+}
 
 /* ── Reset & Base ─────────────────────────────────────────── */
 
@@ -37,14 +44,14 @@
 html,
 body {
   height: 100%;
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-app);
   overflow: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #111;
+  background: #0a0a0a;
 }
 
 /* Map full-screen — sidebar borítja / homályosítja mögötte */
@@ -68,20 +75,16 @@ body {
   min-width: 390px;
   height: 100vh;
   max-height: 100vh;
-  background: rgba(255, 255, 255, 0.46);
-  backdrop-filter: blur(34px) saturate(1.6);
-  -webkit-backdrop-filter: blur(34px) saturate(1.6);
-  color: #0f172a;
+  background: var(--paper);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
   padding: 20px 18px 24px;
   gap: 14px;
   overflow-y: auto;
   z-index: 10;
-  border-right: 1px solid rgba(255, 255, 255, 0.38);
-  box-shadow:
-    8px 0 40px rgba(0, 0, 0, 0.14),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  border-right: 1px solid var(--ink);
+  box-shadow: 4px 0 0 0 rgba(0, 0, 0, 0.04);
 }
 
 .sidebar::-webkit-scrollbar {
@@ -98,13 +101,13 @@ body {
 }
 
 .sidebar-title {
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   line-height: 1.25;
-  color: #0f172a;
+  color: var(--ink);
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--ink);
 }
 
 /* ── Form controls (TripBlend: .form-group → HOVA: .control-group) ─ */
@@ -113,7 +116,11 @@ body {
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
 }
 
 .control-group > .control-label,
@@ -158,9 +165,9 @@ body {
 
 .form-group input[type='text']:focus,
 .control-group input[type='text']:focus {
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: rgba(0, 0, 0, 0.55);
   background: rgba(255, 255, 255, 0.58);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .pick-btn {
@@ -180,14 +187,14 @@ body {
 }
 
 .pick-btn:hover {
-  border-color: rgba(59, 130, 246, 0.45);
+  border-color: rgba(0, 0, 0, 0.45);
   background: rgba(255, 255, 255, 0.48);
 }
 
 .pick-btn.active {
-  border-color: rgba(59, 130, 246, 0.6);
-  background: rgba(59, 130, 246, 0.14);
-  color: #1d4ed8;
+  border-color: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.14);
+  color: #0a0a0a;
 }
 
 .od-route-group {
@@ -239,7 +246,7 @@ body {
 }
 
 .swap-od-btn--side:hover {
-  border-color: rgba(59, 130, 246, 0.45);
+  border-color: rgba(0, 0, 0, 0.45);
   background: rgba(255, 255, 255, 0.48);
 }
 
@@ -281,9 +288,9 @@ body {
 }
 
 .radio-label:has(input:checked) {
-  border-color: rgba(59, 130, 246, 0.55);
-  background: rgba(59, 130, 246, 0.22);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28);
+  border-color: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28);
 }
 
 .radio-group-3 .radio-label {
@@ -389,15 +396,15 @@ body.no-bike-ui .motor-segment-parens {
 }
 
 label.segment-motor-bike:has(.segment-motor-input:checked) {
-  border-color: rgba(14, 165, 233, 0.4);
-  background: rgba(14, 165, 233, 0.12);
-  color: #1e293b;
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
 }
 
 label.segment-motor-car:has(.segment-motor-input:checked) {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.1);
-  color: #1e293b;
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
 }
 
 .motor-subpanel {
@@ -411,7 +418,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
 .motor-expand.is-open > .motor-subpanel {
   padding: 10px 0 4px 4px;
-  border-left: 2px solid rgba(59, 130, 246, 0.25);
+  border-left: 2px solid rgba(0, 0, 0, 0.25);
   margin-left: 2px;
 }
 
@@ -432,12 +439,12 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   align-items: flex-start;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  background: rgba(251, 191, 36, 0.12);
+  border-radius: 2px;
+  border: 1px solid var(--ink);
+  background: #f5f5f5;
   font-size: 0.72rem;
   line-height: 1.4;
-  color: #92400e;
+  color: var(--ink-soft);
 }
 
 .bike-both-warning.hidden {
@@ -447,7 +454,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .bike-both-warning-ico {
   flex-shrink: 0;
   font-size: 18px;
-  color: #d97706;
+  color: var(--ink);
   font-variation-settings: 'FILL' 1;
 }
 
@@ -471,7 +478,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   flex-shrink: 0;
   width: 15px;
   height: 15px;
-  accent-color: #3b82f6;
+  accent-color: #0a0a0a;
 }
 
 /* ── Glass select ────────────────────────────────────────── */
@@ -498,13 +505,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .glass-select:hover {
-  border-color: rgba(59, 130, 246, 0.35);
+  border-color: rgba(0, 0, 0, 0.35);
   background-color: rgba(255, 255, 255, 0.46);
 }
 
 .glass-select:focus {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  border-color: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
 .glass-select option {
@@ -538,9 +545,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .time-inputs input:focus {
-  border-color: rgba(59, 130, 246, 0.45);
+  border-color: rgba(0, 0, 0, 0.45);
   background: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 /* ── Range slider (TripBlend + HOVA .slider) ─────────────── */
@@ -567,15 +574,15 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border-radius: 50%;
   background: #fff;
   cursor: pointer;
-  border: 2px solid #3b82f6;
-  box-shadow: 0 1px 6px rgba(59, 130, 246, 0.25);
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
   transition: box-shadow 0.2s;
 }
 
 .form-group input[type='range']::-webkit-slider-thumb:hover,
 .control-group input[type='range']::-webkit-slider-thumb:hover,
 .control-group .slider::-webkit-slider-thumb:hover {
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .form-group input[type='range']::-moz-range-thumb,
@@ -586,8 +593,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border-radius: 50%;
   background: #fff;
   cursor: pointer;
-  border: 2px solid #3b82f6;
-  box-shadow: 0 1px 6px rgba(59, 130, 246, 0.25);
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 }
 
 .slider-row {
@@ -601,7 +608,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   font-size: 0.9rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #2563eb;
+  color: #111111;
   text-align: right;
 }
 
@@ -614,7 +621,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  background: #3b82f6;
+  background: #0a0a0a;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 600;
@@ -622,7 +629,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border-radius: 6px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .slider-bubble::after {
@@ -632,7 +639,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   left: 50%;
   transform: translateX(-50%);
   border: 4px solid transparent;
-  border-top-color: #3b82f6;
+  border-top-color: #0a0a0a;
 }
 
 .range-labels {
@@ -677,39 +684,20 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .mode-chip.active {
-  border-color: rgba(59, 130, 246, 0.3);
-  background: rgba(59, 130, 246, 0.08);
-  color: #1e293b;
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
 }
 
-.mode-chip.active[data-mode='CAR'] {
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.mode-chip.active[data-mode='BUS'] {
-  border-color: rgba(0, 156, 224, 0.3);
-  background: rgba(0, 156, 224, 0.08);
-}
-
-.mode-chip.active[data-mode='RAIL'] {
-  border-color: rgba(0, 137, 123, 0.3);
-  background: rgba(0, 137, 123, 0.08);
-}
-
-.mode-chip.active[data-mode='TRAM'] {
-  border-color: rgba(212, 160, 23, 0.3);
-  background: rgba(212, 160, 23, 0.08);
-}
-
-.mode-chip.active[data-mode='HEV'] {
-  border-color: rgba(21, 101, 192, 0.3);
-  background: rgba(21, 101, 192, 0.08);
-}
-
+.mode-chip.active[data-mode='CAR'],
+.mode-chip.active[data-mode='BUS'],
+.mode-chip.active[data-mode='RAIL'],
+.mode-chip.active[data-mode='TRAM'],
+.mode-chip.active[data-mode='HEV'],
 .mode-chip.active[data-mode='SUBWAY'] {
-  border-color: rgba(0, 155, 58, 0.3);
-  background: rgba(0, 155, 58, 0.08);
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
 }
 
 /* ── Primary CTA (#plan-btn → #search-btn) ───────────────── */
@@ -719,34 +707,32 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   width: 100%;
   padding: 14px 24px;
   flex-shrink: 0;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s, box-shadow 0.3s;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: none;
   position: relative;
-  overflow: hidden;
-  font-family: inherit;
+  overflow: visible;
+  font-family: var(--font-app);
 }
 
 #search-btn::before,
 #plan-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 60%);
-  pointer-events: none;
+  display: none;
 }
 
 #search-btn:hover,
 #plan-btn:hover {
-  opacity: 0.93;
-  box-shadow: 0 6px 24px rgba(59, 130, 246, 0.35);
+  background: #fff;
+  color: var(--ink);
+  opacity: 1;
 }
 
 #search-btn:active,
@@ -769,17 +755,15 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.45;
-  color: #1e293b;
-  background: rgba(255, 255, 255, 0.34);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 14px;
-  backdrop-filter: blur(16px) saturate(1.35);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
 }
 
 .result-box:not(:empty) {
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: none;
+  border-color: var(--ink);
 }
 
 /* ── Results (TripBlend) ─────────────────────────────────── */
@@ -792,68 +776,53 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
 .alt-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.34);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   padding: 12px 14px;
   cursor: pointer;
-  backdrop-filter: blur(16px) saturate(1.35);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
-  transition: border-color 0.25s, background 0.2s, box-shadow 0.25s;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .alt-card:hover {
-  border-color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.52);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--ink);
+  background: #f8f8f8;
 }
 
 .alt-card.selected {
-  border-color: rgba(59, 130, 246, 0.45);
-  background: rgba(224, 242, 254, 0.55);
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.18);
+  border-color: var(--ink);
+  background: #f0f0f0;
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .alt-card--pure-car {
-  background: rgba(255, 250, 250, 0.38);
-  box-shadow: inset 3px 0 0 rgba(239, 68, 68, 0.32);
+  box-shadow: inset 3px 0 0 rgba(0, 0, 0, 0.35);
 }
 
 .alt-card--pure-car:hover {
-  background: rgba(254, 242, 242, 0.48);
-  border-color: rgba(252, 165, 165, 0.4);
-  box-shadow:
-    inset 3px 0 0 rgba(239, 68, 68, 0.32),
-    0 4px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--ink);
+  background: #f5f5f5;
 }
 
 .alt-card--pure-car.selected {
-  background: rgba(254, 242, 242, 0.42);
-  border-color: rgba(59, 130, 246, 0.45);
-  box-shadow:
-    inset 3px 0 0 rgba(239, 68, 68, 0.38),
-    0 0 16px rgba(59, 130, 246, 0.18);
+  background: #eee;
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 #000;
 }
 
 .alt-card--pure-transit {
-  background: rgba(248, 252, 255, 0.4);
-  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.35);
+  box-shadow: inset 3px 0 0 rgba(0, 0, 0, 0.2);
 }
 
 .alt-card--pure-transit:hover {
-  background: rgba(239, 246, 255, 0.52);
-  border-color: rgba(147, 197, 253, 0.42);
-  box-shadow:
-    inset 3px 0 0 rgba(59, 130, 246, 0.35),
-    0 4px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--ink);
+  background: #f8f8f8;
 }
 
 .alt-card--pure-transit.selected {
-  background: rgba(224, 242, 254, 0.52);
-  border-color: rgba(59, 130, 246, 0.45);
-  box-shadow:
-    inset 3px 0 0 rgba(37, 99, 235, 0.42),
-    0 0 16px rgba(59, 130, 246, 0.18);
+  background: #f0f0f0;
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 #000;
 }
 
 .alt-header {
@@ -895,18 +864,18 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .alt-saved {
   display: block;
   font-size: 0.74rem;
-  color: #16a34a;
+  color: var(--ink-soft);
   margin-bottom: 6px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--line);
 }
 
 .alt-saved.best-tag {
-  color: #0891b2;
+  color: var(--ink);
 }
 
 .alt-saved.car-tag {
-  color: #dc2626;
+  color: #404040;
 }
 
 .alt-saved.bike-mode-note {
@@ -932,47 +901,22 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   letter-spacing: 0.2px;
 }
 
-.badge-pill.badge-fastest {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-}
-
-.badge-pill.badge-transfers {
-  background: rgba(34, 197, 94, 0.1);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-}
-
-.badge-pill.badge-green {
-  background: rgba(20, 184, 166, 0.1);
-  color: #0f766e;
-  border: 1px solid rgba(20, 184, 166, 0.2);
-}
-
-.badge-pill.badge-walk {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0369a1;
-  border: 1px solid rgba(14, 165, 233, 0.2);
-}
-
-.badge-pill.badge-bike-full {
-  background: rgba(6, 182, 212, 0.12);
-  color: #0e7490;
-  border: 1px solid rgba(6, 182, 212, 0.25);
+.badge-pill.badge-fastest,
+.badge-pill.badge-transfers,
+.badge-pill.badge-green,
+.badge-pill.badge-walk,
+.badge-pill.badge-bike-full,
+.badge-pill.badge-best,
+.badge-pill.badge-earliest {
+  background: #fff;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
 }
 
 .badge-pill.badge-best {
-  background: rgba(251, 191, 36, 0.12);
-  color: #a16207;
-  border: 1px solid rgba(251, 191, 36, 0.25);
   font-weight: 700;
-}
-
-.badge-pill.badge-earliest {
-  background: rgba(168, 85, 247, 0.1);
-  color: #7c3aed;
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-width: 2px;
+  border-color: var(--ink);
 }
 
 .legs-list {
@@ -1010,58 +954,49 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .leg-dot.car {
-  background: #ef4444;
-  box-shadow: 0 0 4px rgba(239, 68, 68, 0.25);
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .leg-dot.bike {
-  background: #0ea5e9;
-  box-shadow: 0 0 4px rgba(14, 165, 233, 0.25);
+  background: #333;
 }
 
 .leg-dot.bus {
-  background: #009ce0;
-  box-shadow: 0 0 4px rgba(0, 156, 224, 0.25);
+  background: #555;
 }
 
 .leg-dot.volan_bus {
-  background: #f4811f;
-  box-shadow: 0 0 4px rgba(244, 129, 31, 0.25);
+  background: #444;
 }
 
 .leg-dot.rail {
-  background: #00897b;
-  box-shadow: 0 0 4px rgba(0, 137, 123, 0.25);
+  background: #222;
 }
 
 .leg-dot.hev {
-  background: #1565c0;
-  box-shadow: 0 0 4px rgba(21, 101, 192, 0.25);
+  background: #2a2a2a;
 }
 
 .leg-dot.tram {
-  background: #d4a017;
-  box-shadow: 0 0 4px rgba(212, 160, 23, 0.25);
+  background: #666;
 }
 
 .leg-dot.subway {
-  background: #009b3a;
-  box-shadow: 0 0 4px rgba(0, 155, 58, 0.25);
+  background: #111;
 }
 
 .leg-dot.transit {
-  background: #3b82f6;
-  box-shadow: 0 0 4px rgba(59, 130, 246, 0.25);
+  background: #0a0a0a;
 }
 
 .leg-dot.walk {
   background: #9ca3af;
-  box-shadow: 0 0 3px rgba(156, 163, 175, 0.2);
 }
 
 .leg-dot.wait {
-  background: #f59e0b;
-  box-shadow: 0 0 3px rgba(245, 158, 11, 0.2);
+  background: #d4d4d4;
 }
 
 .leg-item.leg-wait {
@@ -1072,28 +1007,24 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 /* ── Error / schedule ──────────────────────────────────────── */
 
 .error {
-  background: rgba(254, 226, 226, 0.35);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
   padding: 12px;
-  color: #b91c1c;
+  color: var(--ink);
   font-size: 0.85rem;
   line-height: 1.5;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .schedule-note {
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 12px;
+  background: #f5f5f5;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
   padding: 10px 12px;
   margin-bottom: 10px;
-  color: #1e3a8a;
+  color: var(--ink-soft);
   font-size: 0.82rem;
   line-height: 1.45;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /* ── MapLibre — sötét térképen világos vezérlők + üveg popup ─ */
@@ -1108,40 +1039,38 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .maplibregl-popup-content {
-  border-radius: 14px;
+  border-radius: 2px;
   padding: 10px 14px;
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-app);
   font-size: 0.83rem;
-  background: rgba(255, 255, 255, 0.52);
-  backdrop-filter: blur(24px) saturate(1.55);
-  -webkit-backdrop-filter: blur(24px) saturate(1.55);
-  color: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.08);
 }
 
 .maplibregl-popup-content b {
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .maplibregl-popup-tip {
-  border-top-color: rgba(255, 255, 255, 0.55);
+  border-top-color: var(--ink);
 }
 
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: rgba(255, 255, 255, 0.55);
+  border-top-color: var(--ink);
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
-  border-bottom-color: rgba(255, 255, 255, 0.55);
+  border-bottom-color: var(--ink);
 }
 
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: rgba(255, 255, 255, 0.55);
+  border-right-color: var(--ink);
 }
 
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: rgba(255, 255, 255, 0.55);
+  border-left-color: var(--ink);
 }
 
 .hover-popup .maplibregl-popup-content {
@@ -1212,11 +1141,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     max-height: 48vh;
     height: auto;
     border-right: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.38);
-    border-radius: 18px 18px 0 0;
-    box-shadow:
-      0 -8px 40px rgba(0, 0, 0, 0.2),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    border-top: 2px solid var(--ink);
+    border-radius: 8px 8px 0 0;
+    background: var(--paper);
+    box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.06);
   }
 
   html.is-touch .sidebar-title {
@@ -1266,7 +1194,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch .start-tap-hint svg {
-    stroke: rgba(96, 165, 250, 0.85);
+    stroke: rgba(255, 255, 255, 0.45);
   }
 
   /* Indítás után: térkép rejtve, csak a csúszka-panel teljes képernyőn */
@@ -1287,10 +1215,12 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     max-height: 100dvh;
     border-top: none;
     border-radius: 0;
+    background: var(--paper);
     padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
     padding-top: max(20px, env(safe-area-inset-top));
     justify-content: flex-start;
     z-index: 50;
+    box-shadow: none;
   }
 }
 
@@ -1299,34 +1229,34 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 36px;
+  padding: 28px 20px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(28px) saturate(1.5);
-  -webkit-backdrop-filter: blur(28px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   max-width: 92vw;
 }
 
 .start-title {
-  font-size: clamp(2.5rem, 12vw, 4.2rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-family: var(--font-app);
+  font-size: clamp(1.75rem, 7vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: #fff;
+  text-transform: uppercase;
+  -webkit-text-fill-color: #fff;
+  background: none;
 }
 
 .start-subtitle {
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: rgba(15, 23, 42, 0.55);
+  font-family: var(--font-app);
+  font-size: 0.85rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .start-tap-hint {
@@ -1342,8 +1272,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .start-tap-hint svg {
-  stroke: #2563eb;
-  opacity: 0.65;
+  stroke: #fff;
+  opacity: 0.45;
 }
 
 @keyframes tb-hint-pulse {
@@ -1397,14 +1327,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   width: 100%;
   max-width: 360px;
   padding: 36px 28px 28px;
-  background: rgba(255, 255, 255, 0.46);
-  backdrop-filter: blur(34px) saturate(1.6);
-  -webkit-backdrop-filter: blur(34px) saturate(1.6);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 22px;
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.12);
   animation: tb-card-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1420,34 +1346,36 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .ticket-number {
+  font-family: var(--font-app);
   font-size: clamp(4rem, 24vw, 7.5rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  background: none;
 }
 
 .ticket-close {
   width: 100%;
   padding: 13px 20px;
-  font-family: inherit;
-  font-size: 0.9rem;
+  font-family: var(--font-app);
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #1e293b;
-  background: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .ticket-close:hover,
 .ticket-close:focus-visible {
-  background: rgba(255, 255, 255, 0.55);
-  border-color: rgba(59, 130, 246, 0.45);
+  background: var(--ink);
+  color: #fff;
   outline: none;
 }
