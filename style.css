@@ -72,7 +72,8 @@ body {
   top: 0;
   bottom: 0;
   width: 390px;
-  min-width: 390px;
+  min-width: 0;
+  max-width: min(390px, 100vw);
   height: 100vh;
   max-height: 100vh;
   background: var(--paper);
@@ -81,10 +82,16 @@ body {
   flex-direction: column;
   padding: 20px 18px 24px;
   gap: 14px;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior-x: none;
   z-index: 10;
   border-right: 1px solid var(--ink);
   box-shadow: 4px 0 0 0 rgba(0, 0, 0, 0.04);
+}
+
+.sidebar > * {
+  min-width: 0;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -117,26 +124,131 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
+  min-width: 0;
+  padding: 10px 12px 12px;
   border: 1px solid var(--ink);
   border-radius: 4px;
   background: #fff;
 }
 
-.control-label-row {
+.param-block-header {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.control-label-row .control-label {
+.param-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Rövid cím balra, jobbra fent: infó, alatta a PIN */
+.param-heading-trail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.param-heading {
   flex: 1;
+  min-width: 0;
   margin: 0;
+  padding: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+/* Alcím: szűkebb oszlop, balra zárva */
+.control-label-sub {
+  display: block;
+  max-width: 26ch;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  color: rgba(0, 0, 0, 0.55);
+  text-align: left;
+}
+
+.param-info-wrap {
+  position: relative;
+}
+
+.param-info-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  background: #fff;
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+  cursor: help;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.param-info-btn:hover,
+.param-info-btn:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  outline: none;
+}
+
+.param-info-tooltip {
+  /* pozíció: app.js (placeParamTooltip) — fixed, a panel nem vágja, a térkép fölé kerül */
+  position: fixed;
+  z-index: 100001;
+  left: 0;
+  top: 0;
+  width: min(280px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 0.72rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  color: var(--ink);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.param-info-wrap:hover .param-info-tooltip,
+.param-info-wrap:focus-within .param-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.param-heading-trail .pick-map-btn {
+  margin-top: 0;
 }
 
 .control-group > .control-label,
-.control-label-row .control-label,
 .form-group > label {
   font-size: 0.75rem;
   font-weight: 600;
@@ -196,6 +308,12 @@ body {
   background: rgba(0, 0, 0, 0.06);
 }
 
+.ref-city-form {
+  display: block;
+  margin: 0;
+  min-width: 0;
+}
+
 .ref-city-row {
   display: flex;
   align-items: stretch;
@@ -214,6 +332,16 @@ body {
   border: 1px solid var(--line-strong);
   border-radius: 2px;
   outline: none;
+  /* type=search: ne nézzen ki „keresőmezőként”, X gomb külön szabály alatt */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ref-city-input::-webkit-search-decoration,
+.ref-city-input::-webkit-search-cancel-button,
+.ref-city-input::-webkit-search-results-button {
+  display: none;
+  -webkit-appearance: none;
 }
 
 .ref-city-input::placeholder {
@@ -1394,7 +1522,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     right: 0;
     top: auto;
     width: 100%;
-    min-width: unset;
+    min-width: 0;
+    max-width: 100%;
     max-height: 48vh;
     height: auto;
     border-right: none;
@@ -1479,6 +1608,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     left: 0;
     right: 0;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     max-height: none;
     height: auto;
     min-height: 100dvh;

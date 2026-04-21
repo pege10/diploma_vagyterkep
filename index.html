@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <!-- Sötét szín: az Android Chrome sáv beleolvad a designba -->
   <meta name="theme-color" content="#0a0a0a">
-  <meta name="description" content="Holistic Search Engine — magyarországi település kereső erdei magány és kulturális pezsgés alapján." />
+  <meta name="description" content="Holistic Search Engine — magyarországi település kereső erdők/fák és kulturális élet szerint." />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- black-translucent: iOS-on a status bar átlátszó, az app tartalom alatta folytatódik -->
@@ -19,7 +19,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=24">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -28,16 +28,42 @@
     <h1 class="sidebar-title">Holistic Search Engine</h1>
 
     <div class="control-group">
-      <div class="control-label-row">
-        <label for="erdo_szint" class="control-label">Erdei magány</label>
-        <button type="button" id="pick-erdo-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település kijelölése a térképen (erdei magány)" title="Térképen">
-          <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
-        </button>
+      <div class="param-block-header">
+        <div class="param-heading-row">
+          <h2 class="param-heading">Erdők és fák</h2>
+          <div class="param-heading-trail">
+            <div class="param-info-wrap">
+              <button type="button" class="param-info-btn" aria-label="További információ: erdők és fák paramétere" aria-describedby="erdo-param-help" title="Teszt / példa magyarázat (lásd buborék)">i</button>
+              <div id="erdo-param-help" class="param-info-tooltip" role="tooltip">Teszt / példa: az erdők és fák mutatója a település központja körüli 3 km sugarú zónában becsült erdős/fás borítás arányán alapul (pl. CORINE / OSM rétegek — a végleges módszer és forrás a szakdolgozatban lesz leírva).</div>
+            </div>
+            <button type="button" id="pick-erdo-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település a térképen — erdők és fák" title="Térképen">
+              <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
+            </button>
+          </div>
+        </div>
+        <label for="erdo_szint" class="control-label control-label-sub">Város (kerület), ahol számodra a legideálisabb az erdők és a fák mennyisége</label>
       </div>
-      <div class="ref-city-row">
-        <input type="text" id="erdo-ref-city" class="ref-city-input" placeholder="vagy írd be a település nevét…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Referencia település neve (erdei magány)">
-        <button type="button" id="erdo-ref-apply" class="ref-city-apply">Alkalmaz</button>
-      </div>
+      <form class="ref-city-form" autocomplete="off" onsubmit="return false" novalidate>
+        <div class="ref-city-row">
+          <input
+            type="search"
+            id="erdo-ref-city"
+            class="ref-city-input"
+            name="settlements-query-a"
+            placeholder="vagy írd be a település nevét…"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="words"
+            spellcheck="false"
+            enterkeyhint="done"
+            inputmode="text"
+            data-1p-ignore
+            data-lpignore="true"
+            aria-label="Referencia település — erdők és fák"
+          >
+          <button type="button" id="erdo-ref-apply" class="ref-city-apply">Alkalmaz</button>
+        </div>
+      </form>
       <p id="erdo-ref-line" class="ref-line" hidden></p>
       <div class="slider-row">
         <input type="range" id="erdo_szint" class="slider" min="0" max="100" value="50">
@@ -46,16 +72,42 @@
     </div>
 
     <div class="control-group">
-      <div class="control-label-row">
-        <label for="kultura_szint" class="control-label">Kulturális pezsgés</label>
-        <button type="button" id="pick-kultura-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település kijelölése a térképen (kultúra)" title="Térképen">
-          <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
-        </button>
+      <div class="param-block-header">
+        <div class="param-heading-row">
+          <h2 class="param-heading">Kulturális élet</h2>
+          <div class="param-heading-trail">
+            <div class="param-info-wrap">
+              <button type="button" class="param-info-btn" aria-label="További információ: kulturális élet paramétere" aria-describedby="kultura-param-help" title="Teszt / példa magyarázat (lásd buborék)">i</button>
+              <div id="kultura-param-help" class="param-info-tooltip" role="tooltip">Teszt / példa: a kulturális élet mutató egy összetett skáláról jön (pl. a központ körüli ~5 km-en belüli intézmények, eseménynaptár és látogatottság becsült súlyozása — a pontos összegzés és adatforrások később kerülnek dokumentálásra).</div>
+            </div>
+            <button type="button" id="pick-kultura-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település a térképen — kulturális élet" title="Térképen">
+              <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
+            </button>
+          </div>
+        </div>
+        <label for="kultura_szint" class="control-label control-label-sub">Város (kerület), ahol számodra a legideálisabb a kulturális élet</label>
       </div>
-      <div class="ref-city-row">
-        <input type="text" id="kultura-ref-city" class="ref-city-input" placeholder="vagy írd be a település nevét…" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Referencia település neve (kulturális pezsgés)">
-        <button type="button" id="kultura-ref-apply" class="ref-city-apply">Alkalmaz</button>
-      </div>
+      <form class="ref-city-form" autocomplete="off" onsubmit="return false" novalidate>
+        <div class="ref-city-row">
+          <input
+            type="search"
+            id="kultura-ref-city"
+            class="ref-city-input"
+            name="settlements-query-b"
+            placeholder="vagy írd be a település nevét…"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="words"
+            spellcheck="false"
+            enterkeyhint="done"
+            inputmode="text"
+            data-1p-ignore
+            data-lpignore="true"
+            aria-label="Referencia település — kulturális élet"
+          >
+          <button type="button" id="kultura-ref-apply" class="ref-city-apply">Alkalmaz</button>
+        </div>
+      </form>
       <p id="kultura-ref-line" class="ref-line" hidden></p>
       <div class="slider-row">
         <input type="range" id="kultura_szint" class="slider" min="0" max="100" value="50">
@@ -102,7 +154,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=24"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

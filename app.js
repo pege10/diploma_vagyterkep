@@ -11,6 +11,10 @@
     window.location.href
   ).href;
 
+  /** Rövid felirat a térképes jelölőn (a teljes kérdés a sidebarban van). */
+  const MAP_MARK_ERDO = 'Erdők és fák';
+  const MAP_MARK_KULTURA = 'Kulturális élet';
+
   // --- Supabase config (replace with your project values) ---
   const SUPABASE_URL = 'https://dubcsyrgrtlzvefxuhni.supabase.co';
   const SUPABASE_ANON_KEY =
@@ -418,7 +422,7 @@
   function setRefMarker(which, lng, lat) {
     removeRefMarker(which);
     if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
-    const labelText = which === 'erdo' ? 'Erdei magány' : 'Kulturális pezsgés';
+    const labelText = which === 'erdo' ? MAP_MARK_ERDO : MAP_MARK_KULTURA;
     const pinMarker = new maplibregl.Marker({ color: '#0a0a0a', scale: 1 })
       .setLngLat([lng, lat])
       .addTo(map);
@@ -464,7 +468,7 @@
         elements.erdoRefLine.textContent =
           'Referencia: ' +
           displayName +
-          ' — erdei magány (táblázat): ' +
+          ' — erdők és fák (táblázat): ' +
           erdoVal +
           '. Finomítás a csúszkával.';
       }
@@ -481,7 +485,7 @@
         elements.kulturaRefLine.textContent =
           'Referencia: ' +
           displayName +
-          ' — kulturális pezsgés (táblázat): ' +
+          ' — kulturális élet (táblázat): ' +
           kultVal +
           '. Finomítás a csúszkával.';
       }
@@ -633,8 +637,8 @@
       elements.mapPickingBanner.hidden = false;
       elements.mapPickingBannerText.textContent =
         param === 'erdo'
-          ? 'Erdei magány: koppints a térképre a referencia település határán belül.'
-          : 'Kulturális pezsgés: koppints a térképre a referencia település határán belül.';
+          ? 'Erdők és fák: koppints a térképre a referencia település közigazgatási határán belül.'
+          : 'Kulturális élet: koppints a térképre a referencia település közigazgatási határán belül.';
     }
     updatePickButtonActive();
 
@@ -881,8 +885,61 @@
     }
   }
 
+  /** Infó tooltip: fixed pozíció, a sidebar nem vágja, a térkép / többi réteg fölé kerül. */
+  function placeParamTooltip(wrap) {
+    const btn = wrap.querySelector('.param-info-btn');
+    const tip = wrap.querySelector('.param-info-tooltip');
+    if (!btn || !tip) return;
+    const br = btn.getBoundingClientRect();
+    const margin = 8;
+    const gap = 6;
+    tip.style.position = 'fixed';
+    tip.style.zIndex = '100001';
+    tip.style.right = 'auto';
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let left = br.right - w;
+    if (left < margin) left = margin;
+    if (left + w > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - margin - w);
+    }
+    let top = br.bottom + gap;
+    if (top + h > window.innerHeight - margin) {
+      top = Math.max(margin, br.top - h - gap);
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function repositionOpenParamTooltips() {
+    document.querySelectorAll('.param-heading-trail .param-info-wrap').forEach(function (wrap) {
+      if (wrap.matches(':hover') || wrap.matches(':focus-within')) {
+        placeParamTooltip(wrap);
+      }
+    });
+  }
+
+  function initParamInfoTooltips() {
+    document.querySelectorAll('.param-heading-trail .param-info-wrap').forEach(function (wrap) {
+      function schedule() {
+        window.requestAnimationFrame(function () {
+          placeParamTooltip(wrap);
+        });
+      }
+      wrap.addEventListener('mouseenter', schedule);
+      wrap.addEventListener('focusin', schedule);
+    });
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+      sidebar.addEventListener('scroll', repositionOpenParamTooltips);
+    }
+    window.addEventListener('resize', repositionOpenParamTooltips);
+    window.addEventListener('scroll', repositionOpenParamTooltips, true);
+  }
+
   async function init() {
     initElements();
+    initParamInfoTooltips();
     initMap();
     bindSliderDisplay(elements.erdoSlider, elements.erdoValue);
     bindSliderDisplay(elements.kulturaSlider, elements.kulturaValue);
