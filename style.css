@@ -1177,69 +1177,76 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HOVA?! — érintőképernyős nézet (struktúra változatlan)
+   HOVA?! — mobil nézet: csak keskeny képernyőn (max-width) + érintés (is-touch)
+   Így érintős laptopon / asztali nézetben nincs indító overlay és alsó panel.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-html.is-touch .maplibregl-ctrl-attrib,
-html.is-touch .maplibregl-ctrl-logo {
+/* Indító overlay alapból ki (széles képernyőn is, ha is-touch lenne) */
+.start-overlay {
   display: none !important;
 }
 
-html.is-touch body {
-  display: block;
-  overflow: hidden;
-}
+@media (max-width: 900px) {
+  html.is-touch .maplibregl-ctrl-attrib,
+  html.is-touch .maplibregl-ctrl-logo {
+    display: none !important;
+  }
 
-html.is-touch #map-container.map-container {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
+  html.is-touch body {
+    display: block;
+    overflow: hidden;
+  }
 
-html.is-touch .sidebar {
-  left: 0;
-  right: 0;
-  top: auto;
-  width: 100%;
-  min-width: unset;
-  max-height: 48vh;
-  height: auto;
-  border-right: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 18px 18px 0 0;
-  box-shadow:
-    0 -8px 40px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-}
+  html.is-touch #map-container.map-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
 
-html.is-touch .sidebar-title {
-  font-size: 1.05rem;
-}
+  html.is-touch .sidebar {
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    min-width: unset;
+    max-height: 48vh;
+    height: auto;
+    border-right: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.38);
+    border-radius: 18px 18px 0 0;
+    box-shadow:
+      0 -8px 40px rgba(0, 0, 0, 0.2),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  }
 
-html.is-touch .result-box {
-  display: none;
-}
+  html.is-touch .sidebar-title {
+    font-size: 1.05rem;
+  }
 
-/* Indító overlay — világos üveg a sötét #111 felett */
+  html.is-touch .result-box {
+    display: none;
+  }
 
-html.is-touch .start-overlay {
-  display: flex;
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: #111;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  opacity: 1;
-  transition: opacity 0.45s ease;
-}
+  /* Indító overlay — csak telefonos szélességen */
+  html.is-touch .start-overlay {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #111;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 1;
+    transition: opacity 0.45s ease;
+  }
 
-html.is-touch .start-overlay.start-overlay--hidden {
-  opacity: 0;
-  pointer-events: none;
+  html.is-touch .start-overlay.start-overlay--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .start-content {
@@ -1321,9 +1328,11 @@ html.is-touch .start-overlay.start-overlay--hidden {
   padding: 24px;
 }
 
-html.is-touch .ticket-overlay:not([hidden]) {
-  display: flex;
-  animation: tb-overlay-in 0.28s ease;
+@media (max-width: 900px) {
+  html.is-touch .ticket-overlay:not([hidden]) {
+    display: flex;
+    animation: tb-overlay-in 0.28s ease;
+  }
 }
 
 @keyframes tb-overlay-in {
