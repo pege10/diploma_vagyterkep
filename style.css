@@ -123,13 +123,155 @@ body {
   background: #fff;
 }
 
+.control-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.control-label-row .control-label {
+  flex: 1;
+  margin: 0;
+}
+
 .control-group > .control-label,
+.control-label-row .control-label,
 .form-group > label {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: rgba(0, 0, 0, 0.42);
+}
+
+.pick-map-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.pick-map-btn .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pick-map-btn:hover,
+.pick-map-btn:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  outline: none;
+}
+
+.pick-map-btn.is-active {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.ref-line {
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.ref-line.ref-line--warn {
+  border-style: solid;
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.map-picking-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0));
+  background: var(--paper);
+  border-top: 2px solid var(--ink);
+  font-family: var(--font-app);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.map-picking-banner[hidden] {
+  display: none !important;
+}
+
+.map-picking-banner-text {
+  flex: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.map-picking-cancel {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  font-family: var(--font-app);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.map-picking-cancel:hover,
+.map-picking-cancel:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  outline: none;
+}
+
+#map-container.map-container.map-picking-cursor,
+#map-container.map-container.map-picking-cursor .maplibregl-canvas {
+  cursor: crosshair !important;
+}
+
+/* Térképes referencia-választás: a térkép előrébb, mobilon a panel ideiglenesen hátra */
+html.map-picking #map-container.map-container {
+  z-index: 55;
+}
+
+@media (max-width: 900px) {
+  html.is-touch.map-picking #map-container.map-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+@media (min-width: 901px) {
+  .map-picking-banner {
+    left: 390px;
+    right: 0;
+    padding-left: 20px;
+    border-left: none;
+  }
 }
 
 .input-row {
@@ -1201,6 +1343,19 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   html.is-touch.app-started #map-container.map-container {
     opacity: 0 !important;
     pointer-events: none !important;
+  }
+
+  /* Referencia kijelölése: térkép elő, panel eltűnik, alsó szalag */
+  html.is-touch.app-started.map-picking #map-container.map-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  html.is-touch.app-started.map-picking .sidebar {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(12px);
   }
 
   html.is-touch.app-started .sidebar {
