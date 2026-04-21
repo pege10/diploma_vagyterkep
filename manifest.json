@@ -4,8 +4,8 @@
   "description": "HOVA?! – A tökéletes hely keresője",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f12",
-  "theme_color": "#0f0f12",
+  "background_color": "#080b10",
+  "theme_color": "#0c1018",
   "orientation": "portrait-primary",
   "lang": "hu",
   "icons": [
