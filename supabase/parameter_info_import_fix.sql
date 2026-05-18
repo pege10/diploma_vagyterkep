@@ -1,0 +1,42 @@
+-- =============================================================================
+-- parameter_info import hiba: 22P02 invalid input syntax for type bigint: "1. Természeti környezet"
+-- =============================================================================
+-- Okok:
+-- 1) A táblában az első oszlop bigint „id”, és az importáló az 1. CSV oszlopot az id-hoz rendeli.
+--    A parameter_tabla.csv első oszlopa gyakran szekciócím / magyar szöveg, nem szám.
+-- 2) A Supabase CSV varázsló kéri: fejlécben ne legyen speciális karakter (ékezet, szóköz) —
+--    ezért használjuk: parameter_key, ui_definicio
+--
+-- Lépések:
+-- A) Ha a tábla még üres: ejtsd a default id oszlopot, maradjon csak a kulcs + szöveg:
+
+-- DROP TABLE IF EXISTS public.parameter_info;
+-- Majd futtasd: parameter_info_schema.sql
+
+-- B) Ha már van parameter_info id bigserial + adat:
+-- ALTER TABLE public.parameter_info DROP CONSTRAINT parameter_info_pkey;
+-- ALTER TABLE public.parameter_info DROP COLUMN id;
+-- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS parameter_key TEXT;
+-- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS ui_definicio TEXT;
+-- UPDATE ... -- töltsd a két oszlopot, ha máshonnan jönnek
+-- ALTER TABLE public.parameter_info ADD PRIMARY KEY (parameter_key);
+
+-- C) CSV előkészítés:
+--    - Töröld vagy ne importáld a szakasz-sorokat („1. Természeti környezet” stb.); csak mutató sorok maradjanak.
+--    - Elvárt fejléc példa:
+--      parameter_key,ui_definicio
+--      forest_index,"Az erdő index..."
+--      geo_important_a,"Az 1. fontos hely..."
+--      geo_important_b,"A 2. fontos hely..."
+--    - A parameter_key értékek = app.js index mezők (forest_index, water_index, …) + geo_important_a / geo_important_b
+--
+-- D) Meglévő tábla bővítése (megnevezés + forrás oszlopok, CSV-ből import):
+-- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS megnevezes TEXT;
+-- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS adatforras_ok TEXT;
+-- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS adatforras_link TEXT;
+--
+--    Fejléc példa: parameter_key,megnevezes,ui_definicio,adatforras_ok,adatforras_link
+--
+-- E) Böngésző / anon kulcs: ha a REST lekérés [] üres tömb (de a Table Editorben vannak sorok),
+--    az RLS tiltja az olvasást. Futtasd a parameter_info_schema.sql végén lévő policy-ket
+--    (ENABLE ROW LEVEL SECURITY + CREATE POLICY … FOR SELECT TO anon).

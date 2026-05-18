@@ -11,7 +11,7 @@
   <meta name="theme-color" content="#0a0a0a">
   <meta name="description" content="Holistic Search Engine — magyarországi település kereső erdők/fák és kulturális élet szerint." />
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-app-capable" content="yes">
   <!-- black-translucent: iOS-on a status bar átlátszó, az app tartalom alatta folytatódik -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Holistic Search">
@@ -19,106 +19,55 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=78">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
-  <aside class="sidebar">
-    <h1 class="sidebar-title">Holistic Search Engine</h1>
-
-    <div class="control-group">
-      <div class="param-block-header">
-        <div class="param-heading-row">
-          <h2 class="param-heading">Erdők és fák</h2>
-          <div class="param-heading-trail">
-            <div class="param-info-wrap">
-              <button type="button" class="param-info-btn" aria-label="További információ: erdők és fák paramétere" aria-describedby="erdo-param-help" title="Teszt / példa magyarázat (lásd buborék)">i</button>
-              <div id="erdo-param-help" class="param-info-tooltip" role="tooltip">Teszt / példa: az erdők és fák mutatója a település központja körüli 3 km sugarú zónában becsült erdős/fás borítás arányán alapul (pl. CORINE / OSM rétegek — a végleges módszer és forrás a szakdolgozatban lesz leírva).</div>
-            </div>
-            <button type="button" id="pick-erdo-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település a térképen — erdők és fák" title="Térképen">
-              <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
-            </button>
-          </div>
+  <div class="sidebar-dock" id="sidebar-dock">
+    <button type="button" id="sidebar-expand-btn" class="sidebar-dock__collapse-pill sidebar-dock__collapse-pill--expand" aria-expanded="false" aria-controls="sidebar-main" aria-hidden="true" title="Bal panel megnyitása" aria-label="Bal panel megnyitása">
+      <span class="sidebar-dock__collapse-pill-glyph" aria-hidden="true">›</span>
+    </button>
+    <aside class="sidebar" id="sidebar-main">
+    <header class="sidebar-header" role="banner">
+      <h1 class="sidebar-title">Holistic Search Engine</h1>
+      <div class="sidebar-header__actions">
+        <div class="sidebar-header__tool-cluster" aria-label="Gyors műveletek és panel">
+          <button type="button" id="param-random-all-btn" class="sidebar-header__cluster-btn" title="Véletlen értékek" aria-label="Véletlen értékek minden aktív mutatóra">
+            <span class="material-symbols-outlined sidebar-header__cluster-ico" aria-hidden="true">shuffle</span>
+          </button>
+          <button type="button" id="param-restore-baseline-btn" class="sidebar-header__cluster-btn" title="Eredeti értékek visszaállítása" aria-label="Eredeti értékek visszaállítása">
+            <span class="material-symbols-outlined sidebar-header__cluster-ico" aria-hidden="true">restart_alt</span>
+          </button>
+          <button type="button" id="sidebar-collapse-btn" class="sidebar-header__cluster-btn sidebar-header__cluster-btn--chevron" aria-expanded="true" aria-controls="sidebar-main" aria-hidden="false" title="Bal panel elrejtése" aria-label="Bal panel elrejtése">
+            <span class="sidebar-dock__collapse-pill-glyph" aria-hidden="true">‹</span>
+          </button>
         </div>
-        <label for="erdo_szint" class="control-label control-label-sub">Város (kerület), ahol számodra a legideálisabb az erdők és a fák mennyisége</label>
       </div>
-      <form class="ref-city-form" autocomplete="off" onsubmit="return false" novalidate>
-        <div class="ref-city-row">
-          <input
-            type="search"
-            id="erdo-ref-city"
-            class="ref-city-input"
-            name="settlements-query-a"
-            placeholder="vagy írd be a település nevét…"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="words"
-            spellcheck="false"
-            enterkeyhint="done"
-            inputmode="text"
-            data-1p-ignore
-            data-lpignore="true"
-            aria-label="Referencia település — erdők és fák"
-          >
-          <button type="button" id="erdo-ref-apply" class="ref-city-apply">Alkalmaz</button>
+    </header>
+    <div class="sidebar-scroll">
+
+      <div class="sidebar-params-stack">
+        <div id="important-places-host" class="important-places-outer"></div>
+        <div id="param-categories-host" class="param-categories-host" aria-label="Paraméter csúszkák kategóriák szerint"></div>
+      </div>
+
+      <div id="feedback-panel" class="feedback-panel" hidden aria-label="Találat részletei és oszlopok">
+        <div class="feedback-panel__edge-wrap">
+          <button type="button" id="feedback-collapse-btn" class="feedback-panel__edge-tab" aria-expanded="true" title="Jobb panel elrejtése" aria-label="Jobb panel elrejtése">
+            <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">›</span>
+          </button>
         </div>
-      </form>
-      <p id="erdo-ref-line" class="ref-line" hidden></p>
-      <div class="slider-row">
-        <input type="range" id="erdo_szint" class="slider" min="0" max="100" value="50">
-        <span id="erdo_szint-value" class="slider-value">50</span>
+        <div class="feedback-panel__inner"></div>
       </div>
     </div>
 
-    <div class="control-group">
-      <div class="param-block-header">
-        <div class="param-heading-row">
-          <h2 class="param-heading">Kulturális élet</h2>
-          <div class="param-heading-trail">
-            <div class="param-info-wrap">
-              <button type="button" class="param-info-btn" aria-label="További információ: kulturális élet paramétere" aria-describedby="kultura-param-help" title="Teszt / példa magyarázat (lásd buborék)">i</button>
-              <div id="kultura-param-help" class="param-info-tooltip" role="tooltip">Teszt / példa: a kulturális élet mutató egy összetett skáláról jön (pl. a központ körüli ~5 km-en belüli intézmények, eseménynaptár és látogatottság becsült súlyozása — a pontos összegzés és adatforrások később kerülnek dokumentálásra).</div>
-            </div>
-            <button type="button" id="pick-kultura-btn" class="pick-map-btn" aria-pressed="false" aria-label="Referencia település a térképen — kulturális élet" title="Térképen">
-              <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
-            </button>
-          </div>
-        </div>
-        <label for="kultura_szint" class="control-label control-label-sub">Város (kerület), ahol számodra a legideálisabb a kulturális élet</label>
-      </div>
-      <form class="ref-city-form" autocomplete="off" onsubmit="return false" novalidate>
-        <div class="ref-city-row">
-          <input
-            type="search"
-            id="kultura-ref-city"
-            class="ref-city-input"
-            name="settlements-query-b"
-            placeholder="vagy írd be a település nevét…"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="words"
-            spellcheck="false"
-            enterkeyhint="done"
-            inputmode="text"
-            data-1p-ignore
-            data-lpignore="true"
-            aria-label="Referencia település — kulturális élet"
-          >
-          <button type="button" id="kultura-ref-apply" class="ref-city-apply">Alkalmaz</button>
-        </div>
-      </form>
-      <p id="kultura-ref-line" class="ref-line" hidden></p>
-      <div class="slider-row">
-        <input type="range" id="kultura_szint" class="slider" min="0" max="100" value="50">
-        <span id="kultura_szint-value" class="slider-value">50</span>
-      </div>
+    <div class="sidebar-footer" aria-label="Keresés és eredmény">
+      <button type="button" id="search-btn" class="search-btn">Tökéletes hely keresése</button>
+      <div id="result-box" class="result-box" aria-live="polite"></div>
     </div>
-
-    <button type="button" id="search-btn" class="search-btn">Tökéletes hely keresése</button>
-
-    <div id="result-box" class="result-box" aria-live="polite"></div>
-  </aside>
+    </aside>
+  </div>
 
   <main id="map-container" class="map-container" aria-label="Térkép"></main>
 
@@ -141,6 +90,16 @@
     </div>
   </div>
 
+  <!-- Első „Tökéletes hely keresése”: ha vannak kikapcsolt mutatók, rövid tájékoztató (bezárás = nincs keresés) -->
+  <div id="first-search-hint-overlay" class="first-search-hint-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="first-search-hint-title" aria-describedby="first-search-hint-list">
+    <div class="first-search-hint-dialog">
+      <button type="button" id="first-search-hint-close" class="first-search-hint-close" aria-label="Bezárás">×</button>
+      <p id="first-search-hint-title" class="first-search-hint-text first-search-hint-text--lead"></p>
+      <p class="first-search-hint-text first-search-hint-text--sub">A következő mutatók még kikapcsoltak (egymás alatt; a bal oldali kapcsolóval bekapcsolhatod őket):</p>
+      <ul id="first-search-hint-list" class="first-search-hint-list"></ul>
+    </div>
+  </div>
+
   <!-- Sorszám overlay – csak mobilon látható (CSS dönti el); bezárás: háttérre koppintás -->
   <div id="ticket-overlay" class="ticket-overlay" role="dialog" aria-modal="true" aria-labelledby="ticket-heading" aria-describedby="ticket-hint" hidden>
     <div class="ticket-card">
@@ -154,7 +113,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=64"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

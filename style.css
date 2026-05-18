@@ -9,6 +9,9 @@
   --paper: #fafafa;
   --line: rgba(0, 0, 0, 0.2);
   --line-strong: rgba(0, 0, 0, 0.55);
+  /* Bal/jobb panel nyíl — egy vonalban a fejléc ikonokkal; jobbra hely a térkép zoom vezérlőnek */
+  --sidebar-control-top: 21px;
+  --map-zoom-gutter: 56px;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -64,13 +67,90 @@ body {
   height: 100vh;
 }
 
-/* ── Sidebar — frosted glass over map ───────────────────── */
+/* ── Bal panel dokkoló: keskeny fül, panel becsukható balra ─ */
 
-.sidebar {
+.sidebar-dock {
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.sidebar-dock > * {
+  pointer-events: auto;
+}
+
+/* Kis fehér négyzet + vastag kontúr + fekete nyíl (összecsukva csak ez látszik a szélen) */
+.sidebar-dock__collapse-pill {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-dock__collapse-pill-glyph {
+  display: block;
+  margin-top: -0.5px;
+  user-select: none;
+}
+
+.sidebar-dock__collapse-pill:hover {
+  background: #fafafa;
+}
+
+.sidebar-dock__collapse-pill:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.sidebar-dock__collapse-pill--expand {
+  display: none;
+  margin-top: var(--sidebar-control-top);
+  margin-left: 10px;
+}
+
+.sidebar-dock.sidebar-dock--collapsed .sidebar-dock__collapse-pill--expand {
+  display: inline-flex;
+}
+
+.sidebar-dock .sidebar {
+  transition: transform 0.22s ease, visibility 0s linear 0s;
+}
+
+.sidebar-dock--collapsed .sidebar {
+  transform: translateX(-100%);
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform 0.22s ease, visibility 0s linear 0.22s;
+}
+
+.sidebar-dock:not(.sidebar-dock--collapsed) .sidebar {
+  visibility: visible;
+}
+
+.sidebar {
+  position: relative;
+  left: auto;
+  top: auto;
   width: 390px;
   min-width: 0;
   max-width: min(390px, 100vw);
@@ -80,29 +160,134 @@ body {
   color: var(--ink);
   display: flex;
   flex-direction: column;
-  padding: 20px 18px 24px;
-  gap: 14px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
   overscroll-behavior-x: none;
-  z-index: 10;
   border-right: 1px solid var(--ink);
   box-shadow: 4px 0 0 0 rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-header {
+  flex-shrink: 0;
+  padding: 20px 18px 12px;
+  background: var(--paper);
+  z-index: 15;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sidebar-header__actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Véletlen / visszaállítás / panel nyíl — egy kontúros dobozban */
+.sidebar-header__tool-cluster {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: stretch;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-header__cluster-btn {
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-right: 1px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.sidebar-header__cluster-btn:last-child {
+  border-right: none;
+}
+
+.sidebar-header__cluster-btn:hover {
+  background: #fafafa;
+}
+
+.sidebar-header__cluster-btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.sidebar-header__cluster-ico {
+  font-size: 17px !important;
+  line-height: 1 !important;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.sidebar-header__cluster-btn--chevron {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Megakadályozza a böngésző scroll anchoringjét panelmagasság-változáskor (első kinyitás „ugrálás”). */
+  overflow-anchor: none;
+  /* Gördítősáv megjelenésekor ne csússzon el a tartalom szélességben / görgetési pozícióban. */
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 18px 14px;
+  box-sizing: border-box;
+}
+
+.sidebar-scroll > * {
+  min-width: 0;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line-strong);
+  background: var(--paper);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .sidebar > * {
   min-width: 0;
 }
 
-.sidebar::-webkit-scrollbar {
+.sidebar-scroll::-webkit-scrollbar {
   width: 5px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar-scroll::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
@@ -113,8 +298,12 @@ body {
   letter-spacing: 0.02em;
   line-height: 1.25;
   color: var(--ink);
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--ink);
+  margin: 0;
+  padding: 0;
+  border: none;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 
 /* ── Form controls (TripBlend: .form-group → HOVA: .control-group) ─ */
@@ -189,13 +378,14 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  border-radius: 50%;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
   background: #fff;
-  color: rgba(0, 0, 0, 0.5);
+  color: #000;
   font-size: 0.72rem;
   font-weight: 700;
   font-style: italic;
@@ -213,13 +403,20 @@ body {
   outline: none;
 }
 
-.param-info-tooltip {
-  /* pozíció: app.js (placeParamTooltip) — fixed, a panel nem vágja, a térkép fölé kerül */
+/* Infó buborékok: minden UI felett (body-szintű réteg, app.js illeszti ide a DOM-ot) */
+.param-info-tooltip-layer {
   position: fixed;
-  z-index: 100001;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2000000;
+}
+
+.param-info-tooltip {
+  /* pozíció: app.js (placeParamTooltip) — fixed, rétegben a teljes app fölött */
+  position: fixed;
   left: 0;
   top: 0;
-  width: min(280px, calc(100vw - 16px));
+  width: min(320px, calc(100vw - 16px));
   box-sizing: border-box;
   padding: 10px 12px;
   border: 1px solid var(--ink);
@@ -238,14 +435,133 @@ body {
   transition: opacity 0.12s ease, visibility 0.12s ease;
 }
 
-.param-info-wrap:hover .param-info-tooltip,
-.param-info-wrap:focus-within .param-info-tooltip {
+.param-info-tooltip.param-info-tooltip--visible {
   opacity: 1;
   visibility: visible;
 }
 
-.param-heading-trail .pick-map-btn {
-  margin-top: 0;
+.param-info-wrap--head {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  height: 18px;
+  margin-right: 2px;
+}
+
+/* Ugyanaz a magasság és stílus, mint a .param-item__ios-switch — „i” nem dőlt: nem csúszik le optikailag */
+.param-info-btn--head {
+  width: 18px;
+  height: 18px;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-family: inherit;
+}
+
+.param-item__head-row .param-info-wrap--head {
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.param-item__head-row .param-item__ios-switch {
+  margin-left: 4px;
+  margin-right: 10px;
+}
+
+/* Első keresés: kikapcsolt mutatókra figyelmeztető modál (a keresés gomb és a térkép fölött, infó réteg alatt) */
+.first-search-hint-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1900000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.first-search-hint-overlay[hidden] {
+  /* A display: flex felülírná a [hidden] natív display:none-ját — különben betöltéskor is látszana. */
+  display: none !important;
+}
+
+.first-search-hint-dialog {
+  position: relative;
+  max-width: min(380px, 100%);
+  padding: 20px 40px 20px 20px;
+  border-radius: 7px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.first-search-hint-text {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.first-search-hint-text--lead {
+  margin-bottom: 12px;
+}
+
+.first-search-hint-text--sub {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.first-search-hint-list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+  max-height: min(40vh, 280px);
+  overflow-y: auto;
+}
+
+.first-search-hint-list li {
+  margin: 0 0 6px 0;
+}
+
+.first-search-hint-list li:last-child {
+  margin-bottom: 0;
+}
+
+.first-search-hint-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.35rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.first-search-hint-close:hover,
+.first-search-hint-close:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
+  outline: none;
 }
 
 .control-group > .control-label,
@@ -378,14 +694,30 @@ body {
 
 /* MapLibre csepp jelölő + korábbi dobozos feliratok (külön marker + offset) */
 
-.map-ref-marker {
+.map-geo-important {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 4px;
   pointer-events: none;
 }
 
-.map-ref-marker__label {
+.map-geo-important__city {
+  font-family: var(--font-app);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 170px;
+  text-align: center;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--ink);
+  padding: 4px 7px;
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+}
+
+.map-geo-important__tag {
   font-family: var(--font-app);
   font-size: 10px;
   font-weight: 700;
@@ -510,7 +842,7 @@ html.map-picking #map-container.map-container {
 
 @media (min-width: 901px) {
   .map-picking-banner {
-    left: 390px;
+    left: calc(390px + 26px);
     right: 0;
     padding-left: 20px;
     border-left: none;
@@ -997,9 +1329,633 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   text-align: right;
 }
 
+/* Fontos hely + mutató csoportok: a scroll „gap” nélkül folytonos vonalvezetés, mint a kategóriák között */
+.sidebar-params-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex-shrink: 0;
+  margin-left: -18px;
+  margin-right: -18px;
+  width: calc(100% + 36px);
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* Fontos hely (kétkörös, param-group + param-item) */
+/* Egész „Fontos hely” blokk együtt legyen egy erős stacking contextben, hogy az infó (fixed) tooltip
+   ne kerüljön a következő szakasz (pl. Természeti környezet) alá. */
+.important-places-outer {
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 50;
+}
+
+.important-places-group {
+  overflow: visible;
+  position: relative;
+}
+
+/* Kártya ne vágja le az abszolút javaslatlistát; fókuszkor emelkedjen a többi kártya fölé */
+.param-item.param-item--geo-place {
+  /* Alap: rejtett sugárlista mellett a lekerekítés látszódjon (ne „vágja le” az alsó sarkot az overflow) */
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* 1. és 2. fontos hely: ha az egyiken áll az egér/fókusz, az egész kártya a másik (és a tooltip) fölé kerüljön */
+.param-item.param-item--geo-place:hover,
+.param-item.param-item--geo-place:focus-within {
+  z-index: 60;
+}
+
+.param-item.param-item--geo-place.param-item--geo-suggest-open {
+  overflow: visible;
+}
+
+.param-item--geo-place .param-item__body {
+  overflow: visible;
+}
+
+.param-item--geo-place .geo-autocomplete-wrap {
+  position: relative;
+}
+
+.geo-suggest-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: min(280px, 45vh);
+  overflow: auto;
+}
+
+.geo-suggest-item {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.geo-suggest-item:hover,
+.geo-suggest-item:focus-visible {
+  background: rgba(10, 10, 10, 0.06);
+}
+
+.param-global-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: stretch;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.param-restore-baseline-btn {
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: #fff;
+  border-color: var(--line-strong);
+}
+
+.param-restore-baseline-btn:hover,
+.param-restore-baseline-btn:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.03);
+  outline: none;
+}
+
+.param-random-btn--wide {
+  width: 100%;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.param-categories-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.param-categories-intro .param-heading {
+  margin: 0;
+}
+
+.param-categories-host {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Első kategória (Természeti…) a Fontos hely blokk után: ugyanaz a 1px elválasztó, mint a többi szakaszcím alatt */
+.sidebar-params-stack .param-categories-host > .param-group:first-child .param-group__toggle {
+  border-top: 1px solid var(--line);
+}
+
+/* Nagy csoportdoboz — széléig a sáv, oldalsó keret nélkül */
+.param-group {
+  gap: 0;
+  padding: 0;
+  flex-shrink: 0;
+  overflow: visible;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
+.param-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 18px;
+  box-sizing: border-box;
+  border: none;
+  background: rgba(0, 0, 0, 0.045);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.param-group__toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.param-group__chevron {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+
+.param-group--collapsed .param-group__chevron {
+  transform: rotate(-90deg);
+}
+
+.param-group__title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+.param-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 18px 18px;
+  overflow: visible;
+}
+
+.param-group--collapsed .param-group__body {
+  display: none;
+}
+
+/* Mutató-kártya: határozottabb keret, nagyobb tipográfia */
+.param-item {
+  position: relative;
+  gap: 0;
+  padding: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  overflow-anchor: none;
+  border-radius: 5px;
+  background: #fff;
+  border: 1px solid var(--ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  scroll-margin-top: max(1.5rem, 10vh);
+  scroll-margin-bottom: 1.25rem;
+}
+
+/* Egyetlen háttérszín a fejlécsorban: a gyerek gombok átlátszók, így nincs fehér „sáv” a kapcsoló körül */
+.param-item__head-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: #fafafa;
+  border-radius: 5px 5px 0 0;
+}
+
+.param-item__ios-switch {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+  scroll-margin-block: 0;
+  scroll-margin-inline: 0;
+  width: 30px;
+  height: 18px;
+  margin: 0 10px 0 8px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: none;
+  background-color: transparent;
+  background-image: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  line-height: 0;
+  font-size: 0;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.param-item__ios-switch::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+.param-item__ios-switch::after {
+  content: '';
+  position: absolute;
+  /* Belső magasság: 18px (border-box) − 4px keret = 14px → (14−11)/2 = 1.5px a függőleges középhez */
+  top: 1.5px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--ink);
+  box-sizing: border-box;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.2s linear;
+}
+
+.param-item__ios-switch[aria-checked='true'] {
+  background-color: var(--ink);
+  border-color: var(--ink);
+}
+
+.param-item__ios-switch[aria-checked='true']::after {
+  transform: translate3d(11px, 0, 0);
+  background: #fff;
+  border-color: #fff;
+}
+
+.param-item--inactive .param-item__ios-switch {
+  opacity: 0.72;
+}
+
+.param-item__ios-switch:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.param-item__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 10px 12px 10px 14px;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  scroll-margin-block: 0;
+  scroll-margin-inline: 0;
+}
+
+.param-item--inactive .param-item__body {
+  opacity: 0.48;
+  pointer-events: none;
+  user-select: none;
+}
+
+.param-item--inactive .param-item__head-row {
+  background: #f0f0f0;
+}
+
+.param-item--inactive .param-item__toggle {
+  background: transparent;
+}
+
+.param-item__toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.param-item__chevron {
+  flex-shrink: 0;
+  font-size: 0.5rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+
+.param-item--collapsed .param-item__chevron {
+  transform: rotate(-90deg);
+}
+
+.param-item__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.38;
+  color: var(--ink-soft);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.param-item__body {
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+  border-radius: 0 0 5px 5px;
+}
+
+.param-item--collapsed .param-item__body {
+  display: none;
+}
+
+.param-item__weight {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  min-width: 0;
+}
+
+.param-slider-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.param-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+}
+
+.param-range-row input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  margin-top: 0;
+}
+
+.param-range-row .slider-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.param-range-row .slider-wrap input[type='range'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.param-range-thumb-wrap {
+  padding-top: 28px;
+  position: relative;
+}
+
+.param-slider-stack--forest {
+  gap: 4px;
+}
+
+.param-range-end {
+  flex-shrink: 0;
+  max-width: 32%;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.param-range-end--min {
+  text-align: left;
+}
+
+.param-range-end--max {
+  text-align: right;
+}
+
+.param-range-current {
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.param-range-current__prefix {
+  color: rgba(0, 0, 0, 0.48);
+  font-weight: 600;
+  margin-right: 5px;
+}
+
+.param-range-current__val {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #111111;
+}
+
+.param-weight-label {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.param-random-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-family: var(--font-app);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.param-random-btn:hover,
+.param-random-btn:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: rgba(0, 0, 0, 0.07);
+  outline: none;
+}
+
+.param-sliders-host {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(48vh, 480px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-top: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.param-slider-block {
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.param-slider-block:last-child {
+  border-bottom: none;
+}
+
+.param-slider-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1.3;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.param-sliders-host input[type='range'],
+.param-group__body input[type='range'],
+.param-item__body input[type='range'],
+.param-sliders-host .slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  border-radius: 3px;
+  background: transparent;
+  outline: none;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.param-item__body .param-range-thumb-wrap input[type='range'] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: border-box;
+  direction: ltr;
+}
+
+.param-sliders-host input[type='range']::-webkit-slider-runnable-track,
+.param-group__body input[type='range']::-webkit-slider-runnable-track,
+.param-item__body input[type='range']::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.param-sliders-host input[type='range']::-webkit-slider-thumb,
+.param-group__body input[type='range']::-webkit-slider-thumb,
+.param-item__body input[type='range']::-webkit-slider-thumb,
+.param-sliders-host .slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.2s;
+}
+
+.param-sliders-host input[type='range']::-webkit-slider-thumb:hover,
+.param-group__body input[type='range']::-webkit-slider-thumb:hover,
+.param-item__body input[type='range']::-webkit-slider-thumb:hover,
+.param-sliders-host .slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.param-sliders-host input[type='range']::-moz-range-track,
+.param-group__body input[type='range']::-moz-range-track,
+.param-item__body input[type='range']::-moz-range-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.param-sliders-host input[type='range']::-moz-range-thumb,
+.param-group__body input[type='range']::-moz-range-thumb,
+.param-item__body input[type='range']::-moz-range-thumb,
+.param-sliders-host .slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+.param-sliders-host code {
+  font-size: 0.72em;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
 .slider-wrap {
   position: relative;
   padding-top: 26px;
+}
+
+/* Két osztály: a .slider-wrap későbbi paddingja ne írja felül */
+.slider-wrap.param-range-thumb-wrap {
+  padding-top: 28px;
 }
 
 .slider-bubble {
@@ -1149,6 +2105,235 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .result-box:not(:empty) {
   box-shadow: none;
   border-color: var(--ink);
+}
+
+/* ── Jobb oldali visszajelző: _index eltérések + nyertes sor minden oszlopa ─ */
+
+.feedback-panel[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 920px) {
+  .feedback-panel:not([hidden]) {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(420px, 38vw);
+    max-width: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    border-left: 1px solid var(--ink);
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    overflow: hidden;
+    transition:
+      transform 0.22s ease,
+      box-shadow 0.22s ease,
+      background-color 0.22s ease,
+      border-color 0.22s ease;
+  }
+
+  /* Becsukva: csak a fehér négyzet + nyíl; nem takarja a MapLibre zoomot */
+  .feedback-panel.feedback-panel--collapsed:not([hidden]) {
+    transform: none;
+    width: auto;
+    right: calc(var(--map-zoom-gutter) + env(safe-area-inset-right, 0px));
+    top: 0;
+    bottom: auto;
+    height: auto;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .feedback-panel.feedback-panel--collapsed .feedback-panel__inner {
+    display: none !important;
+  }
+
+  .feedback-panel__edge-wrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: var(--sidebar-control-top) 18px 0 16px;
+    box-sizing: border-box;
+    min-width: 58px;
+  }
+
+  .feedback-panel.feedback-panel--collapsed .feedback-panel__edge-wrap {
+    padding: var(--sidebar-control-top) 0 0 0;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .feedback-panel__edge-tab {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    margin-top: 0;
+    padding: 0;
+    border: 2.5px solid var(--ink);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  .feedback-panel__edge-tab-glyph {
+    display: block;
+    margin-top: -0.5px;
+    user-select: none;
+  }
+
+  .feedback-panel__edge-tab:hover {
+    background: #fafafa;
+  }
+
+  .feedback-panel__edge-tab:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    z-index: 1;
+  }
+
+  .feedback-panel__inner {
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 14px 22px;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 919px) {
+  .feedback-panel__edge-tab {
+    display: none !important;
+  }
+
+  .feedback-panel.feedback-panel--collapsed {
+    transform: none !important;
+  }
+
+  .feedback-panel:not([hidden]) {
+    position: relative;
+    width: 100%;
+    margin-top: 12px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: row;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .feedback-panel__inner {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 12px 12px 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.feedback-panel__title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink);
+  line-height: 1.25;
+}
+
+.feedback-panel__summary {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+}
+
+.feedback-panel__section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  margin: 18px 0 8px;
+  color: var(--ink);
+}
+
+.feedback-panel__section-title:first-of-type {
+  margin-top: 0;
+}
+
+.feedback-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.feedback-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+
+.feedback-table th,
+.feedback-table td {
+  border: 1px solid var(--line);
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.feedback-table th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.feedback-table td.feedback-table__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.feedback-table td.feedback-table__key {
+  word-break: break-word;
+  max-width: 120px;
+}
+
+.feedback-table--all td.feedback-table__key {
+  max-width: min(160px, 32vw);
+}
+
+.feedback-table--all td.feedback-table__val {
+  word-break: break-word;
+  min-width: 120px;
+  max-width: 320px;
+  font-size: 0.66rem;
+}
+
+.feedback-table tfoot td {
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 /* ── Results (TripBlend) ─────────────────────────────────── */
@@ -1517,20 +2702,65 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     z-index: 0;
   }
 
-  html.is-touch .sidebar {
+  html.is-touch .sidebar-dock {
     left: 0;
     right: 0;
     top: auto;
+    bottom: 0;
     width: 100%;
-    min-width: 0;
-    max-width: 100%;
     max-height: 48vh;
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  html.is-touch .sidebar-dock__collapse-pill--expand {
+    margin-top: 10px;
+    margin-left: 10px;
+    align-self: flex-start;
+  }
+
+  html.is-touch .sidebar-dock .sidebar {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
     height: auto;
+    max-height: 48vh;
     border-right: none;
     border-top: 2px solid var(--ink);
-    border-radius: 8px 8px 0 0;
+    border-radius: 0 8px 0 0;
     background: var(--paper);
     box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  html.is-touch .sidebar-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-anchor: none;
+    scrollbar-gutter: stable;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 18px 10px;
+    gap: 12px;
+  }
+
+  html.is-touch .sidebar-header {
+    padding: 12px 18px 10px;
+  }
+
+  html.is-touch .param-global-toolbar {
+    margin-top: 12px;
+  }
+
+  html.is-touch .sidebar-footer {
+    flex: 0 0 auto;
+    padding: 10px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line-strong);
   }
 
   html.is-touch .sidebar-title {
@@ -1589,20 +2819,31 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     pointer-events: none !important;
   }
 
-  /* Referencia kijelölése: térkép elő, panel eltűnik, alsó szalag */
+  /* Térképes pontválasztás (fontos hely): térkép elő, panel eltűnik, alsó szalag */
   html.is-touch.app-started.map-picking #map-container.map-container {
     opacity: 1 !important;
     pointer-events: auto !important;
   }
 
-  html.is-touch.app-started.map-picking .sidebar {
+  html.is-touch.app-started.map-picking .sidebar-dock {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transform: translateY(12px);
   }
 
-  html.is-touch.app-started .sidebar {
+  html.is-touch.app-started .sidebar-dock {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: none;
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  html.is-touch.app-started .sidebar-dock .sidebar {
     top: 0;
     bottom: 0;
     left: 0;
@@ -1610,18 +2851,40 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    max-height: none;
     height: auto;
     min-height: 100dvh;
     max-height: 100dvh;
     border-top: none;
     border-radius: 0;
     background: var(--paper);
-    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
-    padding-top: max(20px, env(safe-area-inset-top));
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
     justify-content: flex-start;
     z-index: 50;
     box-shadow: none;
+    overflow: hidden;
+  }
+
+  html.is-touch.app-started .sidebar-header {
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-bottom: 8px;
+  }
+
+  html.is-touch.app-started .sidebar-scroll {
+    padding-top: 0;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-bottom: 14px;
+  }
+
+  html.is-touch.app-started .param-global-toolbar {
+    margin-top: 10px;
+  }
+
+  html.is-touch.app-started .sidebar-footer {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 
