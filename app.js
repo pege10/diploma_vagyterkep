@@ -80,13 +80,14 @@
     { type: 'section', title: '4. Társadalom és demográfia' },
     { type: 'param', id: 'senior_index', megnevezes: '65 év feletti lakosság aránya (Senior Index)' },
     { type: 'param', id: 'diploma_index', megnevezes: 'Diplomások normalizált indexe' },
+    { type: 'param', id: 'primary_school_proximity_index', megnevezes: 'Általános iskola elérhetősége' },
+    { type: 'param', id: 'high_school_proximity_index', megnevezes: 'Gimnázium elérhetősége' },
     { type: 'section', title: '5. Gazdaság és munkaerőpiac' },
     { type: 'param', id: 'real_estate_price_grow_5yrs_index', megnevezes: 'Ingatlanár-emelkedési index (5 év)' },
     { type: 'param', id: 'real_estate_price_avg5mth_index', megnevezes: 'Aktuális ingatlanár-szint (2025-2026)' },
     { type: 'param', id: 'sleeping_city_index', megnevezes: 'Alvóváros index' },
     { type: 'param', id: 'jobs_index', megnevezes: 'Helyi munkalehetőség index' },
     { type: 'param', id: 'turism_index', megnevezes: 'Turizmus index' },
-    { type: 'param', id: 'school_proximity_index', megnevezes: 'School Proximity Index' },
     {
       type: 'param',
       id: 'telepules_nev_egysegesites',
@@ -674,6 +675,21 @@
     return indexKey.replace(/_sport_index$/i, '_letesitmeny_db');
   }
 
+  function gastroCompanionGasztroDbKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_gasztro_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_gasztro_index$/i, '_gasztro_db');
+  }
+
+  function seniorCompanionArany65Key(indexKey) {
+    if (typeof indexKey !== 'string' || !/_senior_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_senior_index$/i, '_arany_65_felett');
+  }
+
+  function diplomaCompanionAranyaKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_diploma_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_diploma_index$/i, '_diplomasok_aranya');
+  }
+
   /** Nem-törő szóköz: a szám és az egysége közé kerül, így a buborék/felirat nem tördel be
    *  „pont az egységjel előtt" (pl. hegyvidéki ° nem ugrik új sorba). */
   var NBSP = '\u00A0';
@@ -730,6 +746,167 @@
     return String(Math.round(sportag)) + NBSP + 'sportág\n' + String(Math.round(letes)) + NBSP + 'létesítmény';
   }
 
+  function formatKmForUi(km) {
+    if (km == null || !Number.isFinite(km)) return '–';
+    const x = Math.round(km * 10) / 10;
+    const s = String(x);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + 'km';
+  }
+
+  function formatVendeglatohelyForUi(n) {
+    if (n == null || !Number.isFinite(n)) return '–';
+    return String(Math.round(n)) + NBSP + 'vendéglátóhely';
+  }
+
+  /** Ingatlan emelkedés % — az adat már százalékban van (nem 0–1 arány). */
+  function formatIngatlanPctForUi(pct) {
+    if (pct == null || !Number.isFinite(pct)) return '–';
+    const x = Math.round(pct * 10) / 10;
+    const s = String(x);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + '%';
+  }
+
+  function parseHufAmount(val) {
+    if (val == null || val === '') return null;
+    const digits = String(val).replace(/[^\d]/g, '');
+    if (!digits) return null;
+    const n = Number(digits);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function formatHufForUi(amount) {
+    if (amount == null || !Number.isFinite(amount)) return '–';
+    const n = Math.round(amount);
+    const s = String(n);
+    const grouped = s.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+    return grouped + NBSP + 'Ft';
+  }
+
+  var INGATLAN_GROW_VARIANTS = [
+    { id: 'haz', label: 'Ház', indexMatch: /house_price_grow_5yrs_index$/i, companionSuffix: 'haz_emelkedes_pct' },
+    { id: 'lakas', label: 'Lakás', indexMatch: /flat_price_grow_5yrs_index$/i, companionSuffix: 'lakas_emelkedes_pct' },
+    { id: 'telek', label: 'Telek', indexMatch: /site_price_grow_5yrs_index$/i, companionSuffix: 'telek_emelkedes_pct' },
+  ];
+
+  var INGATLAN_AVG_VARIANTS = [
+    { id: 'haz', label: 'Ház', indexMatch: /house_avg_index$/i, companionSuffix: 'haz_atlag' },
+    { id: 'lakas', label: 'Lakás', indexMatch: /flat_avg_index$/i, companionSuffix: 'lakas_atlag' },
+    { id: 'telek', label: 'Telek', indexMatch: /site_avg_index$/i, companionSuffix: 'telek_atlag' },
+  ];
+
+  /** Ingatlan típusváltó: bal → jobb (telek, lakás, ház) */
+  var INGATLAN_SEGMENT_ORDER = ['telek', 'lakas', 'haz'];
+  var INGATLAN_SEGMENT_INDEX = { telek: 0, lakas: 1, haz: 2 };
+
+  /** Iskola: állami | alternatív — normalizált index a csúszkán/keresésben, legközelebbi km a buborékban */
+  var SCHOOL_SEGMENT_ORDER = ['allami', 'alternativ'];
+  var SCHOOL_SEGMENT_INDEX = { allami: 0, alternativ: 1 };
+
+  var SCHOOL_PRIMARY_VARIANTS = [
+    {
+      id: 'allami',
+      label: 'Állami iskola',
+      indexKey: 'SCHOOL_PROXIMITY_INDEX_alt_sima_index',
+      companionKey: 'SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km',
+    },
+    {
+      id: 'alternativ',
+      label: 'Alternatív iskola',
+      indexKey: 'SCHOOL_PROXIMITY_INDEX_alt_alt_index',
+      companionKey: 'SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km',
+    },
+  ];
+
+  var SCHOOL_GYMNASIUM_VARIANTS = [
+    {
+      id: 'allami',
+      label: 'Állami középiskola',
+      indexKey: 'SCHOOL_PROXIMITY_INDEX_gim_sima_index',
+      companionKey: 'SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km',
+    },
+    {
+      id: 'alternativ',
+      label: 'Alternatív középiskola',
+      indexKey: 'SCHOOL_PROXIMITY_INDEX_gim_alt_index',
+      companionKey: 'SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km',
+    },
+  ];
+
+  function schoolVariantDefsForUiParam(uiParamId) {
+    if (uiParamId === 'primary_school_proximity_index') return SCHOOL_PRIMARY_VARIANTS;
+    if (uiParamId === 'high_school_proximity_index') return SCHOOL_GYMNASIUM_VARIANTS;
+    return [];
+  }
+
+  function schoolIndexKeyPresent(indexKey, sampleRow) {
+    if (!indexKey) return false;
+    const row = sampleRow || (citiesData.length ? citiesData[0] : null);
+    return !!(row && Object.prototype.hasOwnProperty.call(row, indexKey));
+  }
+
+  function schoolResolvedIndexKeysForUiParam(uiParamId) {
+    const row = citiesData.length ? citiesData[0] : null;
+    const defs = schoolVariantDefsForUiParam(uiParamId);
+    const out = [];
+    for (let i = 0; i < defs.length; i++) {
+      const k = defs[i].indexKey;
+      if (schoolIndexKeyPresent(k, row) && out.indexOf(k) === -1) out.push(k);
+    }
+    return out;
+  }
+
+  function augmentIndexParamKeysWithSchool(keys) {
+    if (!citiesData.length || !citiesData[0]) return keys;
+    const set = new Set(keys);
+    const defs = SCHOOL_PRIMARY_VARIANTS.concat(SCHOOL_GYMNASIUM_VARIANTS);
+    for (let i = 0; i < defs.length; i++) {
+      const k = defs[i].indexKey;
+      if (schoolIndexKeyPresent(k, citiesData[0])) set.add(k);
+    }
+    return Array.from(set);
+  }
+
+  function schoolKeysMatchingUiParam(uiParamId, keys) {
+    const resolved = schoolResolvedIndexKeysForUiParam(uiParamId);
+    const keySet = new Set(keys);
+    return resolved.filter(function (k) {
+      return keySet.has(k);
+    });
+  }
+
+  function buildSchoolVariantMap(uiParamId) {
+    const variantMap = {};
+    const row = citiesData.length ? citiesData[0] : null;
+    const defs = schoolVariantDefsForUiParam(uiParamId);
+    for (let i = 0; i < defs.length; i++) {
+      const vd = defs[i];
+      if (!schoolIndexKeyPresent(vd.indexKey, row)) continue;
+      const indexKey = vd.indexKey;
+      if (!sliderRanges[indexKey] && citiesData.length) {
+        sliderRanges[indexKey] = columnMinMax(indexKey, citiesData);
+      }
+      if (!sliderRanges[indexKey]) continue;
+      variantMap[vd.id] = { indexKey: indexKey, companionKey: vd.companionKey };
+    }
+    return variantMap;
+  }
+
+  function ingatlanCompanionColumnKey(indexKey, companionSuffix) {
+    if (!indexKey || !companionSuffix) return null;
+    const m = String(indexKey).match(/^(INGATLANPIAC_)/i);
+    if (!m) return null;
+    return m[1] + companionSuffix;
+  }
+
+  function findIngatlanIndexKeyForVariant(allKeys, indexMatch) {
+    for (let i = 0; i < allKeys.length; i++) {
+      if (indexMatch.test(allKeys[i])) return allKeys[i];
+    }
+    return null;
+  }
+
   /**
    * Indexcsúszka értékéhez: azonos (kerekített) indexű településeken a companion oszlop átlaga;
    * hiány esetén a rendezett indexkulcsok közötti lineáris interpoláció.
@@ -737,9 +914,11 @@
    * @param {string} indexKey
    * @param {string} companionKey pl. …_forest_ratio, …_water_ratio, …_slope_mean
    */
-  function createIndexCompanionAverageModel(indexKey, companionKey, step) {
+  function createIndexCompanionAverageModel(indexKey, companionKey, step, parseCompanionValue) {
     const rng = sliderRanges[indexKey];
     if (!companionKey || !rng || !citiesData.length) return null;
+    const parseC =
+      typeof parseCompanionValue === 'function' ? parseCompanionValue : parseNumeric;
 
     const idxMin = rng.min;
     const idxMax = rng.max;
@@ -748,7 +927,7 @@
     for (let i = 0; i < citiesData.length; i++) {
       const row = citiesData[i];
       const ix = parseNumeric(row[indexKey]);
-      const r = parseNumeric(row[companionKey]);
+      const r = parseC(row[companionKey]);
       if (ix == null || r == null) continue;
       const k = Math.round(ix);
       const acc = byIndex.get(k);
@@ -897,7 +1076,12 @@
   /**
    * [min] | buborék + range | [max]; élő érték a hüvelykujj buborékban.
    */
-  function buildParamRangeRowWithExtrema(input, step, minVal, maxVal) {
+  function buildParamRangeRowWithExtrema(input, step, minVal, maxVal, formatValue) {
+    function fmtVal(v) {
+      if (formatValue) return formatValue(v);
+      return formatParamSliderNumber(v, step);
+    }
+
     const stack = document.createElement('div');
     stack.className = 'param-slider-stack';
 
@@ -906,11 +1090,11 @@
 
     const minEl = document.createElement('span');
     minEl.className = 'param-range-end param-range-end--min';
-    minEl.textContent = formatParamSliderNumber(minVal, step);
+    minEl.textContent = fmtVal(minVal);
 
     const maxEl = document.createElement('span');
     maxEl.className = 'param-range-end param-range-end--max';
-    maxEl.textContent = formatParamSliderNumber(maxVal, step);
+    maxEl.textContent = fmtVal(maxVal);
 
     const wrap = document.createElement('div');
     wrap.className = 'slider-wrap param-range-thumb-wrap';
@@ -929,10 +1113,9 @@
     stack.appendChild(row);
 
     bindSliderThumbBubble(input, bubble, wrap, function (sl) {
-      const st = parseFloat(sl.step);
       const v = parseFloat(sl.value);
       if (!Number.isFinite(v)) return String(sl.value);
-      return formatParamSliderNumber(v, st);
+      return fmtVal(v);
     });
 
     return stack;
@@ -1486,12 +1669,12 @@
   function syncGeoRadiusLabels() {
     if (elements.geoRadiusA) {
       const v = Math.round(parseFloat(elements.geoRadiusA.value) || 0);
-      elements.geoRadiusA.setAttribute('aria-valuetext', v + ' kilométer');
+      elements.geoRadiusA.setAttribute('aria-valuetext', v + ' km');
       if (elements.geoRadiusAVal) elements.geoRadiusAVal.textContent = String(v);
     }
     if (elements.geoRadiusB) {
       const v = Math.round(parseFloat(elements.geoRadiusB.value) || 0);
-      elements.geoRadiusB.setAttribute('aria-valuetext', v + ' kilométer');
+      elements.geoRadiusB.setAttribute('aria-valuetext', v + ' km');
       if (elements.geoRadiusBVal) elements.geoRadiusBVal.textContent = String(v);
     }
     updateImportantPlaceCircles();
@@ -1901,10 +2084,7 @@
   function paramLabelForDbKey(dbKey) {
     const ent = getUiParamEntryForDbKey(dbKey);
     if (!ent || !ent.megnevezes) return shortLabelForKey(dbKey);
-    let base = ent.megnevezes;
-    if (ent.id === 'real_estate_price_grow_5yrs_index') base += ingatlanGrowSuffix(dbKey);
-    else if (ent.id === 'real_estate_price_avg5mth_index') base += ingatlanAvgSuffix(dbKey);
-    return base;
+    return ent.megnevezes;
   }
 
   function columnDisplayLabel(dbKey) {
@@ -1954,6 +2134,23 @@
         pendingSection = e.title;
         continue;
       }
+      if (e.id === 'primary_school_proximity_index' || e.id === 'high_school_proximity_index') {
+        const schoolMatches = schoolKeysMatchingUiParam(e.id, keys);
+        schoolMatches.sort(function (a, b) {
+          return a.localeCompare(b);
+        });
+        if (schoolMatches.length === 0) continue;
+        if (pendingSection) {
+          items.push({ type: 'section', title: pendingSection });
+          pendingSection = null;
+        }
+        for (let sm = 0; sm < schoolMatches.length; sm++) {
+          used.add(schoolMatches[sm]);
+        }
+        items.push({ type: 'variant_segment', uiParamId: e.id, keys: schoolMatches.slice() });
+        continue;
+      }
+
       const matches = keys.filter(function (kk) {
         return keySet.has(kk) && keyMatchesParamUiId(kk, e.id);
       });
@@ -1964,6 +2161,16 @@
       if (pendingSection) {
         items.push({ type: 'section', title: pendingSection });
         pendingSection = null;
+      }
+      if (
+        e.id === 'real_estate_price_grow_5yrs_index' ||
+        e.id === 'real_estate_price_avg5mth_index'
+      ) {
+        for (let m = 0; m < matches.length; m++) {
+          used.add(matches[m]);
+        }
+        items.push({ type: 'variant_segment', uiParamId: e.id, keys: matches.slice(), preset: 'ingatlan' });
+        continue;
       }
       for (let m = 0; m < matches.length; m++) {
         const kk = matches[m];
@@ -1980,9 +2187,23 @@
     const plan = buildSliderPlan(keys);
     const out = [];
     for (let i = 0; i < plan.length; i++) {
-      if (plan[i].type === 'slider') out.push(plan[i].key);
+      const item = plan[i];
+      if (item.type === 'slider') out.push(item.key);
+      else if (item.type === 'variant_segment' && item.keys && item.keys.length) {
+        for (let ki = 0; ki < item.keys.length; ki++) {
+          out.push(item.keys[ki]);
+        }
+      }
     }
     return out;
+  }
+
+  function getUiParamEntryById(uiParamId) {
+    for (let i = 0; i < PARAMETER_UI_ENTRIES.length; i++) {
+      const e = PARAMETER_UI_ENTRIES[i];
+      if (e.type === 'param' && e.id === uiParamId) return e;
+    }
+    return null;
   }
 
   /** Nyertes sor oszlopai: ugyanaz a param-sorrend, majd egyéb oszlopok ABC. */
@@ -2376,6 +2597,344 @@
     return { wrap: wrap, body: body };
   }
 
+  /**
+   * Többállású kapcsoló + egy csúszka: ingatlan (3 állás) vagy iskola (2 állás).
+   * A csúszka a kiválasztott index oszlopot vezérli; a buborék a companion oszlopból jön.
+   */
+  function createVariantSegmentParamCard(uiParamId, matchingKeys, sliderIdNum, preset) {
+    const ent = getUiParamEntryById(uiParamId);
+    if (!ent) return null;
+
+    const isSchool =
+      uiParamId === 'primary_school_proximity_index' ||
+      uiParamId === 'high_school_proximity_index';
+
+    let variantMap = {};
+    let labelDefs = [];
+    let segmentOrder = INGATLAN_SEGMENT_ORDER;
+    let segmentIndexMap = INGATLAN_SEGMENT_INDEX;
+    let segmentCols = 3;
+    let formatFn = formatIngatlanPctForUi;
+    let parseCompanion = parseNumeric;
+    let itemExtraClass = 'param-item--ingatlan-variant';
+    let segmentAriaLabel = 'Ingatlan típus: telek, lakás, ház';
+    let defaultVariantId = 'haz';
+
+    if (isSchool) {
+      variantMap = buildSchoolVariantMap(uiParamId);
+      labelDefs = schoolVariantDefsForUiParam(uiParamId);
+      segmentOrder = SCHOOL_SEGMENT_ORDER;
+      segmentIndexMap = SCHOOL_SEGMENT_INDEX;
+      segmentCols = 2;
+      formatFn = formatKmForUi;
+      parseCompanion = parseNumeric;
+      itemExtraClass = 'param-item--school-variant';
+      segmentAriaLabel = 'Iskola típus: állami, alternatív';
+      defaultVariantId = variantMap.allami ? 'allami' : 'alternativ';
+    } else {
+      if (!matchingKeys || !matchingKeys.length) return null;
+      const isGrow = uiParamId === 'real_estate_price_grow_5yrs_index';
+      const variantDefs = isGrow ? INGATLAN_GROW_VARIANTS : INGATLAN_AVG_VARIANTS;
+      formatFn = isGrow ? formatIngatlanPctForUi : formatHufForUi;
+      parseCompanion = isGrow ? parseNumeric : parseHufAmount;
+      labelDefs = variantDefs;
+      for (let vi = 0; vi < variantDefs.length; vi++) {
+        const vd = variantDefs[vi];
+        const indexKey = findIngatlanIndexKeyForVariant(matchingKeys, vd.indexMatch);
+        if (!indexKey) continue;
+        const companionKey = ingatlanCompanionColumnKey(indexKey, vd.companionSuffix);
+        if (!companionKey) continue;
+        variantMap[vd.id] = { indexKey: indexKey, companionKey: companionKey };
+      }
+      defaultVariantId = variantMap.haz ? 'haz' : variantMap.lakas ? 'lakas' : 'telek';
+    }
+
+    if (!variantMap[defaultVariantId]) {
+      const firstId = segmentOrder.find(function (id) {
+        return !!variantMap[id];
+      });
+      if (!firstId) return null;
+      defaultVariantId = firstId;
+    }
+
+    paramCategoryUid++;
+    const bodyId = 'param-item-body-' + paramCategoryUid;
+    const labelText = ent.megnevezes;
+    const sid = 'param-slider-' + sliderIdNum;
+    const wid = 'param-weight-' + sliderIdNum;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'control-group param-item ' + itemExtraClass;
+    wrap.setAttribute('data-param-active', '0');
+    wrap.classList.add('param-item--inactive');
+    wrap.classList.add('param-item--collapsed');
+    wrap._ingFormat = formatFn;
+    wrap._ingVariantMap = variantMap;
+    wrap._ingActiveVariant = defaultVariantId;
+
+    const activeSwitch = document.createElement('button');
+    activeSwitch.type = 'button';
+    activeSwitch.className = 'param-item__ios-switch';
+    activeSwitch.setAttribute('role', 'switch');
+    activeSwitch.setAttribute('aria-checked', 'false');
+    activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
+    activeSwitch.title = 'Beleszámít a keresésbe';
+
+    const headRow = document.createElement('div');
+    headRow.className = 'param-item__head-row';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'param-item__toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', bodyId);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'param-item__chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▼';
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'param-item__title';
+    titleEl.textContent = labelText;
+    titleEl.title = uiParamId;
+
+    toggle.appendChild(chevron);
+    toggle.appendChild(titleEl);
+    headRow.appendChild(toggle);
+    headRow.appendChild(createParameterInfoWrapForKey(uiParamId));
+    headRow.appendChild(activeSwitch);
+
+    activeSwitch.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const wasCollapsed = wrap.classList.contains('param-item--collapsed');
+      const turningOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+        activeSwitch.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+        wrap.setAttribute('data-param-active', nowOn ? '1' : '0');
+        wrap.classList.toggle('param-item--inactive', !nowOn);
+        if (nowOn) {
+          if (wrap.classList.contains('param-item--collapsed')) {
+            wrap.classList.remove('param-item--collapsed');
+            toggle.setAttribute('aria-expanded', 'true');
+          }
+        } else if (!wrap.classList.contains('param-item--collapsed')) {
+          wrap.classList.add('param-item--collapsed');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+      if (turningOn && wasCollapsed) startParamExpandScrollStabilize(wrap, headRow);
+      if (sliderAutoSearchActive) sidebarLayoutAnchorEl = headRow;
+      scheduleSearchFromSliders();
+    });
+
+    toggle.addEventListener('click', function () {
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
+        toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      });
+    });
+
+    const itemBody = document.createElement('div');
+    itemBody.id = bodyId;
+    itemBody.className = 'param-item__body';
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.className = 'slider';
+    input.id = sid;
+
+    const stack = document.createElement('div');
+    stack.className = 'param-slider-stack';
+    const row = document.createElement('div');
+    row.className = 'param-range-row';
+    const minEl = document.createElement('span');
+    minEl.className = 'param-range-end param-range-end--min';
+    const maxEl = document.createElement('span');
+    maxEl.className = 'param-range-end param-range-end--max';
+    const sliderWrap = document.createElement('div');
+    sliderWrap.className = 'slider-wrap param-range-thumb-wrap';
+    const bubble = document.createElement('div');
+    bubble.className = 'slider-bubble param-range-value-bubble';
+    bubble.setAttribute('aria-hidden', 'true');
+    sliderWrap.appendChild(bubble);
+    sliderWrap.appendChild(input);
+    row.appendChild(minEl);
+    row.appendChild(sliderWrap);
+    row.appendChild(maxEl);
+    stack.appendChild(row);
+    itemBody.appendChild(stack);
+
+    bindSliderThumbBubble(input, bubble, sliderWrap, function (sl) {
+      const model = wrap._ingModel;
+      const fmt = wrap._ingFormat;
+      if (model && fmt) return fmt(model.valueAtSliderValue(parseFloat(sl.value)));
+      return String(sl.value);
+    });
+
+    function applyVariantSegment(
+      card,
+      variantId,
+      segmentBtns,
+      segTrack,
+      slInput,
+      minSpan,
+      maxSpan,
+      bub,
+      sWrap,
+      wInp,
+      segIdxMap
+    ) {
+      const vm = card._ingVariantMap[variantId];
+      if (!vm) return;
+      const key = vm.indexKey;
+      const r = sliderRanges[key];
+      if (!r) return;
+
+      card._ingActiveVariant = variantId;
+      const segIdx = segIdxMap[variantId];
+      if (segTrack != null && Number.isFinite(segIdx)) {
+        segTrack.style.setProperty('--seg-idx', String(segIdx));
+      }
+      Object.keys(segmentBtns).forEach(function (id) {
+        const btn = segmentBtns[id];
+        if (!btn) return;
+        const on = id === variantId;
+        btn.classList.toggle('param-variant-segment__btn--active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      const step = computeStep(r.min, r.max);
+      const mid = snapToStep((r.min + r.max) / 2, r.min, r.max, step);
+      const model = createIndexCompanionAverageModel(key, vm.companionKey, step, parseCompanion);
+      card._ingModel = model;
+      slInput.setAttribute('data-param-key', key);
+      slInput.setAttribute('aria-label', labelText + ' (' + key + ')');
+      slInput.title = key;
+      if (wInp) wInp.setAttribute('data-param-weight-for', key);
+      slInput.min = String(r.min);
+      slInput.max = String(r.max);
+      slInput.step = String(step);
+      slInput.value = String(mid);
+      const fmt = card._ingFormat;
+      if (model && fmt) {
+        minSpan.textContent = fmt(model.valueAtSliderValue(r.min));
+        maxSpan.textContent = fmt(model.valueAtSliderValue(r.max));
+        const t = fmt(model.valueAtSliderValue(parseFloat(slInput.value)));
+        bub.textContent = t;
+        slInput.setAttribute('aria-valuetext', t);
+      }
+      const x = rangeInputThumbBubbleLeftPx(slInput, sWrap);
+      if (Number.isFinite(x)) {
+        bub.style.left = Math.max(0, x) + 'px';
+        bub.style.transform = 'translateX(-50%)';
+      }
+      slInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    const labelByVariantId = {};
+    for (let li = 0; li < labelDefs.length; li++) {
+      labelByVariantId[labelDefs[li].id] = labelDefs[li].label;
+    }
+
+    const segmentWrap = document.createElement('div');
+    segmentWrap.className = 'param-variant-segment';
+    segmentWrap.setAttribute('role', 'group');
+    segmentWrap.setAttribute('aria-label', segmentAriaLabel);
+
+    const segTrack = document.createElement('div');
+    segTrack.className =
+      'param-variant-segment__track' +
+      (segmentCols === 2 ? ' param-variant-segment__track--cols-2' : '');
+    const segThumb = document.createElement('span');
+    segThumb.className = 'param-variant-segment__thumb';
+    segThumb.setAttribute('aria-hidden', 'true');
+    segTrack.appendChild(segThumb);
+
+    const segmentBtns = {};
+    for (let si = 0; si < segmentOrder.length; si++) {
+      const segId = segmentOrder[si];
+      const segBtn = document.createElement('button');
+      segBtn.type = 'button';
+      segBtn.className = 'param-variant-segment__btn';
+      segBtn.setAttribute('data-variant-id', segId);
+      segBtn.textContent = labelByVariantId[segId] || segId;
+      segBtn.setAttribute('aria-pressed', 'false');
+      if (!variantMap[segId]) {
+        segBtn.disabled = true;
+        segBtn.classList.add('param-variant-segment__btn--unavailable');
+      }
+      segmentBtns[segId] = segBtn;
+      segTrack.appendChild(segBtn);
+      segBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (segBtn.disabled) return;
+        applyVariantSegment(
+          wrap,
+          segId,
+          segmentBtns,
+          segTrack,
+          input,
+          minEl,
+          maxEl,
+          bubble,
+          sliderWrap,
+          wInput,
+          segmentIndexMap
+        );
+        if (sliderAutoSearchActive) scheduleSearchFromSliders();
+      });
+    }
+    segmentWrap.appendChild(segTrack);
+
+    const weightWrap = document.createElement('div');
+    weightWrap.className = 'param-item__weight';
+    const wInput = document.createElement('input');
+    wInput.type = 'range';
+    wInput.className = 'slider param-weight-slider';
+    wInput.id = wid;
+    wInput.setAttribute('data-param-weight-for', variantMap[defaultVariantId].indexKey);
+    wInput.setAttribute('aria-label', 'Fontosság: ' + labelText);
+    wInput.title = 'Fontosság (0–' + PARAM_WEIGHT_SLIDER_MAX + ', egész)';
+    wInput.min = '0';
+    wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
+    wInput.step = '1';
+    wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
+    const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
+    const wLabel = document.createElement('span');
+    wLabel.className = 'param-weight-label';
+    wLabel.textContent = 'Fontosság · a |Δ| szorzója (0–' + PARAM_WEIGHT_SLIDER_MAX + ', csak egész)';
+    weightWrap.appendChild(wStack);
+    weightWrap.appendChild(wLabel);
+
+    itemBody.insertBefore(segmentWrap, stack);
+    itemBody.appendChild(weightWrap);
+
+    applyVariantSegment(
+      wrap,
+      defaultVariantId,
+      segmentBtns,
+      segTrack,
+      input,
+      minEl,
+      maxEl,
+      bubble,
+      sliderWrap,
+      wInput,
+      segmentIndexMap
+    );
+    bindParamRangeTrackSeek(input);
+    bindParamRangeTrackSeek(wInput);
+
+    wrap.appendChild(headRow);
+    wrap.appendChild(itemBody);
+    wrap._ingWeightInput = wInput;
+
+    return wrap;
+  }
+
   function createParamItemCard(key, sliderIdNum) {
     paramCategoryUid++;
     const bodyId = 'param-item-body-' + paramCategoryUid;
@@ -2528,6 +3087,18 @@
         if (mA && mB) {
           twoCompanion = { a: mA, b: mB, formatPair: formatSportPairForUi };
         }
+      } else if (uiParamEnt.id === 'gastro_index') {
+        const ck = gastroCompanionGasztroDbKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatVendeglatohelyForUi;
+      } else if (uiParamEnt.id === 'senior_index') {
+        const ck = seniorCompanionArany65Key(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatForestRatioForUi;
+      } else if (uiParamEnt.id === 'diploma_index') {
+        const ck = diplomaCompanionAranyaKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatForestRatioForUi;
       }
     }
 
@@ -2882,9 +3453,9 @@
     rInput.max = '500';
     rInput.step = '1';
     rInput.value = '50';
-    rInput.setAttribute('aria-label', titleLabel + ' — sugár kilométerben');
+    rInput.setAttribute('aria-label', titleLabel + ' — sugár (km)');
 
-    const stack = buildParamRangeRowWithExtrema(rInput, 1, 0, 500);
+    const stack = buildParamRangeRowWithExtrema(rInput, 1, 0, 500, formatKmForUi);
     bindParamRangeTrackSeek(rInput);
 
     itemBody.appendChild(radLab);
@@ -2943,7 +3514,7 @@
     const host = document.getElementById('important-places-host');
     if (!host) return;
     host.innerHTML = '';
-    const grp = createParamGroupBlock('Fontos hely', true);
+    const grp = createParamGroupBlock('Számomra fontos helyek', true);
     grp.wrap.classList.add('important-places-group');
 
     const warn = document.createElement('p');
@@ -2952,10 +3523,10 @@
     warn.hidden = true;
 
     grp.body.appendChild(
-      createImportantPlaceCard('a', geoImportantPlaceTitle.a || '1. fontos hely')
+      createImportantPlaceCard('a', geoImportantPlaceTitle.a || '1. számomra fontos hely')
     );
     grp.body.appendChild(
-      createImportantPlaceCard('b', geoImportantPlaceTitle.b || '2. fontos hely')
+      createImportantPlaceCard('b', geoImportantPlaceTitle.b || '2. számomra fontos hely')
     );
     grp.body.appendChild(warn);
     host.appendChild(grp.wrap);
@@ -2988,7 +3559,11 @@
         groupBody = grp.body;
         continue;
       }
-      if (item.type === 'slider' && groupBody) {
+      if (item.type === 'variant_segment' && groupBody) {
+        const card = createVariantSegmentParamCard(item.uiParamId, item.keys, sliderIndex, item.preset);
+        if (card) groupBody.appendChild(card);
+        sliderIndex++;
+      } else if (item.type === 'slider' && groupBody) {
         const card = createParamItemCard(item.key, sliderIndex);
         if (card) groupBody.appendChild(card);
         sliderIndex++;
@@ -3946,6 +4521,7 @@
       }
 
       indexParamKeys = discoverIndexKeys(citiesData[0]);
+      indexParamKeys = augmentIndexParamKeysWithSchool(indexParamKeys);
       indexParamKeys = orderIndexKeysForUi(indexParamKeys);
       sliderRanges = {};
       for (let i = 0; i < indexParamKeys.length; i++) {

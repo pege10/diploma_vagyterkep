@@ -128,6 +128,7 @@ create table if not exists public.all_parameters (
   "SCHOOL_PROXIMITY_INDEX_alt_sima_45km_nevek" text,
   "SCHOOL_PROXIMITY_INDEX_alt_sima_50km" bigint,
   "SCHOOL_PROXIMITY_INDEX_alt_sima_50km_nevek" text,
+  "SCHOOL_PROXIMITY_INDEX_alt_sima_index" bigint,
   "SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km" double precision,
   "SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev" text,
   "SCHOOL_PROXIMITY_INDEX_alt_alt_0km" bigint,
@@ -176,6 +177,7 @@ create table if not exists public.all_parameters (
   "SCHOOL_PROXIMITY_INDEX_gim_sima_45km_nevek" text,
   "SCHOOL_PROXIMITY_INDEX_gim_sima_50km" bigint,
   "SCHOOL_PROXIMITY_INDEX_gim_sima_50km_nevek" text,
+  "SCHOOL_PROXIMITY_INDEX_gim_sima_index" bigint,
   "SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km" double precision,
   "SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev" text,
   "SCHOOL_PROXIMITY_INDEX_gim_alt_0km" bigint,
@@ -200,6 +202,7 @@ create table if not exists public.all_parameters (
   "SCHOOL_PROXIMITY_INDEX_gim_alt_45km_nevek" text,
   "SCHOOL_PROXIMITY_INDEX_gim_alt_50km" bigint,
   "SCHOOL_PROXIMITY_INDEX_gim_alt_50km_nevek" text,
+  "SCHOOL_PROXIMITY_INDEX_gim_alt_index" bigint,
   "SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km" double precision,
   "SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev" text,
   created_at timestamptz not null default now()
