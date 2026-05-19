@@ -318,6 +318,59 @@
     requestAnimationFrame(frame);
   }
 
+  /**
+   * Első kapcsolós kinyitás: a törzs (csúszka/buborék) ResizeObserverrel később is nőhet —
+   * minden méretváltásnál a fejléc viewport-topját visszaállítjuk, + rövid időtartamig rAF-pótló.
+   * @param {HTMLElement} wrap .param-item
+   * @param {HTMLElement} headRow .param-item__head-row
+   */
+  function startParamExpandScrollStabilize(wrap, headRow) {
+    const sc = getSidebarScrollEl();
+    const bodyEl = wrap && wrap.querySelector('.param-item__body');
+    if (!sc || !headRow || !bodyEl) {
+      return;
+    }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        const targetTop = headRow.getBoundingClientRect().top;
+        function applyHeadRowAnchor() {
+          const cur = headRow.getBoundingClientRect().top;
+          const dy = cur - targetTop;
+          if (Math.abs(dy) > 0.5) {
+            sc.scrollTop += dy;
+          }
+        }
+        applyHeadRowAnchor();
+        let ro = null;
+        if (typeof ResizeObserver !== 'undefined') {
+          try {
+            ro = new ResizeObserver(function () {
+              applyHeadRowAnchor();
+            });
+            ro.observe(bodyEl);
+          } catch (e) {
+            ro = null;
+          }
+        }
+        maintainSidebarHeadRowViewportTop(headRow, sc, 950, targetTop);
+        window.setTimeout(function () {
+          applyHeadRowAnchor();
+          if (ro) {
+            try {
+              ro.disconnect();
+            } catch (e2) {
+              /* ignore */
+            }
+            ro = null;
+          }
+          requestAnimationFrame(function () {
+            applyHeadRowAnchor();
+          });
+        }, 1000);
+      });
+    });
+  }
+
   function getParamInfoTooltipLayer() {
     let el = document.getElementById('param-info-tooltip-layer');
     if (!el) {
@@ -346,6 +399,7 @@
     if (!btn || !tip) return;
     getParamInfoTooltipLayer().appendChild(tip);
     tip.classList.add('param-info-tooltip--visible');
+    bindParamInfoTipBridgeEvents(wrap, tip);
     placeParamTooltip(wrap);
   }
 
@@ -354,6 +408,39 @@
     if (!tip) return;
     tip.classList.remove('param-info-tooltip--visible');
     wrap.appendChild(tip);
+  }
+
+  function isParamInfoTooltipPinned(wrap) {
+    return wrap && wrap.getAttribute('data-param-info-pinned') === '1';
+  }
+
+  function setParamInfoTooltipPinned(wrap, pinned) {
+    if (!wrap) return;
+    const btn = wrap.querySelector('.param-info-btn');
+    if (pinned) wrap.setAttribute('data-param-info-pinned', '1');
+    else wrap.removeAttribute('data-param-info-pinned');
+    if (btn) btn.setAttribute('aria-expanded', pinned ? 'true' : 'false');
+  }
+
+  function bindParamInfoTipBridgeEvents(wrap, tip) {
+    if (!tip || tip.getAttribute('data-param-info-bridge') === '1') return;
+    tip.setAttribute('data-param-info-bridge', '1');
+    tip.addEventListener('mouseleave', function (e) {
+      if (isParamInfoTooltipPinned(wrap)) return;
+      const rel = e.relatedTarget;
+      if (rel && (wrap === rel || wrap.contains(rel))) return;
+      hideParamTooltipForWrap(wrap);
+    });
+  }
+
+  function dismissPinnedParamInfoTooltipsIfOutside(target) {
+    if (!target || typeof target.closest !== 'function') return;
+    if (target.closest('.param-info-tooltip')) return;
+    if (target.closest('.param-info-wrap')) return;
+    document.querySelectorAll('.param-info-wrap[data-param-info-pinned="1"]').forEach(function (w) {
+      setParamInfoTooltipPinned(w, false);
+      hideParamTooltipForWrap(w);
+    });
   }
 
   function getInactiveParamCategoryLabels() {
@@ -449,6 +536,9 @@
     return String(Math.round(v));
   }
 
+  /** Fontosság csúszska: 0…10 egész, a számításban w/10 (0–1) normalizált súlyként. */
+  var PARAM_WEIGHT_SLIDER_MAX = 10;
+
   /** Egyezzen a CSS ::-webkit-slider-thumb szélességével / magasságával. */
   var PARAM_RANGE_THUMB_SIZE_PX = 18;
 
@@ -529,22 +619,127 @@
     return indexKey.replace(/_forest_index$/i, '_forest_ratio');
   }
 
+  function waterCompanionRatioColumnKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_water_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_water_index$/i, '_water_ratio');
+  }
+
+  function terrainCompanionSlopeColumnKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_terrain_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_terrain_index$/i, '_slope_mean');
+  }
+
+  function budapestCarTrainCompanionTotalMinKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_budapest_car_train_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_budapest_car_train_index$/i, '_total_min');
+  }
+
+  function internetCompanionMbpsKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_internet_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_internet_index$/i, '_avg_d_mbps');
+  }
+
+  function transportFrequencyCompanionNapiJaratokKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_transport_frequency_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_transport_frequency_index$/i, '_napi_jaratok');
+  }
+
+  function districtSeatCompanionPercKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_jarasszekhely_auto_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_jarasszekhely_auto_index$/i, '_jarasszekhely_perc');
+  }
+
+  function budapestAccessCompanionPercKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_budapest_auto_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_budapest_auto_index$/i, '_budapest_perc');
+  }
+
+  function groceriesCompanionKmKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_kisker_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_kisker_index$/i, '_legkozelebbi_uzlet_km');
+  }
+
+  function groceriesCompanionBrandsKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_kisker_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_kisker_index$/i, '_unique_brandek_5km');
+  }
+
+  function sportCompanionSportagDbKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_sport_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_sport_index$/i, '_sportag_db');
+  }
+
+  function sportCompanionLetesitmenyDbKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_sport_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_sport_index$/i, '_letesitmeny_db');
+  }
+
+  /** Nem-törő szóköz: a szám és az egysége közé kerül, így a buborék/felirat nem tördel be
+   *  „pont az egységjel előtt" (pl. hegyvidéki ° nem ugrik új sorba). */
+  var NBSP = '\u00A0';
+
   function formatForestRatioForUi(ratio) {
     if (ratio == null || !Number.isFinite(ratio)) return '–';
     const pct = Math.round(ratio * 1000) / 10;
     const s = String(pct);
     const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
-    return t + ' %';
+    return t + NBSP + '%';
+  }
+
+  function formatSlopeDegreesForUi(deg) {
+    if (deg == null || !Number.isFinite(deg)) return '–';
+    const x = Math.round(deg * 10) / 10;
+    const s = String(x);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + '°';
+  }
+
+  function formatMinutesForUi(minutes) {
+    if (minutes == null || !Number.isFinite(minutes)) return '–';
+    const x = Math.round(minutes * 10) / 10;
+    const s = String(x);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + 'perc';
+  }
+
+  function formatMbpsForUi(mbps) {
+    if (mbps == null || !Number.isFinite(mbps)) return '–';
+    const x = Math.round(mbps * 100) / 100;
+    const s = String(x);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + 'Mbps';
+  }
+
+  function formatNapiJaratokForUi(n) {
+    if (n == null || !Number.isFinite(n)) return '–';
+    return String(Math.round(n)) + NBSP + 'járat/nap';
+  }
+
+  function formatGroceriesPairForUi(km, shops) {
+    if (km == null || !Number.isFinite(km) || shops == null || !Number.isFinite(shops)) return '–';
+    const x = Math.round(km * 100) / 100;
+    const s = String(x);
+    const kmStr = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return kmStr + NBSP + 'km\n' + String(Math.round(shops)) + NBSP + 'üzlet';
+  }
+
+  function formatSportPairForUi(sportag, letes) {
+    if (sportag == null || !Number.isFinite(sportag) || letes == null || !Number.isFinite(letes)) {
+      return '–';
+    }
+    return String(Math.round(sportag)) + NBSP + 'sportág\n' + String(Math.round(letes)) + NBSP + 'létesítmény';
   }
 
   /**
-   * Indexcsúszka értékéhez tartozó átlagos forest_ratio (települések átlaga azonos indexnél),
-   * hiány esetén a rendezett indexek közötti lineáris interpoláció.
+   * Indexcsúszka értékéhez: azonos (kerekített) indexű településeken a companion oszlop átlaga;
+   * hiány esetén a rendezett indexkulcsok közötti lineáris interpoláció.
+   * A csúszka továbbra is indexet tárol; a keresés/súlyozás index alapú marad.
+   * @param {string} indexKey
+   * @param {string} companionKey pl. …_forest_ratio, …_water_ratio, …_slope_mean
    */
-  function createForestIndexRatioModel(indexKey, step) {
-    const ratioKey = forestCompanionRatioColumnKey(indexKey);
+  function createIndexCompanionAverageModel(indexKey, companionKey, step) {
     const rng = sliderRanges[indexKey];
-    if (!ratioKey || !rng || !citiesData.length) return null;
+    if (!companionKey || !rng || !citiesData.length) return null;
 
     const idxMin = rng.min;
     const idxMax = rng.max;
@@ -553,7 +748,7 @@
     for (let i = 0; i < citiesData.length; i++) {
       const row = citiesData[i];
       const ix = parseNumeric(row[indexKey]);
-      const r = parseNumeric(row[ratioKey]);
+      const r = parseNumeric(row[companionKey]);
       if (ix == null || r == null) continue;
       const k = Math.round(ix);
       const acc = byIndex.get(k);
@@ -575,7 +770,7 @@
       return a.sum / a.n;
     }
 
-    function ratioAtSliderValue(sliderVal) {
+    function valueAtSliderValue(sliderVal) {
       const v = snapToStep(parseFloat(sliderVal), idxMin, idxMax, step);
       if (!Number.isFinite(v)) return null;
       const rk = Math.round(v);
@@ -606,27 +801,26 @@
       return r0 + t * (r1 - r0);
     }
 
-    return { ratioAtSliderValue: ratioAtSliderValue };
+    return { valueAtSliderValue: valueAtSliderValue };
   }
 
   /**
-   * Erdőindex csúszka: szélső feliratok = forest_ratio (index min/max mellett);
-   * élő érték = forest_ratio, a hüvelykujj követő buborékban.
+   * Indexcsúszka: szélső feliratok és buborék = companion metrika (%, °), érték indexből számolt átlag.
    */
-  function buildForestIndexSliderStack(input, step, minIndex, maxIndex, forestModel) {
+  function buildIndexCompanionSliderStack(input, step, minIndex, maxIndex, model, formatValue) {
     const stack = document.createElement('div');
-    stack.className = 'param-slider-stack param-slider-stack--forest';
+    stack.className = 'param-slider-stack param-slider-stack--index-companion';
 
     const row = document.createElement('div');
     row.className = 'param-range-row';
 
     const minEl = document.createElement('span');
     minEl.className = 'param-range-end param-range-end--min';
-    minEl.textContent = formatForestRatioForUi(forestModel.ratioAtSliderValue(minIndex));
+    minEl.textContent = formatValue(model.valueAtSliderValue(minIndex));
 
     const maxEl = document.createElement('span');
     maxEl.className = 'param-range-end param-range-end--max';
-    maxEl.textContent = formatForestRatioForUi(forestModel.ratioAtSliderValue(maxIndex));
+    maxEl.textContent = formatValue(model.valueAtSliderValue(maxIndex));
 
     const wrap = document.createElement('div');
     wrap.className = 'slider-wrap param-range-thumb-wrap';
@@ -645,7 +839,56 @@
     stack.appendChild(row);
 
     bindSliderThumbBubble(input, bubble, wrap, function (sl) {
-      return formatForestRatioForUi(forestModel.ratioAtSliderValue(parseFloat(sl.value)));
+      return formatValue(model.valueAtSliderValue(parseFloat(sl.value)));
+    });
+
+    return stack;
+  }
+
+  /**
+   * Két companion metrika ugyanarra az indexre (pl. km + üzletszám, sportág + létesítmény).
+   * @param {function(number|null, number|null): string} formatPair
+   */
+  function buildTwoCompanionSliderStack(input, step, minIndex, maxIndex, modelA, modelB, formatPair) {
+    const stack = document.createElement('div');
+    stack.className = 'param-slider-stack param-slider-stack--index-companion';
+
+    const row = document.createElement('div');
+    row.className = 'param-range-row';
+
+    const minEl = document.createElement('span');
+    minEl.className = 'param-range-end param-range-end--min';
+    minEl.textContent = formatPair(
+      modelA.valueAtSliderValue(minIndex),
+      modelB.valueAtSliderValue(minIndex)
+    );
+
+    const maxEl = document.createElement('span');
+    maxEl.className = 'param-range-end param-range-end--max';
+    maxEl.textContent = formatPair(
+      modelA.valueAtSliderValue(maxIndex),
+      modelB.valueAtSliderValue(maxIndex)
+    );
+
+    const wrap = document.createElement('div');
+    wrap.className = 'slider-wrap param-range-thumb-wrap';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'slider-bubble param-range-value-bubble';
+    bubble.setAttribute('aria-hidden', 'true');
+
+    wrap.appendChild(bubble);
+    wrap.appendChild(input);
+
+    row.appendChild(minEl);
+    row.appendChild(wrap);
+    row.appendChild(maxEl);
+
+    stack.appendChild(row);
+
+    bindSliderThumbBubble(input, bubble, wrap, function (sl) {
+      const v = parseFloat(sl.value);
+      return formatPair(modelA.valueAtSliderValue(v), modelB.valueAtSliderValue(v));
     });
 
     return stack;
@@ -1532,11 +1775,23 @@
     return /_index$/i.test(key);
   }
 
+  /** Nem külön mutatóként kezelt _index oszlopok (a fő sport-index melletti részindexek, stb.). */
+  function isExcludedStandaloneIndexKey(key) {
+    if (typeof key !== 'string') return false;
+    const u = key.toUpperCase();
+    if (u.indexOf('SPORTEG') !== -1) return true;
+    if (/_SPORTAG_INDEX$/i.test(key)) return true;
+    if (/_LETES_INDEX$/i.test(key)) return true;
+    if (/_LETESITMENY_INDEX$/i.test(key)) return true;
+    return false;
+  }
+
   function discoverIndexKeys(sampleRow) {
     if (!sampleRow) return [];
     const out = [];
     for (const k of Object.keys(sampleRow)) {
       if (!isIndexParameterColumn(k)) continue;
+      if (isExcludedStandaloneIndexKey(k)) continue;
       out.push(k);
     }
     out.sort(function (a, b) {
@@ -1609,7 +1864,7 @@
     if (uiParamId === 'sport_index') {
       return (
         k.startsWith('SPORT_INDEX_') &&
-        (k.endsWith('_SPORTAG_INDEX') || k.endsWith('_LETES_INDEX') || k.endsWith('_SPORT_INDEX')) &&
+        k.endsWith('_SPORT_INDEX') &&
         k.indexOf('NEM_NORMALIZALT') === -1
       );
     }
@@ -1643,21 +1898,12 @@
     return '';
   }
 
-  function sportDetailSuffix(dbKey) {
-    const k = dbKey.toUpperCase();
-    if (k.endsWith('_SPORTAG_INDEX')) return ' · sportágak';
-    if (k.endsWith('_LETES_INDEX')) return ' · létesítmények';
-    if (k.endsWith('_SPORT_INDEX')) return ' · összesített';
-    return '';
-  }
-
   function paramLabelForDbKey(dbKey) {
     const ent = getUiParamEntryForDbKey(dbKey);
     if (!ent || !ent.megnevezes) return shortLabelForKey(dbKey);
     let base = ent.megnevezes;
     if (ent.id === 'real_estate_price_grow_5yrs_index') base += ingatlanGrowSuffix(dbKey);
     else if (ent.id === 'real_estate_price_avg5mth_index') base += ingatlanAvgSuffix(dbKey);
-    else if (ent.id === 'sport_index') base += sportDetailSuffix(dbKey);
     return base;
   }
 
@@ -1673,8 +1919,7 @@
 
     if (
       ent.id === 'real_estate_price_grow_5yrs_index' ||
-      ent.id === 'real_estate_price_avg5mth_index' ||
-      ent.id === 'sport_index'
+      ent.id === 'real_estate_price_avg5mth_index'
     ) {
       return paramLabelForDbKey(k);
     }
@@ -1692,7 +1937,7 @@
   }
 
   /**
-   * Csúszkák: szakasz-címek + rögzített sorrend; egyéb _index mezők a végén ABC.
+   * Csúszkák: szakasz-címek + rögzített sorrend. Csak a PARAMETER_UI_ENTRIES-ben szereplő mutatók.
    * @param {string[]} keys
    * @returns {Array<{ type: 'section', title: string } | { type: 'slider', key: string }>}
    */
@@ -1728,18 +1973,6 @@
       }
     }
 
-    const rest = keys.filter(function (kk) {
-      return !used.has(kk);
-    });
-    rest.sort(function (a, b) {
-      return a.localeCompare(b);
-    });
-    if (rest.length > 0) {
-      items.push({ type: 'section', title: 'Egyéb mutatók' });
-      for (let r = 0; r < rest.length; r++) {
-        items.push({ type: 'slider', key: rest[r] });
-      }
-    }
     return items;
   }
 
@@ -1782,6 +2015,7 @@
       return a.localeCompare(b);
     });
     for (let r = 0; r < rest.length; r++) {
+      if (isExcludedStandaloneIndexKey(rest[r])) continue;
       ordered.push(rest[r]);
     }
     return ordered;
@@ -1866,7 +2100,8 @@
 
     const h3a = document.createElement('h3');
     h3a.className = 'feedback-panel__section-title';
-    h3a.textContent = '_index mutatók (cél, település, |Δ|, fontosság w, w·|Δ|)';
+    h3a.textContent =
+      '_index mutatók (cél, település, |Δ|, fontosság w 0–10, w·|Δ|)';
 
     const wrapA = document.createElement('div');
     wrapA.className = 'feedback-table-wrap';
@@ -1874,7 +2109,7 @@
     tableA.className = 'feedback-table';
 
     const trh = document.createElement('tr');
-    ['Mutató', 'Cél', 'Település', '|Δ|', 'w', 'w·|Δ|'].forEach(function (label) {
+    ['Mutató', 'Cél', 'Település', '|Δ|', 'w (0–10)', 'w·|Δ|'].forEach(function (label) {
       const th = document.createElement('th');
       th.textContent = label;
       trh.appendChild(th);
@@ -1942,7 +2177,10 @@
 
       const td4 = document.createElement('td');
       td4.className = 'feedback-table__num';
-      td4.textContent = String(Math.round(row.weight * 100) / 100);
+      td4.textContent =
+        row.weight != null && Number.isFinite(row.weight)
+          ? String(Math.round(row.weight * PARAM_WEIGHT_SLIDER_MAX))
+          : '–';
 
       const td5 = document.createElement('td');
       td5.className = 'feedback-table__num';
@@ -2211,15 +2449,7 @@
         }
       });
       if (turningOn && wasCollapsed) {
-        const sc = getSidebarScrollEl();
-        if (sc) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              const tt = headRow.getBoundingClientRect().top;
-              maintainSidebarHeadRowViewportTop(headRow, sc, 680, tt);
-            });
-          });
-        }
+        startParamExpandScrollStabilize(wrap, headRow);
       }
       if (sliderAutoSearchActive) {
         sidebarLayoutAnchorEl = headRow;
@@ -2243,13 +2473,84 @@
     input.step = String(step);
     input.value = String(mid);
 
-    const forestEnt = getUiParamEntryForDbKey(key);
-    const forestModel =
-      forestEnt && forestEnt.id === 'forest_index' ? createForestIndexRatioModel(key, step) : null;
+    const uiParamEnt = getUiParamEntryForDbKey(key);
+    let indexCompanionModel = null;
+    /** @type {null | function(number|null): string} */
+    let indexCompanionFormat = null;
+    /** @type {{ a: object, b: object, formatPair: function(number|null, number|null): string } | null} */
+    let twoCompanion = null;
+    if (uiParamEnt) {
+      if (uiParamEnt.id === 'forest_index') {
+        const ck = forestCompanionRatioColumnKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatForestRatioForUi;
+      } else if (uiParamEnt.id === 'water_index') {
+        const ck = waterCompanionRatioColumnKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatForestRatioForUi;
+      } else if (uiParamEnt.id === 'terrain_index') {
+        const ck = terrainCompanionSlopeColumnKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatSlopeDegreesForUi;
+      } else if (uiParamEnt.id === 'budapest_car_train_index') {
+        const ck = budapestCarTrainCompanionTotalMinKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatMinutesForUi;
+      } else if (uiParamEnt.id === 'internet_index') {
+        const ck = internetCompanionMbpsKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatMbpsForUi;
+      } else if (uiParamEnt.id === 'transport_frequency_index') {
+        const ck = transportFrequencyCompanionNapiJaratokKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatNapiJaratokForUi;
+      } else if (uiParamEnt.id === 'district_seat_access_index') {
+        const ck = districtSeatCompanionPercKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatMinutesForUi;
+      } else if (uiParamEnt.id === 'budapest_access_index') {
+        const ck = budapestAccessCompanionPercKey(key);
+        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
+        indexCompanionFormat = formatMinutesForUi;
+      } else if (uiParamEnt.id === 'groceries_index') {
+        const ckKm = groceriesCompanionKmKey(key);
+        const ckShops = groceriesCompanionBrandsKey(key);
+        const mKm = ckKm ? createIndexCompanionAverageModel(key, ckKm, step) : null;
+        const mShops = ckShops ? createIndexCompanionAverageModel(key, ckShops, step) : null;
+        if (mKm && mShops) {
+          twoCompanion = { a: mKm, b: mShops, formatPair: formatGroceriesPairForUi };
+        }
+      } else if (uiParamEnt.id === 'sport_index') {
+        const ckA = sportCompanionSportagDbKey(key);
+        const ckB = sportCompanionLetesitmenyDbKey(key);
+        const mA = ckA ? createIndexCompanionAverageModel(key, ckA, step) : null;
+        const mB = ckB ? createIndexCompanionAverageModel(key, ckB, step) : null;
+        if (mA && mB) {
+          twoCompanion = { a: mA, b: mB, formatPair: formatSportPairForUi };
+        }
+      }
+    }
 
     let valueStack;
-    if (forestModel) {
-      valueStack = buildForestIndexSliderStack(input, step, r.min, r.max, forestModel);
+    if (twoCompanion) {
+      valueStack = buildTwoCompanionSliderStack(
+        input,
+        step,
+        r.min,
+        r.max,
+        twoCompanion.a,
+        twoCompanion.b,
+        twoCompanion.formatPair
+      );
+    } else if (indexCompanionModel && indexCompanionFormat) {
+      valueStack = buildIndexCompanionSliderStack(
+        input,
+        step,
+        r.min,
+        r.max,
+        indexCompanionModel,
+        indexCompanionFormat
+      );
     } else {
       valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
     }
@@ -2267,17 +2568,18 @@
       'aria-label',
       'Fontosság: ' + labelText + ' (' + key + ')'
     );
-    wInput.title = 'Fontosság (0–1) · ' + key;
+    wInput.title = 'Fontosság (0–' + PARAM_WEIGHT_SLIDER_MAX + ', egész) · ' + key;
     wInput.min = '0';
-    wInput.max = '1';
-    wInput.step = '0.01';
-    wInput.value = '1';
+    wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
+    wInput.step = '1';
+    wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
 
-    const wStack = buildParamRangeRowWithExtrema(wInput, 0.01, 0, 1);
+    const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
 
     const wLabel = document.createElement('span');
     wLabel.className = 'param-weight-label';
-    wLabel.textContent = 'Fontosság · a |Δ| szorzója (0–1)';
+    wLabel.textContent =
+      'Fontosság · a |Δ| szorzója (0–' + PARAM_WEIGHT_SLIDER_MAX + ', csak egész)';
 
     weightWrap.appendChild(wStack);
     weightWrap.appendChild(wLabel);
@@ -2601,6 +2903,8 @@
     activeSwitch.addEventListener('click', function (e) {
       e.stopPropagation();
       e.preventDefault();
+      const wasCollapsed = wrap.classList.contains('param-item--collapsed');
+      const turningOn = activeSwitch.getAttribute('aria-checked') !== 'true';
       preserveSidebarScrollAnchor(headRow, function () {
         const nowOn = activeSwitch.getAttribute('aria-checked') !== 'true';
         activeSwitch.setAttribute('aria-checked', nowOn ? 'true' : 'false');
@@ -2616,6 +2920,9 @@
           collapseToggle.setAttribute('aria-expanded', 'false');
         }
       });
+      if (turningOn && wasCollapsed) {
+        startParamExpandScrollStabilize(wrap, headRow);
+      }
       if (sliderAutoSearchActive) {
         sidebarLayoutAnchorEl = headRow;
       }
@@ -2710,7 +3017,11 @@
         const wEl = card.querySelector('input[type="range"][data-param-weight-for]');
         if (wEl) {
           const ww = parseFloat(wEl.value);
-          if (Number.isFinite(ww)) w = Math.max(0, Math.min(1, ww));
+          if (Number.isFinite(ww)) {
+            const wi = Math.round(ww);
+            w =
+              Math.max(0, Math.min(PARAM_WEIGHT_SLIDER_MAX, wi)) / PARAM_WEIGHT_SLIDER_MAX;
+          }
         }
       }
       targets[key] = { value: n, weight: w };
@@ -2969,11 +3280,34 @@
     );
   }
 
+  function htmlForParameterInfoPlainText(plain) {
+    const lines = String(plain || '').split('\n');
+    const parts = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (/^https?:\/\/\S+$/i.test(trimmed)) {
+        const safe = escapeHtml(trimmed);
+        parts.push(
+          '<a href="' + safe + '" target="_blank" rel="noopener noreferrer">' + safe + '</a>'
+        );
+      } else {
+        parts.push(escapeHtml(line));
+      }
+    }
+    return parts.join('<br>');
+  }
+
+  function fillParamInfoTooltipHtml(tip) {
+    if (!tip) return;
+    const key = tip.getAttribute('data-parameter-info-key');
+    const plain = key ? getParameterInfoPlaceholderText(key) : '';
+    tip.innerHTML = htmlForParameterInfoPlainText(plain);
+  }
+
   function refreshParameterInfoTooltipTexts() {
     document.querySelectorAll('.param-info-tooltip[data-parameter-info-key]').forEach(function (tip) {
-      const key = tip.getAttribute('data-parameter-info-key');
-      if (!key) return;
-      tip.textContent = getParameterInfoPlaceholderText(key);
+      fillParamInfoTooltipHtml(tip);
     });
   }
 
@@ -2981,10 +3315,17 @@
     const root = scopeEl || document;
     root.querySelectorAll('.param-info-wrap:not([data-tooltip-bound="1"])').forEach(function (wrap) {
       wrap.setAttribute('data-tooltip-bound', '1');
+      const btn = wrap.querySelector('.param-info-btn');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+
       wrap.addEventListener('mouseenter', function () {
         showParamTooltipForWrap(wrap);
       });
-      wrap.addEventListener('mouseleave', function () {
+      wrap.addEventListener('mouseleave', function (e) {
+        if (isParamInfoTooltipPinned(wrap)) return;
+        const rel = e.relatedTarget;
+        const tip = getParamInfoTipForWrap(wrap);
+        if (tip && rel && (tip === rel || tip.contains(rel))) return;
         hideParamTooltipForWrap(wrap);
       });
       wrap.addEventListener('focusin', function () {
@@ -2992,9 +3333,30 @@
       });
       wrap.addEventListener('focusout', function () {
         window.setTimeout(function () {
+          if (isParamInfoTooltipPinned(wrap)) return;
+          const tip = getParamInfoTipForWrap(wrap);
+          const ae = document.activeElement;
+          if (wrap.contains(ae) || (tip && tip.contains(ae))) return;
           if (!wrap.matches(':focus-within')) hideParamTooltipForWrap(wrap);
         }, 0);
       });
+
+      if (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isParamInfoTooltipPinned(wrap)) {
+            setParamInfoTooltipPinned(wrap, false);
+            hideParamTooltipForWrap(wrap);
+          } else {
+            setParamInfoTooltipPinned(wrap, true);
+            showParamTooltipForWrap(wrap);
+          }
+        });
+      }
+
+      const tip0 = wrap.querySelector('.param-info-tooltip');
+      if (tip0) bindParamInfoTipBridgeEvents(wrap, tip0);
     });
   }
 
@@ -3019,8 +3381,7 @@
     tip.className = 'param-info-tooltip';
     tip.setAttribute('role', 'tooltip');
     tip.setAttribute('data-parameter-info-key', infoKey);
-    tip.style.whiteSpace = 'pre-wrap';
-    tip.textContent = getParameterInfoPlaceholderText(infoKey);
+    fillParamInfoTooltipHtml(tip);
     wrap.appendChild(btn);
     wrap.appendChild(tip);
     return wrap;
@@ -3871,13 +4232,21 @@
     if (top + h > window.innerHeight - margin) {
       top = Math.max(margin, br.top - h - gap);
     }
+    const headerEl = document.querySelector('.sidebar-header');
+    const headerBottom = headerEl ? headerEl.getBoundingClientRect().bottom + gap : margin;
+    if (top < headerBottom) top = headerBottom;
+    if (top + h > window.innerHeight - margin) {
+      top = Math.max(headerBottom, br.top - h - gap);
+    }
+    if (top < headerBottom) top = headerBottom;
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
   }
 
   function repositionOpenParamTooltips() {
     document.querySelectorAll('.param-info-wrap').forEach(function (wrap) {
-      if (wrap.matches(':hover') || wrap.matches(':focus-within')) {
+      const tip = getParamInfoTipForWrap(wrap);
+      if (tip && tip.classList.contains('param-info-tooltip--visible')) {
         placeParamTooltip(wrap);
       }
     });
@@ -3890,6 +4259,9 @@
     }
     window.addEventListener('resize', repositionOpenParamTooltips);
     window.addEventListener('scroll', repositionOpenParamTooltips, true);
+    document.addEventListener('mousedown', function (e) {
+      dismissPinnedParamInfoTooltipsIfOutside(e.target);
+    });
   }
 
   function initLayoutDocking() {

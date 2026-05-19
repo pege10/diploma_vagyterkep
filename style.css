@@ -171,14 +171,24 @@ body {
 .sidebar-header {
   flex-shrink: 0;
   padding: 20px 18px 12px;
-  background: var(--paper);
+  /* Sötét sáv: fehér felirat; gombcsoport invert (fekete felület, fehér ikon, fehér keret). */
+  --hdr-bg: #0a0a0a;
+  --hdr-fg: #ffffff;
+  --hdr-border: rgba(255, 255, 255, 0.22);
+  --hdr-cluster-surface: #0a0a0a;
+  --hdr-cluster-fg: #ffffff;
+  /* Elválasztó: ugyanaz a szín, mint a cluster külső kerete (fehér), és app.js / CSS 2.5px-re vastagítja. */
+  --hdr-cluster-divider: var(--hdr-fg);
+  --hdr-cluster-hover: rgba(255, 255, 255, 0.12);
+  background: var(--hdr-bg);
+  color: var(--hdr-fg);
   z-index: 15;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hdr-border);
 }
 
 .sidebar-header__actions {
@@ -192,11 +202,11 @@ body {
   display: inline-flex;
   flex-direction: row;
   align-items: stretch;
-  border: 2.5px solid var(--ink);
+  border: 2.5px solid var(--hdr-fg);
   border-radius: 4px;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  background: var(--hdr-cluster-surface);
+  box-shadow: none;
 }
 
 .sidebar-header__cluster-btn {
@@ -205,9 +215,10 @@ body {
   margin: 0;
   padding: 0;
   border: none;
-  border-right: 1px solid var(--ink);
-  background: #fff;
-  color: var(--ink);
+  /* Ugyanolyan vastag elválasztó, mint a cluster külső kerete (2.5px). */
+  border-right: 2.5px solid var(--hdr-cluster-divider);
+  background: var(--hdr-cluster-surface);
+  color: var(--hdr-cluster-fg);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -221,11 +232,11 @@ body {
 }
 
 .sidebar-header__cluster-btn:hover {
-  background: #fafafa;
+  background: var(--hdr-cluster-hover);
 }
 
 .sidebar-header__cluster-btn:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--hdr-cluster-fg);
   outline-offset: 2px;
   z-index: 1;
 }
@@ -297,7 +308,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1.25;
-  color: var(--ink);
+  color: var(--hdr-fg);
   margin: 0;
   padding: 0;
   border: none;
@@ -411,6 +422,19 @@ body {
   z-index: 2000000;
 }
 
+/* A csúszka-buborék alja FIX a slider input felső széle FELETT 5 px-szel (bottom: 29 px).
+   Több sornál felfelé nő, kilóghat a kártya tetejére.
+   white-space: pre → csak az explicit \n töri (pl. sportág + létesítmény); automatikus
+   sortörés NINCS, így a buborék soha nem „ugrik" magasabbra húzás közben. */
+.slider-bubble.param-range-value-bubble {
+  top: auto;
+  bottom: 29px;
+  white-space: pre;
+  text-align: center;
+  line-height: 1.25;
+  z-index: 3;
+}
+
 .param-info-tooltip {
   /* pozíció: app.js (placeParamTooltip) — fixed, rétegben a teljes app fölött */
   position: fixed;
@@ -435,9 +459,20 @@ body {
   transition: opacity 0.12s ease, visibility 0.12s ease;
 }
 
+.param-info-tooltip a {
+  color: #0b57d0;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.param-info-tooltip a:hover {
+  text-decoration: underline;
+}
+
 .param-info-tooltip.param-info-tooltip--visible {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 
 .param-info-wrap--head {
@@ -1361,8 +1396,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
 /* Kártya ne vágja le az abszolút javaslatlistát; fókuszkor emelkedjen a többi kártya fölé */
 .param-item.param-item--geo-place {
-  /* Alap: rejtett sugárlista mellett a lekerekítés látszódjon (ne „vágja le” az alsó sarkot az overflow) */
-  overflow: hidden;
+  /* Alap: rejtett sugárlista mellett a lekerekítés látszódjon; hüvelykujj-buborékok ne vágódjanak */
+  overflow: visible;
   z-index: 1;
 }
 
@@ -1544,7 +1579,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   gap: 0;
   padding: 0;
   flex-shrink: 0;
-  overflow: hidden;
+  overflow: visible;
   overflow-anchor: none;
   border-radius: 5px;
   background: #fff;
@@ -1699,7 +1734,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .param-item__body {
-  padding: 12px 14px 16px;
+  padding: 14px 14px 18px;
   border-top: 1px solid var(--line);
   background: #fff;
   border-radius: 0 0 5px 5px;
@@ -1724,25 +1759,32 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   min-width: 0;
 }
 
+/* A min/max felirat absolute, így a slider mindenhol egyforma hosszú.
+   padding: 0 20px → a slider mindkét oldalon 20 px-szel rövidebb, hogy a feliratok és
+   a buborék végpontjai ne futtassák le a kártya széléig. */
 .param-range-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   width: 100%;
   min-width: 0;
   min-height: 30px;
+  position: relative;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 .param-range-row input[type='range'] {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
   min-width: 0;
-  width: auto;
+  width: 100%;
   max-width: 100%;
   margin-top: 0;
 }
 
 .param-range-row .slider-wrap {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
 }
 
@@ -1752,31 +1794,44 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   max-width: 100%;
 }
 
+/* Felső sáv a min/max feliratoknak ÉS a buboréknak. A slider input a wrap aljához simul.
+   28px = elég hely egy soros bubble + 1 soros felirathoz. Két soros tartalom kilóghat fölfelé. */
 .param-range-thumb-wrap {
   padding-top: 28px;
   position: relative;
 }
 
-.param-slider-stack--forest {
+.param-slider-stack--forest,
+.param-slider-stack--index-companion {
   gap: 4px;
 }
 
+/* Min/max felirat: absolute a soron belül, alja a slider input felső szélénél (= a track teteje felett).
+   A wrap padding-top: 28px ad helyet; a slider input 24px magas → bottom: 24px = a slider teteje.
+   white-space: pre → csak a JS-ben írt explicit \n töri sorokra (pl. „0,42 km\n2 üzlet"),
+   automatikus tördelés nincs — nem ugrik dinamikusan új sorba húzás közben. */
 .param-range-end {
-  flex-shrink: 0;
-  max-width: 32%;
+  position: absolute;
+  bottom: 24px;
   font-size: 0.66rem;
   font-weight: 600;
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  word-break: break-word;
+  line-height: 1.2;
+  pointer-events: none;
+  z-index: 2;
+  white-space: pre;
 }
 
+/* left/right: 0 → a min/max felirat a SOR teljes szélén kezdődik, 20 px-szel kijjebb
+   a slider track végpontjához képest (a row padding-left/right zónájába is belóghat). */
 .param-range-end--min {
+  left: 0;
   text-align: left;
 }
 
 .param-range-end--max {
+  right: 0;
   text-align: right;
 }
 
@@ -1837,8 +1892,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   flex-direction: column;
   gap: 2px;
   max-height: min(48vh, 480px);
-  overflow-x: hidden;
+  /* Y görgetés marad; vízszintesen ne vágjuk a kilógó buborékot (a böngésző összetett overflow szabályai miatt részleges lehet). */
   overflow-y: auto;
+  overflow-x: visible;
   padding-right: 6px;
   margin-top: 6px;
   -webkit-overflow-scrolling: touch;
@@ -1884,6 +1940,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border: 0;
   box-sizing: border-box;
   direction: ltr;
+  position: relative;
+  z-index: 1;
 }
 
 .param-sliders-host input[type='range']::-webkit-slider-runnable-track,
