@@ -7,7 +7,7 @@
    * HTTP(S) és GitHub Pages alatt is ugyanez a fájl (new URL relatív az oldalhoz).
    */
   const BUNDLE_SCRIPT_SRC = new URL(
-    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js',
+    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2',
     window.location.href
   ).href;
 
@@ -97,7 +97,10 @@
   ];
 
   /** @type {Map<string, object>} */
+  /** Ékezet-megőrző kulcs → település (pl. „kömlő” ≠ „komló”). */
   let cityByNormName = new Map();
+  /** Ékezet nélküli kulcs → több lehetséges település (homonimák). */
+  let cityHomonymsByAscii = new Map();
   /** Kerületi sorok (Budapest) — kiszűrve a citiesData-ból, cache */
   let budapestDistrictRowsCache = null;
   let geoIndexed = null;
@@ -523,6 +526,8 @@
       ensureImportantPlaceLayers();
       updateImportantPlaceCircles();
     });
+
+    map.on('click', onCityInfoMapClick);
   }
 
   /** Mutatócsúszkák felirataihoz (min / max / élő érték), a lépéssel összhangban. */
@@ -1202,6 +1207,7 @@
     return wrap;
   }
 
+  /** Ékezet nélküli, kisbetűs kulcs — homonimák összevetéséhez (Kömlő ≈ Komló → „komlo”). */
   function normalizeSettlementName(s) {
     if (!s || typeof s !== 'string') return '';
     return s
@@ -1209,6 +1215,59 @@
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim();
+  }
+
+  /** Ékezet megőrzése — egyértelmű névegyezéshez (kömlő ≠ komló). */
+  function normalizeSettlementNameStrict(s) {
+    if (!s || typeof s !== 'string') return '';
+    return s.normalize('NFC').toLowerCase().trim();
+  }
+
+  function registerAsciiHomonym(asciiKey, city) {
+    if (!asciiKey || !city) return;
+    let arr = cityHomonymsByAscii.get(asciiKey);
+    if (!arr) {
+      arr = [];
+      cityHomonymsByAscii.set(asciiKey, arr);
+    }
+    if (arr.indexOf(city) === -1) arr.push(city);
+  }
+
+  function formatCityWithCounty(c) {
+    const nm = cityName(c);
+    const co = countyOfCity(c);
+    return co ? nm + ' (' + co + ')' : nm;
+  }
+
+  /** Homonimák közül: először ékezet szerinti egyezés, majd legközelebbi koordináta. */
+  function resolveCityHomonym(candidates, rawLabel, lng, lat) {
+    if (!candidates || candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+    const processed = preprocessSettlementQuery(String(rawLabel || ''));
+    const strictQ = normalizeSettlementNameStrict(processed);
+    if (strictQ) {
+      for (let i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (normalizeSettlementNameStrict(cityName(c)) === strictQ) return c;
+      }
+    }
+    if (Number.isFinite(lng) && Number.isFinite(lat)) {
+      let best = null;
+      let bestKm = Infinity;
+      for (let i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        const clat = cityLat(c);
+        const clng = cityLng(c);
+        if (!Number.isFinite(clat) || !Number.isFinite(clng)) continue;
+        const d = haversineKm(lat, lng, clat, clng);
+        if (d < bestKm) {
+          bestKm = d;
+          best = c;
+        }
+      }
+      if (best) return best;
+    }
+    return null;
   }
 
   /** „első kerület” → 1, stb.; a kereső és a javaslatok előtt fut. */
@@ -1351,41 +1410,63 @@
   function registerCityLookupKeys(c) {
     const nm = cityName(c);
     if (!nm || nm === '–') return;
-    const primary = normalizeSettlementName(String(nm));
-    if (primary) cityByNormName.set(primary, c);
+    const primaryStrict = normalizeSettlementNameStrict(String(nm));
+    const primaryAscii = normalizeSettlementName(String(nm));
+    if (primaryStrict) cityByNormName.set(primaryStrict, c);
+    if (primaryAscii) registerAsciiHomonym(primaryAscii, c);
     const extras = extraAliasKeysForCity(c);
     for (let i = 0; i < extras.length; i++) {
       const k = extras[i];
-      if (!k || k === primary) continue;
-      if (!cityByNormName.has(k)) cityByNormName.set(k, c);
+      if (!k) continue;
+      const kStrict = normalizeSettlementNameStrict(k);
+      const kAscii = normalizeSettlementName(k);
+      if (kStrict && kStrict !== primaryStrict && !cityByNormName.has(kStrict)) {
+        cityByNormName.set(kStrict, c);
+      }
+      if (kAscii) registerAsciiHomonym(kAscii, c);
     }
   }
 
   /**
    * OSM / határadat név → all_parameters sor (Budapest kerületeknél gyakran eltér a szöveg).
+   * @param {number} [lng] térképes kattintás / poligon középpont (homonimák feloldásához)
+   * @param {number} [lat]
    */
-  function lookupCityRowFromGeoPickLabel(rawLabel) {
+  function lookupCityRowFromGeoPickLabel(rawLabel, lng, lat) {
     if (!rawLabel || !citiesData.length) return null;
     const raw = String(rawLabel).trim();
     if (!raw) return null;
     const processed = preprocessSettlementQuery(raw);
-    const tried = [];
+    const triedStrict = [];
+    const triedAscii = [];
 
-    function pushNorm(s) {
+    function pushStrict(s) {
+      const n = normalizeSettlementNameStrict(String(s || '').trim());
+      if (n && triedStrict.indexOf(n) === -1) triedStrict.push(n);
+    }
+    function pushAscii(s) {
       const n = normalizeSettlementName(String(s || '').trim());
-      if (n && tried.indexOf(n) === -1) tried.push(n);
+      if (n && triedAscii.indexOf(n) === -1) triedAscii.push(n);
     }
 
-    pushNorm(processed);
-    pushNorm(raw);
+    pushStrict(processed);
+    pushStrict(raw);
+    pushAscii(processed);
+    pushAscii(raw);
     const noComma = raw.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
-    if (noComma !== raw) pushNorm(noComma);
+    if (noComma !== raw) {
+      pushStrict(noComma);
+      pushAscii(noComma);
+    }
 
     const noBp = processed.replace(/^\s*budapest\s*,?\s*/i, '').trim();
     if (noBp && noBp !== processed) {
-      pushNorm(noBp);
-      pushNorm('Budapest ' + noBp);
-      pushNorm('Budapest, ' + noBp);
+      pushStrict(noBp);
+      pushStrict('Budapest ' + noBp);
+      pushStrict('Budapest, ' + noBp);
+      pushAscii(noBp);
+      pushAscii('Budapest ' + noBp);
+      pushAscii('Budapest, ' + noBp);
     }
 
     const arabK = processed.match(/\b(\d{1,2})\s*\.\s*kerület\b/i);
@@ -1393,16 +1474,26 @@
       const num = parseInt(arabK[1], 10);
       if (num >= 1 && num <= 23) {
         const rom = BUDAPEST_ROMAN_DISTRICT_NUMERALS[num - 1];
-        pushNorm(num + '. kerület');
-        pushNorm(rom + '. kerület');
-        pushNorm('Budapest ' + rom + '. kerület');
-        pushNorm('Budapest, ' + rom + '. kerület');
+        pushStrict(num + '. kerület');
+        pushStrict(rom + '. kerület');
+        pushStrict('Budapest ' + rom + '. kerület');
+        pushStrict('Budapest, ' + rom + '. kerület');
+        pushAscii(num + '. kerület');
+        pushAscii(rom + '. kerület');
+        pushAscii('Budapest ' + rom + '. kerület');
+        pushAscii('Budapest, ' + rom + '. kerület');
       }
     }
 
-    for (let i = 0; i < tried.length; i++) {
-      const hit = cityByNormName.get(tried[i]);
+    for (let i = 0; i < triedStrict.length; i++) {
+      const hit = cityByNormName.get(triedStrict[i]);
       if (hit) return hit;
+    }
+    for (let i = 0; i < triedAscii.length; i++) {
+      const hom = cityHomonymsByAscii.get(triedAscii[i]);
+      if (!hom || hom.length === 0) continue;
+      const resolved = resolveCityHomonym(hom, raw, lng, lat);
+      if (resolved) return resolved;
     }
 
     const pn = normalizeSettlementName(processed);
@@ -1464,7 +1555,7 @@
   }
 
   function resolveCityFromMapPick(settlementName, lng, lat) {
-    const byName = lookupCityRowFromGeoPickLabel(settlementName);
+    const byName = lookupCityRowFromGeoPickLabel(settlementName, lng, lat);
     if (byName) return byName;
     if (
       Number.isFinite(lng) &&
@@ -1578,19 +1669,49 @@
     });
   }
 
+  function geoSlotDisplayName(slot) {
+    const st = geoSlotState[slot];
+    if (!st || !st.city) return 'Fontos hely';
+    const nm = cityName(st.city);
+    return nm && nm !== '–' ? nm : 'Fontos hely';
+  }
+
+  /** Pin + felirat: csak ha a slot kapcsolója BE van és van beállított hely. */
+  function syncGeoMarkersFromState() {
+    if (!map) return;
+    ['a', 'b'].forEach(function (slot) {
+      if (geoSlotReady(slot)) {
+        const st = geoSlotState[slot];
+        if (!geoMarkerBySlot[slot]) {
+          setGeoSlotMarker(slot, st.lng, st.lat, geoSlotDisplayName(slot));
+        }
+      } else {
+        removeGeoSlotMarker(slot);
+      }
+    });
+  }
+
+  /**
+   * Fontos helyek a térképen: kör + jelölő.
+   * Csak akkor látszanak, ha a slot iOS kapcsolója BE van, van település és sugár > 0.
+   * Kikapcsoláskor a beállítás megmarad a panelben, de a térképről eltűnik.
+   */
   function updateImportantPlaceCircles() {
     if (!map) return;
     ensureImportantPlaceLayers();
     if (!map.getSource('important-place-a')) return;
     ['a', 'b'].forEach(function (slot) {
       const sid = 'important-place-' + slot;
+      const fillId = sid + '-fill';
+      const lineId = sid + '-line';
       const src = map.getSource(sid);
       if (!src || typeof src.setData !== 'function') return;
       const st = geoSlotState[slot];
       const rInput = slot === 'a' ? elements.geoRadiusA : elements.geoRadiusB;
       const rKm = parseFloat(rInput && rInput.value);
       const rk = Number.isFinite(rKm) ? Math.max(0, rKm) : 0;
-      if (st && Number.isFinite(st.lat) && Number.isFinite(st.lng) && rk > 0) {
+      const show = geoSlotReady(slot) && rk > 0;
+      if (show) {
         src.setData({
           type: 'FeatureCollection',
           features: [geoCirclePolygonGeojson(st.lng, st.lat, rk, 72)],
@@ -1598,7 +1719,11 @@
       } else {
         src.setData({ type: 'FeatureCollection', features: [] });
       }
+      const vis = show ? 'visible' : 'none';
+      if (map.getLayer(fillId)) map.setLayoutProperty(fillId, 'visibility', vis);
+      if (map.getLayer(lineId)) map.setLayoutProperty(lineId, 'visibility', vis);
     });
+    syncGeoMarkersFromState();
   }
 
   function geoSwitchIsOn(el) {
@@ -1631,6 +1756,31 @@
       const rKm = parseFloat(elements.geoRadiusB && elements.geoRadiusB.value);
       const rk = Number.isFinite(rKm) ? Math.max(0, rKm) : 0;
       const d = haversineKm(clat, clng, geoSlotState.b.lat, geoSlotState.b.lng);
+      if (!Number.isFinite(d) || d > rk) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Ugyanaz, mint a passesGeoFilter, de tetszőleges pontra (a heatmap a
+   * poligon-centroidokkal hívja, hogy ne a Supabase city.lat/lng-jétől
+   * függjön a megjelenítés).
+   */
+  function passesGeoFilterByPoint(lat, lng) {
+    const ra = geoSlotReady('a');
+    const rb = geoSlotReady('b');
+    if (!ra && !rb) return true;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    if (ra) {
+      const rKm = parseFloat(elements.geoRadiusA && elements.geoRadiusA.value);
+      const rk = Number.isFinite(rKm) ? Math.max(0, rKm) : 0;
+      const d = haversineKm(lat, lng, geoSlotState.a.lat, geoSlotState.a.lng);
+      if (!Number.isFinite(d) || d > rk) return false;
+    }
+    if (rb) {
+      const rKm = parseFloat(elements.geoRadiusB && elements.geoRadiusB.value);
+      const rk = Number.isFinite(rKm) ? Math.max(0, rKm) : 0;
+      const d = haversineKm(lat, lng, geoSlotState.b.lat, geoSlotState.b.lng);
       if (!Number.isFinite(d) || d > rk) return false;
     }
     return true;
@@ -3965,14 +4115,17 @@
   function rebuildCityIndex() {
     budapestDistrictRowsCache = null;
     cityByNormName.clear();
+    cityHomonymsByAscii.clear();
     for (let i = 0; i < citiesData.length; i++) {
       registerCityLookupKeys(citiesData[i]);
     }
   }
 
   function findCityByTypedQuery(raw) {
-    const q = normalizeSettlementName(preprocessSettlementQuery(String(raw || '')));
-    if (!q.length) {
+    const rawStr = preprocessSettlementQuery(String(raw || ''));
+    const strictQ = normalizeSettlementNameStrict(rawStr);
+    const q = normalizeSettlementName(rawStr);
+    if (!strictQ.length && !q.length) {
       return { ok: false, message: 'Írj be egy településnevet.' };
     }
 
@@ -3984,8 +4137,30 @@
       };
     }
 
-    const exact = cityByNormName.get(q);
-    if (exact) return { ok: true, city: exact };
+    if (strictQ) {
+      const exactStrict = cityByNormName.get(strictQ);
+      if (exactStrict) return { ok: true, city: exactStrict };
+    }
+    if (q) {
+      const hom = cityHomonymsByAscii.get(q);
+      if (hom && hom.length === 1) return { ok: true, city: hom[0] };
+      if (hom && hom.length > 1) {
+        const byAccent = resolveCityHomonym(hom, rawStr, NaN, NaN);
+        if (byAccent) return { ok: true, city: byAccent };
+        const names = hom
+          .slice(0, 6)
+          .map(function (c) {
+            return formatCityWithCounty(c);
+          })
+          .join(', ');
+        return {
+          ok: false,
+          message:
+            'Több hasonló nevű település — pontosíts (ékezet!), vagy válassz a listából: ' +
+            names,
+        };
+      }
+    }
 
     let nByRomanOrDigit = NaN;
     if (/^\d+$/.test(q)) {
@@ -4229,10 +4404,15 @@
         var props = f.properties || {};
         var name = props['name:hu'] || props.name;
         if (!name || typeof name !== 'string' || !geom) continue;
+        const bb = geometryBBox(geom);
+        const centerLat = bb && bb.length === 4 ? (bb[1] + bb[3]) / 2 : NaN;
+        const centerLng = bb && bb.length === 4 ? (bb[0] + bb[2]) / 2 : NaN;
         list.push({
           name: name,
           geometry: geom,
-          bbox: geometryBBox(geom),
+          bbox: bb,
+          centerLat: centerLat,
+          centerLng: centerLng,
         });
       }
       geoIndexed = list;
@@ -4460,6 +4640,508 @@
   function diffToMatchPercent(finalScore, maxPossible) {
     const percent = 100 - (finalScore / maxPossible) * 100;
     return Math.round(Math.max(0, Math.min(100, percent)));
+  }
+
+  // ===========================================================================
+  // Település-infó popup (térképre kattintáskor)
+  // ===========================================================================
+  /** @type {maplibregl.Popup | null} */
+  let cityInfoPopup = null;
+
+  /**
+   * Adott index oszlophoz visszaadja a megjelenítéshez használt companion oszlopot
+   * és formátum-függvényt. Ugyanazt a logikát követi, mint a slider-buborékok.
+   * @param {string} key
+   * @returns {{ companionKey?: string, format?: function, parse?: function,
+   *             pair?: { a: string, b: string, formatPair: function, parse?: function } } | null}
+   */
+  function findCompanionInfoForIndexKey(key) {
+    const ent = getUiParamEntryForDbKey(key);
+    if (!ent) return null;
+    const id = ent.id;
+    if (id === 'forest_index') {
+      return { companionKey: forestCompanionRatioColumnKey(key), format: formatForestRatioForUi };
+    }
+    if (id === 'water_index') {
+      return { companionKey: waterCompanionRatioColumnKey(key), format: formatForestRatioForUi };
+    }
+    if (id === 'terrain_index') {
+      return { companionKey: terrainCompanionSlopeColumnKey(key), format: formatSlopeDegreesForUi };
+    }
+    if (id === 'budapest_car_train_index') {
+      return { companionKey: budapestCarTrainCompanionTotalMinKey(key), format: formatMinutesForUi };
+    }
+    if (id === 'internet_index') {
+      return { companionKey: internetCompanionMbpsKey(key), format: formatMbpsForUi };
+    }
+    if (id === 'transport_frequency_index') {
+      return { companionKey: transportFrequencyCompanionNapiJaratokKey(key), format: formatNapiJaratokForUi };
+    }
+    if (id === 'district_seat_access_index') {
+      return { companionKey: districtSeatCompanionPercKey(key), format: formatMinutesForUi };
+    }
+    if (id === 'budapest_access_index') {
+      return { companionKey: budapestAccessCompanionPercKey(key), format: formatMinutesForUi };
+    }
+    if (id === 'groceries_index') {
+      return {
+        pair: {
+          a: groceriesCompanionKmKey(key),
+          b: groceriesCompanionBrandsKey(key),
+          formatPair: formatGroceriesPairForUi,
+        },
+      };
+    }
+    if (id === 'sport_index') {
+      return {
+        pair: {
+          a: sportCompanionSportagDbKey(key),
+          b: sportCompanionLetesitmenyDbKey(key),
+          formatPair: formatSportPairForUi,
+        },
+      };
+    }
+    if (id === 'gastro_index') {
+      return { companionKey: gastroCompanionGasztroDbKey(key), format: formatVendeglatohelyForUi };
+    }
+    if (id === 'senior_index') {
+      return { companionKey: seniorCompanionArany65Key(key), format: formatForestRatioForUi };
+    }
+    if (id === 'diploma_index') {
+      return { companionKey: diplomaCompanionAranyaKey(key), format: formatForestRatioForUi };
+    }
+    if (id === 'primary_school_proximity_index' || id === 'high_school_proximity_index') {
+      const defs = schoolVariantDefsForUiParam(id);
+      for (let i = 0; i < defs.length; i++) {
+        if (defs[i].indexKey === key) {
+          return { companionKey: defs[i].companionKey, format: formatKmForUi };
+        }
+      }
+      return null;
+    }
+    if (id === 'real_estate_price_grow_5yrs_index' || id === 'real_estate_price_avg5mth_index') {
+      const isGrow = id === 'real_estate_price_grow_5yrs_index';
+      const defs = isGrow ? INGATLAN_GROW_VARIANTS : INGATLAN_AVG_VARIANTS;
+      const fmt = isGrow ? formatIngatlanPctForUi : formatHufForUi;
+      const parseFn = isGrow ? parseNumeric : parseHufAmount;
+      for (let i = 0; i < defs.length; i++) {
+        if (defs[i].indexMatch.test(key)) {
+          const companionKey = ingatlanCompanionColumnKey(key, defs[i].companionSuffix);
+          return { companionKey: companionKey, format: fmt, parse: parseFn };
+        }
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /**
+   * A panelban szereplő paraméterekhez visszaadja a `city` adott értékeit
+   * a hozzá tartozó címkével és formátummal.
+   * Variant kártyák (ingatlan, iskola) esetén az aktívan kiválasztott variant kerül be.
+   * @param {object} city
+   * @returns {Array<{ label: string, value: string }>}
+   */
+  function buildCityInfoRows(city) {
+    const rows = [];
+    if (!city || !elements.paramCategoriesHost) return rows;
+    const sliders = elements.paramCategoriesHost.querySelectorAll(
+      'input[type="range"][data-param-key]'
+    );
+    for (let i = 0; i < sliders.length; i++) {
+      const sl = sliders[i];
+      const key = sl.getAttribute('data-param-key');
+      if (!key) continue;
+      const card = sl.closest('.param-item');
+      if (!card || card.getAttribute('data-param-active') !== '1') continue;
+      const titleEl = card ? card.querySelector('.param-item__title') : null;
+      const label = titleEl && titleEl.textContent
+        ? titleEl.textContent.trim()
+        : paramLabelForDbKey(key);
+
+      let valueText = '–';
+      const info = findCompanionInfoForIndexKey(key);
+      if (info && info.pair) {
+        const parseFn = info.pair.parse || parseNumeric;
+        const a = parseFn(city[info.pair.a]);
+        const b = parseFn(city[info.pair.b]);
+        valueText = info.pair.formatPair(a, b);
+      } else if (info && info.companionKey && info.format) {
+        const parseFn = info.parse || parseNumeric;
+        const v = parseFn(city[info.companionKey]);
+        valueText = info.format(v);
+      } else {
+        const v = parseNumeric(city[key]);
+        valueText = v == null ? '–' : String(Math.round(v));
+      }
+
+      rows.push({ label: label, value: valueText });
+    }
+    return rows;
+  }
+
+  function buildCityInfoCardEl(city) {
+    const wrap = document.createElement('div');
+    wrap.className = 'city-info';
+
+    const title = document.createElement('div');
+    title.className = 'city-info__title';
+    title.textContent = cityName(city);
+    wrap.appendChild(title);
+
+    const list = document.createElement('div');
+    list.className = 'city-info__list';
+
+    const rows = buildCityInfoRows(city);
+    if (rows.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'city-info__empty';
+      p.textContent =
+        'Nincs bekapcsolt paraméter. Kapcsolj be legalább egyet a bal oldali panelen.';
+      list.appendChild(p);
+    } else {
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const row = document.createElement('div');
+        row.className = 'city-info__row';
+        const lab = document.createElement('span');
+        lab.className = 'city-info__label';
+        lab.textContent = r.label;
+        const val = document.createElement('span');
+        val.className = 'city-info__val';
+        val.textContent = r.value;
+        row.appendChild(lab);
+        row.appendChild(val);
+        list.appendChild(row);
+      }
+    }
+
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  function closeCityInfoPopup() {
+    if (cityInfoPopup) {
+      try {
+        cityInfoPopup.remove();
+      } catch (_) {}
+      cityInfoPopup = null;
+    }
+  }
+
+  function openCityInfoPopup(city, lng, lat) {
+    if (!map || !city) return;
+    closeCityInfoPopup();
+    const el = buildCityInfoCardEl(city);
+    cityInfoPopup = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      closeOnMove: false,
+      maxWidth: '380px',
+      offset: 10,
+      className: 'city-info-popup',
+    })
+      .setLngLat([lng, lat])
+      .setDOMContent(el)
+      .addTo(map);
+  }
+
+  async function onCityInfoMapClick(e) {
+    if (pickMode) return;
+    const lng = e.lngLat.lng;
+    const lat = e.lngLat.lat;
+    try {
+      await ensureGeoIndexed();
+    } catch (_) {
+      return;
+    }
+    const name = findSettlementNameAt(lng, lat);
+    if (!name) {
+      closeCityInfoPopup();
+      return;
+    }
+    const city = resolveCityFromMapPick(name, lng, lat);
+    if (!city) {
+      closeCityInfoPopup();
+      return;
+    }
+    openCityInfoPopup(city, lng, lat);
+  }
+
+  // ===========================================================================
+  // Találat-hőtérkép (choropleth a települési poligonokon, plasma színskála)
+  // ===========================================================================
+  /** @type {boolean} A felhasználó által bekapcsolt-e a hőtérkép réteg. */
+  let heatmapEnabled = false;
+  /** @type {boolean} A MapLibre source + layer-ek hozzá vannak-e adva már. */
+  let heatmapLayersReady = false;
+  /** @type {Promise<void> | null} Az ensureHeatmapLayers folyamatban van-e. */
+  let heatmapLayersPromise = null;
+  /** @type {Set<string> | null} Az utoljára festett feature ID-k (a régi state-ek törléséhez). */
+  let lastHeatmapPaintedIds = null;
+
+  /** plasma paletta (rossz illeszkedés → jó illeszkedés). 0 = sötétlila, 100 = sárga. */
+  function buildPlasmaColorExpr() {
+    return [
+      'interpolate',
+      ['linear'],
+      ['coalesce', ['feature-state', 'matchPercent'], -1],
+      -1, 'rgba(0,0,0,0)',
+      0, '#0d0887',
+      12.5, '#5c01a6',
+      25, '#9c179e',
+      37.5, '#cc4778',
+      50, '#ed7953',
+      62.5, '#f89441',
+      75, '#fdc328',
+      100, '#f0f921',
+    ];
+  }
+
+  async function ensureHeatmapLayers() {
+    if (heatmapLayersReady) return;
+    if (heatmapLayersPromise) {
+      try { await heatmapLayersPromise; } catch (_) {}
+      return;
+    }
+    if (!map) return;
+    heatmapLayersPromise = (async function () {
+      if (!map.isStyleLoaded()) {
+        await new Promise(function (res) {
+          map.once('load', res);
+        });
+      }
+      await ensureGeoIndexed();
+      if (!geoIndexed || geoIndexed.length === 0) {
+        throw new Error('A települési poligonok nincsenek betöltve.');
+      }
+
+      if (!map.getSource('hse-choropleth')) {
+        const features = [];
+        for (let i = 0; i < geoIndexed.length; i++) {
+          const it = geoIndexed[i];
+          const id = normalizeSettlementName(it.name);
+          if (!id) continue;
+          features.push({
+            type: 'Feature',
+            properties: { name: it.name, id: id },
+            geometry: it.geometry,
+          });
+        }
+        map.addSource('hse-choropleth', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: features },
+          promoteId: 'id',
+        });
+      }
+
+      const colorExpr = buildPlasmaColorExpr();
+      const hasPercentExpr = ['!=', ['coalesce', ['feature-state', 'matchPercent'], -1], -1];
+      const beforeId = map.getLayer('important-place-a-fill')
+        ? 'important-place-a-fill'
+        : (map.getLayer('important-place-b-fill') ? 'important-place-b-fill' : undefined);
+
+      if (!map.getLayer('hse-choropleth-fill')) {
+        map.addLayer({
+          id: 'hse-choropleth-fill',
+          type: 'fill',
+          source: 'hse-choropleth',
+          layout: { visibility: heatmapEnabled ? 'visible' : 'none' },
+          paint: {
+            'fill-color': colorExpr,
+            'fill-opacity': ['case', hasPercentExpr, 0.5, 0],
+            'fill-outline-color': 'rgba(0,0,0,0)',
+          },
+        }, beforeId);
+      }
+
+      // Lágy szegély: ugyanaz a szín, kis blur — a települési határvonalak optikai elmosása.
+      if (!map.getLayer('hse-choropleth-blur')) {
+        map.addLayer({
+          id: 'hse-choropleth-blur',
+          type: 'line',
+          source: 'hse-choropleth',
+          layout: { visibility: heatmapEnabled ? 'visible' : 'none' },
+          paint: {
+            'line-color': colorExpr,
+            'line-width': 2,
+            'line-blur': 3,
+            'line-opacity': ['case', hasPercentExpr, 0.45, 0],
+          },
+        }, beforeId);
+      }
+
+      heatmapLayersReady = true;
+    })().catch(function (err) {
+      console.warn('Hőtérkép réteg betöltése:', err);
+    }).then(function () {
+      heatmapLayersPromise = null;
+    });
+    await heatmapLayersPromise;
+  }
+
+  /**
+   * Frissíti a település-poligonok matchPercent feature-state-jét a jelenlegi
+   * csúszka-állás alapján. Logika:
+   *   1. Iterálunk a poligonokon. Ha a poligon centroidja a geo-szűrőn (sugár-kör)
+   *      kívülre esik, kihagyjuk — így a Supabase city.lat/lng hibái nem rángatnak
+   *      át poligonokat más sugár-körbe.
+   *   2. A poligon nevéből visszakeresünk egy Supabase-város-rekordot a meglévő
+   *      alias-os cityByNormName lookup-pal.
+   *   3. Súlyozott |want − got| összeget számolunk.
+   *   4. A teljes (sugáron belüli, adattal rendelkező) halmaz min/max sum-jára
+   *      feszítjük ki a plazma skálát: legjobb=100/sárga, legrosszabb=0/sötétlila.
+   * @param {Record<string, { value: number, weight: number }>} targets
+   */
+  function updateHeatmapFromTargets(targets) {
+    if (!heatmapLayersReady || !map.getSource('hse-choropleth')) return;
+    if (!citiesData.length || indexParamKeys.length === 0) return;
+    if (!geoIndexed || geoIndexed.length === 0) return;
+
+    const clearOldStates = function () {
+      if (lastHeatmapPaintedIds) {
+        lastHeatmapPaintedIds.forEach(function (id) {
+          try {
+            map.removeFeatureState(
+              { source: 'hse-choropleth', id: id },
+              'matchPercent'
+            );
+          } catch (_) {}
+        });
+      }
+    };
+
+    // 1) poligon-iteráció: szűrés a poligon centroidjára + sum számolás
+    const featureSums = [];
+    for (let i = 0; i < geoIndexed.length; i++) {
+      const item = geoIndexed[i];
+      const featureId = normalizeSettlementName(item.name);
+      if (!featureId) continue;
+      if (!passesGeoFilterByPoint(item.centerLat, item.centerLng)) continue;
+      const city = lookupCityRowFromGeoPickLabel(
+        item.name,
+        item.centerLng,
+        item.centerLat
+      );
+      if (!city) continue;
+
+      let sum = 0;
+      let used = 0;
+      for (let j = 0; j < indexParamKeys.length; j++) {
+        const key = indexParamKeys[j];
+        const pack = targets[key];
+        if (!pack || pack.value == null) continue;
+        const w =
+          pack.weight != null && Number.isFinite(pack.weight)
+            ? Math.max(0, Math.min(1, pack.weight))
+            : 1;
+        const got = parseNumeric(city[key]);
+        if (got == null) continue;
+        sum += Math.abs(pack.value - got) * w;
+        used++;
+      }
+      if (used === 0) continue;
+      featureSums.push({ id: featureId, sum: sum });
+    }
+
+    if (featureSums.length === 0) {
+      clearOldStates();
+      lastHeatmapPaintedIds = new Set();
+      return;
+    }
+
+    // 2) per-search min/max → plazma a tényleges spektrumra feszítve
+    let minSum = Infinity;
+    let maxSum = -Infinity;
+    for (let i = 0; i < featureSums.length; i++) {
+      const s = featureSums[i].sum;
+      if (s < minSum) minSum = s;
+      if (s > maxSum) maxSum = s;
+    }
+    const range = maxSum - minSum;
+
+    // 3) régi state-ek tisztítása + új state-ek ráfestése
+    clearOldStates();
+    const nowPainted = new Set();
+    for (let i = 0; i < featureSums.length; i++) {
+      const fs = featureSums[i];
+      let pct = range > 0 ? 100 * (1 - (fs.sum - minSum) / range) : 100;
+      pct = Math.round(Math.max(0, Math.min(100, pct)));
+      map.setFeatureState(
+        { source: 'hse-choropleth', id: fs.id },
+        { matchPercent: pct }
+      );
+      nowPainted.add(fs.id);
+    }
+    lastHeatmapPaintedIds = nowPainted;
+  }
+
+  function clearHeatmapFeatureStates() {
+    if (!map || !map.getSource('hse-choropleth') || !lastHeatmapPaintedIds) return;
+    lastHeatmapPaintedIds.forEach(function (id) {
+      try {
+        map.removeFeatureState(
+          { source: 'hse-choropleth', id: id },
+          'matchPercent'
+        );
+      } catch (_) {}
+    });
+    lastHeatmapPaintedIds = null;
+  }
+
+  function setHeatmapLayerVisibility(visible) {
+    if (!map) return;
+    ['hse-choropleth-fill', 'hse-choropleth-blur'].forEach(function (id) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      }
+    });
+  }
+
+  function syncHeatmapToggleUi() {
+    const btn = document.getElementById('heatmap-toggle-btn');
+    if (btn) {
+      btn.classList.toggle('heatmap-toggle--active', heatmapEnabled);
+      btn.setAttribute('aria-pressed', heatmapEnabled ? 'true' : 'false');
+      btn.title = heatmapEnabled
+        ? 'Találat-hőtérkép kikapcsolása'
+        : 'Találat-hőtérkép bekapcsolása';
+    }
+    const legend = document.getElementById('heatmap-legend');
+    if (legend) {
+      legend.classList.toggle('heatmap-legend--visible', heatmapEnabled);
+      legend.setAttribute('aria-hidden', heatmapEnabled ? 'false' : 'true');
+    }
+  }
+
+  async function setHeatmapEnabled(on) {
+    heatmapEnabled = !!on;
+    syncHeatmapToggleUi();
+    if (heatmapEnabled) {
+      try {
+        await ensureHeatmapLayers();
+      } catch (e) {
+        console.warn('Hőtérkép bekapcsolás:', e);
+      }
+      setHeatmapLayerVisibility(true);
+      if (citiesData.length && indexParamKeys.length) {
+        const targets = collectSliderTargets();
+        updateHeatmapFromTargets(targets);
+      }
+    } else {
+      setHeatmapLayerVisibility(false);
+    }
+  }
+
+  function initHeatmapToggle() {
+    const btn = document.getElementById('heatmap-toggle-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setHeatmapEnabled(!heatmapEnabled);
+    });
+    syncHeatmapToggleUi();
   }
 
   async function fetchAllParameters() {
@@ -4719,6 +5401,10 @@
     const result = findBestMatch(targets);
     const paramCount = Object.keys(targets).length;
 
+    if (heatmapEnabled) {
+      updateHeatmapFromTargets(targets);
+    }
+
     if (result) {
       const maxP = computeMaxPossibleDiff(targets);
       const matchPercent = diffToMatchPercent(result.finalScore, maxP);
@@ -4850,6 +5536,7 @@
       if (map) {
         setTimeout(function () {
           map.resize();
+          syncGeoMarkersFromState();
         }, 280);
       }
     }
@@ -4899,6 +5586,7 @@
   async function init() {
     initElements();
     initLayoutDocking();
+    initHeatmapToggle();
     initFirstSearchHintModal();
     initParamInfoTooltips();
     initMap();

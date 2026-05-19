@@ -19,7 +19,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=97">
+  <link rel="stylesheet" href="style.css?v=103">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -71,6 +71,18 @@
 
   <main id="map-container" class="map-container" aria-label="Térkép"></main>
 
+  <button type="button" id="heatmap-toggle-btn" class="heatmap-toggle" aria-pressed="false" title="Találat-hőtérkép bekapcsolása" aria-label="Találat-hőtérkép be / ki">
+    <span class="heatmap-toggle__glyph" aria-hidden="true">H</span>
+  </button>
+  <div id="heatmap-legend" class="heatmap-legend" aria-hidden="true">
+    <div class="heatmap-legend__title">Találat-hőtérkép</div>
+    <div class="heatmap-legend__bar" aria-hidden="true"></div>
+    <div class="heatmap-legend__row">
+      <span>halvány egyezés</span>
+      <span>erős egyezés</span>
+    </div>
+  </div>
+
   <div id="map-picking-banner" class="map-picking-banner" hidden role="status">
     <p id="map-picking-banner-text" class="map-picking-banner-text"></p>
     <button type="button" id="map-picking-cancel" class="map-picking-cancel">Mégse</button>
@@ -113,7 +125,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=91"></script>
+  <script src="app.js?v=100"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

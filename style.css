@@ -3186,3 +3186,224 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   margin: 8px 0 0;
   max-width: 28ch;
 }
+
+/* Találat-hőtérkép kapcsoló — pontosan a jobb panel elrejtése gomb alatt.
+   Két diszkrét pozíciója van (panel becsukva / kinyitva), nincs `right`-
+   animáció, ugyanúgy ugrik egy lépésben, ahogyan a feedback-collapse-btn. */
+.heatmap-toggle {
+  position: fixed;
+  z-index: 11;
+  top: calc(var(--sidebar-control-top) + 30px);
+  right: calc(var(--map-zoom-gutter) + env(safe-area-inset-right, 0px));
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-app);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ha a jobb panel látható ÉS nincs becsukva: a panel bal szélén ülő
+   feedback-collapse-btn alá ugrik. Nincs `right`-transition, így nem
+   röpül — ugyanúgy két diszkrét állapota van, mint az említett nyíl-
+   gombnak (a panel szélességének változása miatt amúgy is diszkrét). */
+body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
+  #heatmap-toggle-btn {
+  right: calc(min(420px, 38vw) - 40px + env(safe-area-inset-right, 0px));
+}
+
+.heatmap-toggle__glyph {
+  display: block;
+  margin-top: -0.5px;
+  user-select: none;
+}
+
+.heatmap-toggle:hover {
+  background: #fafafa;
+}
+
+.heatmap-toggle--active,
+.heatmap-toggle--active:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+.heatmap-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  z-index: 12;
+}
+
+/* Legenda — jobb alsó sarokban, kompakt, a jobb találati panel mögött
+   (z-index 9 < panel 10, így a panel kitakarja, ha kibontva van). */
+.heatmap-legend {
+  position: fixed;
+  z-index: 9;
+  right: 18px;
+  bottom: 44px;
+  background: #fff;
+  border: 1.5px solid var(--ink);
+  border-radius: 5px;
+  padding: 7px 10px 8px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-app);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.heatmap-legend--visible {
+  display: flex;
+}
+
+.heatmap-legend__title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.heatmap-legend__bar {
+  width: 160px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #0d0887,
+    #5c01a6,
+    #9c179e,
+    #cc4778,
+    #ed7953,
+    #f89441,
+    #fdc328,
+    #f0f921
+  );
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.22);
+}
+
+.heatmap-legend__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.56rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 919px) {
+  .heatmap-toggle,
+  .heatmap-legend {
+    display: none !important;
+  }
+}
+
+/* Település-infó popup — kattintásra megjelenő kis ablak */
+.city-info-popup .maplibregl-popup-content {
+  padding: 0;
+  border-radius: 6px;
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.city-info-popup .maplibregl-popup-close-button {
+  font-size: 1.05rem;
+  line-height: 1;
+  right: 4px;
+  top: 2px;
+  color: var(--ink);
+  padding: 2px 6px;
+  background: transparent;
+}
+
+.city-info-popup .maplibregl-popup-close-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.city-info-popup .maplibregl-popup-tip {
+  border-top-color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.city-info {
+  font-family: var(--font-app);
+  width: 340px;
+  max-width: 100%;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.city-info__title {
+  padding: 8px 32px 8px 12px;
+  border-bottom: 1.5px solid var(--ink);
+  font-weight: 800;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.city-info__list {
+  padding: 4px 12px 10px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.city-info__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.74rem;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.city-info__row:last-child {
+  border-bottom: none;
+}
+
+.city-info__label {
+  color: var(--ink-soft);
+  flex: 1;
+  line-height: 1.25;
+}
+
+.city-info__val {
+  font-weight: 700;
+  color: var(--ink);
+  white-space: pre-wrap;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.city-info__empty {
+  padding: 6px 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
