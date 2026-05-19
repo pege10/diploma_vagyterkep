@@ -1381,6 +1381,34 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 /* Fontos hely (kétkörös, param-group + param-item) */
 /* Egész „Fontos hely” blokk együtt legyen egy erős stacking contextben, hogy az infó (fixed) tooltip
    ne kerüljön a következő szakasz (pl. Természeti környezet) alá. */
+/* Találat részletei — bal panelben, a paraméter csoportok fölött (i gomb) */
+.match-details-host {
+  flex-shrink: 0;
+  min-width: 0;
+  margin: 0 18px 10px;
+  padding: 12px 12px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.match-details-host[hidden] {
+  display: none !important;
+}
+
+.match-details-host .feedback-panel__title {
+  margin-top: 0;
+}
+
+.match-details-host .feedback-table {
+  font-size: 0.65rem;
+}
+
 .important-places-outer {
   flex-shrink: 0;
   min-width: 0;
@@ -2407,6 +2435,14 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   line-height: 1.25;
 }
 
+.feedback-panel__title--city {
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
 .feedback-panel__summary {
   font-size: 0.82rem;
   line-height: 1.45;
@@ -3187,13 +3223,11 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   max-width: 28ch;
 }
 
-/* Találat-hőtérkép kapcsoló — pontosan a jobb panel elrejtése gomb alatt.
-   Két diszkrét pozíciója van (panel becsukva / kinyitva), nincs `right`-
-   animáció, ugyanúgy ugrik egy lépésben, ahogyan a feedback-collapse-btn. */
-.heatmap-toggle {
+/* Térkép jobb felső sarok: H (hőtérkép) + i (találat részletei) — két diszkrét
+   pozíció (panel becsukva / kinyitva), nincs right-animáció. */
+.map-corner-toggle {
   position: fixed;
   z-index: 11;
-  top: calc(var(--sidebar-control-top) + 30px);
   right: calc(var(--map-zoom-gutter) + env(safe-area-inset-right, 0px));
   width: 22px;
   height: 22px;
@@ -3214,46 +3248,55 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   transition:
     background 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    opacity 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Ha a jobb panel látható ÉS nincs becsukva: a panel bal szélén ülő
-   feedback-collapse-btn alá ugrik. Nincs `right`-transition, így nem
-   röpül — ugyanúgy két diszkrét állapota van, mint az említett nyíl-
-   gombnak (a panel szélességének változása miatt amúgy is diszkrét). */
+.heatmap-toggle {
+  top: calc(var(--sidebar-control-top) + 30px);
+}
+
+.match-details-toggle {
+  top: calc(var(--sidebar-control-top) + 60px);
+}
+
 body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
-  #heatmap-toggle-btn {
+  .map-corner-toggle {
   right: calc(min(420px, 38vw) - 40px + env(safe-area-inset-right, 0px));
 }
 
-.heatmap-toggle__glyph {
+.map-corner-toggle__glyph {
   display: block;
   margin-top: -0.5px;
   user-select: none;
 }
 
-.heatmap-toggle:hover {
+.map-corner-toggle:hover:not(:disabled) {
   background: #fafafa;
 }
 
-.heatmap-toggle--active,
-.heatmap-toggle--active:hover {
+.map-corner-toggle--active,
+.map-corner-toggle--active:hover:not(:disabled) {
   background: var(--ink);
   color: #fff;
 }
 
-.heatmap-toggle:focus-visible {
+.map-corner-toggle:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.map-corner-toggle:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
   z-index: 12;
 }
 
-/* Legenda — jobb alsó sarokban, kompakt, a jobb találati panel mögött
-   (z-index 9 < panel 10, így a panel kitakarja, ha kibontva van). */
+/* Legenda — jobb alsó; kinyitott jobb panel mellett a panel bal szélére tolódik. */
 .heatmap-legend {
   position: fixed;
-  z-index: 9;
+  z-index: 11;
   right: 18px;
   bottom: 44px;
   background: #fff;
@@ -3273,6 +3316,11 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
 
 .heatmap-legend--visible {
   display: flex;
+}
+
+body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
+  .heatmap-legend {
+  right: calc(min(420px, 38vw) + 12px + env(safe-area-inset-right, 0px));
 }
 
 .heatmap-legend__title {
@@ -3311,8 +3359,12 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   letter-spacing: 0.05em;
 }
 
+.feedback-panel .city-info__list {
+  margin-top: 4px;
+}
+
 @media (max-width: 919px) {
-  .heatmap-toggle,
+  .map-corner-toggle,
   .heatmap-legend {
     display: none !important;
   }

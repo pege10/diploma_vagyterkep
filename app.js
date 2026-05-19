@@ -1223,6 +1223,11 @@
     return s.normalize('NFC').toLowerCase().trim();
   }
 
+  /** Choropleth poligon feature id (promoteId) — ékezetes, ne keveredjen Komló / Kömlő. */
+  function geoPolygonFeatureId(label) {
+    return normalizeSettlementNameStrict(String(label || ''));
+  }
+
   function registerAsciiHomonym(asciiKey, city) {
     if (!asciiKey || !city) return;
     let arr = cityHomonymsByAscii.get(asciiKey);
@@ -4643,10 +4648,44 @@
   }
 
   // ===========================================================================
-  // Település-infó popup (térképre kattintáskor)
+  // Település-infó popup (térképre kattintáskor, heatmapen)
   // ===========================================================================
   /** @type {maplibregl.Popup | null} */
   let cityInfoPopup = null;
+  /** @type {string | null} A kijelölt település poligon feature id (hse-choropleth promoteId). */
+  let cityInfoSelectedFeatureId = null;
+
+  function clearCityInfoSelection() {
+    if (!map || !cityInfoSelectedFeatureId) return;
+    try {
+      map.removeFeatureState(
+        { source: 'hse-choropleth', id: cityInfoSelectedFeatureId },
+        'selected'
+      );
+    } catch (_) {}
+    cityInfoSelectedFeatureId = null;
+  }
+
+  function setCityInfoSelection(featureId) {
+    if (!map || !map.getSource('hse-choropleth') || !featureId) return;
+    clearCityInfoSelection();
+    try {
+      map.setFeatureState(
+        { source: 'hse-choropleth', id: featureId },
+        { selected: true }
+      );
+      cityInfoSelectedFeatureId = featureId;
+    } catch (_) {}
+  }
+
+  function isFeatureOnHeatmap(featureId) {
+    return !!(
+      heatmapEnabled &&
+      featureId &&
+      lastHeatmapPaintedIds &&
+      lastHeatmapPaintedIds.has(featureId)
+    );
+  }
 
   /**
    * Adott index oszlophoz visszaadja a megjelenítéshez használt companion oszlopot
@@ -4656,6 +4695,14 @@
    *             pair?: { a: string, b: string, formatPair: function, parse?: function } } | null}
    */
   function findCompanionInfoForIndexKey(key) {
+    // Iskola: a DB oszlop SCHOOL_PROXIMITY_INDEX_* — nem illeszkedik a ui param id prefixre.
+    const schoolDefs = SCHOOL_PRIMARY_VARIANTS.concat(SCHOOL_GYMNASIUM_VARIANTS);
+    for (let si = 0; si < schoolDefs.length; si++) {
+      if (schoolDefs[si].indexKey === key) {
+        return { companionKey: schoolDefs[si].companionKey, format: formatKmForUi };
+      }
+    }
+
     const ent = getUiParamEntryForDbKey(key);
     if (!ent) return null;
     const id = ent.id;
@@ -4709,15 +4756,6 @@
     }
     if (id === 'diploma_index') {
       return { companionKey: diplomaCompanionAranyaKey(key), format: formatForestRatioForUi };
-    }
-    if (id === 'primary_school_proximity_index' || id === 'high_school_proximity_index') {
-      const defs = schoolVariantDefsForUiParam(id);
-      for (let i = 0; i < defs.length; i++) {
-        if (defs[i].indexKey === key) {
-          return { companionKey: defs[i].companionKey, format: formatKmForUi };
-        }
-      }
-      return null;
     }
     if (id === 'real_estate_price_grow_5yrs_index' || id === 'real_estate_price_avg5mth_index') {
       const isGrow = id === 'real_estate_price_grow_5yrs_index';
@@ -4789,49 +4827,60 @@
     title.textContent = cityName(city);
     wrap.appendChild(title);
 
-    const list = document.createElement('div');
-    list.className = 'city-info__list';
+    const listHost = document.createElement('div');
+    appendCityInfoListToContainer(listHost, city);
+    wrap.appendChild(listHost);
+    return wrap;
+  }
 
+  function appendCityInfoListToContainer(container, city) {
     const rows = buildCityInfoRows(city);
     if (rows.length === 0) {
       const p = document.createElement('p');
       p.className = 'city-info__empty';
       p.textContent =
         'Nincs bekapcsolt paraméter. Kapcsolj be legalább egyet a bal oldali panelen.';
-      list.appendChild(p);
-    } else {
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        const row = document.createElement('div');
-        row.className = 'city-info__row';
-        const lab = document.createElement('span');
-        lab.className = 'city-info__label';
-        lab.textContent = r.label;
-        const val = document.createElement('span');
-        val.className = 'city-info__val';
-        val.textContent = r.value;
-        row.appendChild(lab);
-        row.appendChild(val);
-        list.appendChild(row);
-      }
+      container.appendChild(p);
+      return;
     }
+    const list = document.createElement('div');
+    list.className = 'city-info__list';
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const row = document.createElement('div');
+      row.className = 'city-info__row';
+      const lab = document.createElement('span');
+      lab.className = 'city-info__label';
+      lab.textContent = r.label;
+      const val = document.createElement('span');
+      val.className = 'city-info__val';
+      val.textContent = r.value;
+      row.appendChild(lab);
+      row.appendChild(val);
+      list.appendChild(row);
+    }
+    container.appendChild(list);
+  }
 
-    wrap.appendChild(list);
-    return wrap;
+  function onCityInfoPopupClose() {
+    clearCityInfoSelection();
+    cityInfoPopup = null;
   }
 
   function closeCityInfoPopup() {
-    if (cityInfoPopup) {
-      try {
-        cityInfoPopup.remove();
-      } catch (_) {}
-      cityInfoPopup = null;
-    }
+    clearCityInfoSelection();
+    if (!cityInfoPopup) return;
+    const popup = cityInfoPopup;
+    cityInfoPopup = null;
+    try {
+      popup.remove();
+    } catch (_) {}
   }
 
-  function openCityInfoPopup(city, lng, lat) {
-    if (!map || !city) return;
+  function openCityInfoPopup(city, lng, lat, featureId) {
+    if (!map || !city || !featureId) return;
     closeCityInfoPopup();
+    setCityInfoSelection(featureId);
     const el = buildCityInfoCardEl(city);
     cityInfoPopup = new maplibregl.Popup({
       closeButton: true,
@@ -4844,14 +4893,20 @@
       .setLngLat([lng, lat])
       .setDOMContent(el)
       .addTo(map);
+    cityInfoPopup.on('close', onCityInfoPopupClose);
   }
 
   async function onCityInfoMapClick(e) {
     if (pickMode) return;
+    if (!heatmapEnabled) {
+      closeCityInfoPopup();
+      return;
+    }
     const lng = e.lngLat.lng;
     const lat = e.lngLat.lat;
     try {
       await ensureGeoIndexed();
+      await ensureHeatmapLayers();
     } catch (_) {
       return;
     }
@@ -4860,12 +4915,17 @@
       closeCityInfoPopup();
       return;
     }
+    const featureId = geoPolygonFeatureId(name);
+    if (!isFeatureOnHeatmap(featureId)) {
+      closeCityInfoPopup();
+      return;
+    }
     const city = resolveCityFromMapPick(name, lng, lat);
     if (!city) {
       closeCityInfoPopup();
       return;
     }
-    openCityInfoPopup(city, lng, lat);
+    openCityInfoPopup(city, lng, lat, featureId);
   }
 
   // ===========================================================================
@@ -4916,21 +4976,24 @@
         throw new Error('A települési poligonok nincsenek betöltve.');
       }
 
-      if (!map.getSource('hse-choropleth')) {
-        const features = [];
-        for (let i = 0; i < geoIndexed.length; i++) {
-          const it = geoIndexed[i];
-          const id = normalizeSettlementName(it.name);
-          if (!id) continue;
-          features.push({
-            type: 'Feature',
-            properties: { name: it.name, id: id },
-            geometry: it.geometry,
-          });
-        }
+      const features = [];
+      for (let i = 0; i < geoIndexed.length; i++) {
+        const it = geoIndexed[i];
+        const id = geoPolygonFeatureId(it.name);
+        if (!id) continue;
+        features.push({
+          type: 'Feature',
+          properties: { name: it.name, id: id },
+          geometry: it.geometry,
+        });
+      }
+      const fc = { type: 'FeatureCollection', features: features };
+      if (map.getSource('hse-choropleth')) {
+        map.getSource('hse-choropleth').setData(fc);
+      } else {
         map.addSource('hse-choropleth', {
           type: 'geojson',
-          data: { type: 'FeatureCollection', features: features },
+          data: fc,
           promoteId: 'id',
         });
       }
@@ -4969,6 +5032,35 @@
             'line-opacity': ['case', hasPercentExpr, 0.45, 0],
           },
         }, beforeId);
+      }
+
+      // Kijelölt település: plazma színű szegély (matchPercent), finoman hangsúlyozva.
+      if (!map.getLayer('hse-choropleth-selection')) {
+        map.addLayer({
+          id: 'hse-choropleth-selection',
+          type: 'line',
+          source: 'hse-choropleth',
+          layout: { visibility: heatmapEnabled ? 'visible' : 'none' },
+          paint: {
+            'line-color': colorExpr,
+            'line-width': 3,
+            'line-blur': 0,
+            'line-opacity': [
+              'case',
+              ['==', ['coalesce', ['feature-state', 'selected'], false], true],
+              0.85,
+              0,
+            ],
+          },
+        }, beforeId);
+      } else if (map.getLayer('hse-choropleth-selection')) {
+        map.setPaintProperty('hse-choropleth-selection', 'line-width', 3);
+        map.setPaintProperty('hse-choropleth-selection', 'line-opacity', [
+          'case',
+          ['==', ['coalesce', ['feature-state', 'selected'], false], true],
+          0.85,
+          0,
+        ]);
       }
 
       heatmapLayersReady = true;
@@ -5015,7 +5107,7 @@
     const featureSums = [];
     for (let i = 0; i < geoIndexed.length; i++) {
       const item = geoIndexed[i];
-      const featureId = normalizeSettlementName(item.name);
+      const featureId = geoPolygonFeatureId(item.name);
       if (!featureId) continue;
       if (!passesGeoFilterByPoint(item.centerLat, item.centerLng)) continue;
       const city = lookupCityRowFromGeoPickLabel(
@@ -5047,6 +5139,7 @@
     if (featureSums.length === 0) {
       clearOldStates();
       lastHeatmapPaintedIds = new Set();
+      if (cityInfoSelectedFeatureId) closeCityInfoPopup();
       return;
     }
 
@@ -5074,6 +5167,15 @@
       nowPainted.add(fs.id);
     }
     lastHeatmapPaintedIds = nowPainted;
+
+    if (
+      cityInfoSelectedFeatureId &&
+      !lastHeatmapPaintedIds.has(cityInfoSelectedFeatureId)
+    ) {
+      closeCityInfoPopup();
+    } else if (cityInfoSelectedFeatureId) {
+      setCityInfoSelection(cityInfoSelectedFeatureId);
+    }
   }
 
   function clearHeatmapFeatureStates() {
@@ -5091,17 +5193,19 @@
 
   function setHeatmapLayerVisibility(visible) {
     if (!map) return;
-    ['hse-choropleth-fill', 'hse-choropleth-blur'].forEach(function (id) {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+    ['hse-choropleth-fill', 'hse-choropleth-blur', 'hse-choropleth-selection'].forEach(
+      function (id) {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+        }
       }
-    });
+    );
   }
 
   function syncHeatmapToggleUi() {
     const btn = document.getElementById('heatmap-toggle-btn');
     if (btn) {
-      btn.classList.toggle('heatmap-toggle--active', heatmapEnabled);
+      btn.classList.toggle('map-corner-toggle--active', heatmapEnabled);
       btn.setAttribute('aria-pressed', heatmapEnabled ? 'true' : 'false');
       btn.title = heatmapEnabled
         ? 'Találat-hőtérkép kikapcsolása'
@@ -5130,6 +5234,7 @@
       }
     } else {
       setHeatmapLayerVisibility(false);
+      closeCityInfoPopup();
     }
   }
 
@@ -5578,6 +5683,7 @@
         feedbackBtn.title = collapsed ? 'Jobb panel megnyitása' : 'Jobb panel elrejtése';
         const g = feedbackBtn.querySelector('.feedback-panel__edge-tab-glyph');
         if (g) g.textContent = collapsed ? '‹' : '›';
+        if (collapsed) closeCityInfoPopup();
         resizeMapSoon();
       });
     }
