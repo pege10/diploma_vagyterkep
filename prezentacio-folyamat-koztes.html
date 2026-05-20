@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #eceae4;
+      --ink: #0a0a0a;
+      --paper: #fff;
+      --muted: #5c5c5c;
+      --a: #2d6a4f;
+      --b: #1d3557;
+      --c: #9b2226;
+      --d: #7c6f64;
+      --proj: #b8860b;
+      --close: #2c2c2c;
+      --tick: 0.34s;
+      --reveal: 0.52s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: clamp(20px, 4vw, 48px);
+    }
+
+    .page {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+
+    h1 {
+      font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      max-width: 36em;
+      line-height: 1.4;
+    }
+
+    /* ── Animáció: elejétől épül, végén stabil kép (forwards) ── */
+    .fc-appear {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fcReveal var(--reveal) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation-delay: calc(var(--i) * var(--tick));
+    }
+
+    .fc-arrow.fc-appear {
+      transform: translateY(10px) scaleY(0.35);
+      transform-origin: center top;
+      animation-name: fcRevealArrow;
+    }
+
+    @keyframes fcReveal {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fcRevealArrow {
+      to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+      }
+    }
+
+    .flowchart {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--paper);
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      padding: 1rem 1.1rem 1.15rem;
+      box-shadow: 5px 5px 0 rgba(10, 10, 10, 0.07);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .card--hub {
+      border-width: 3px;
+      border-color: var(--b);
+      background: linear-gradient(165deg, #fff 0%, #f5f3ee 100%);
+    }
+
+    .card--accent-a {
+      border-top: 4px solid var(--a);
+    }
+
+    .card--accent-b {
+      border-top: 4px solid var(--c);
+    }
+
+    .card--accent-mail {
+      border-top: 4px solid var(--d);
+    }
+
+    .card--accent-proj {
+      border-top: 4px solid var(--proj);
+    }
+
+    .role-badge {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: rgba(10, 10, 10, 0.07);
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      margin-bottom: 0.4rem;
+      line-height: 1.2;
+      text-align: center;
+      max-width: 100%;
+    }
+
+    .card-num {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+
+    .card svg {
+      width: 56px;
+      height: 56px;
+      color: var(--ink);
+      flex-shrink: 0;
+    }
+
+    .card h2 {
+      margin-top: 0.65rem;
+      font-size: 0.88rem;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: 0.02em;
+    }
+
+    .card p {
+      margin-top: 0.65rem;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: left;
+      width: 100%;
+    }
+
+    .fc-arrow {
+      width: 2px;
+      height: 36px;
+      margin: 4px 0;
+      background: linear-gradient(
+        180deg,
+        rgba(10, 10, 10, 0.15) 0%,
+        rgba(10, 10, 10, 0.55) 45%,
+        rgba(10, 10, 10, 0.15) 100%
+      );
+      border-radius: 1px;
+      position: relative;
+    }
+
+    .fc-arrow::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid rgba(10, 10, 10, 0.5);
+    }
+
+    .fork-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-align: center;
+      margin: 0.35rem 0 0.65rem;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .fc-fork-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 520px;
+      align-items: start;
+    }
+
+    .fc-fork-row .card {
+      max-width: none;
+    }
+
+    .fc-merge-arrow {
+      width: 2px;
+      height: 40px;
+      margin: 6px 0 4px;
+    }
+
+    .legend {
+      margin-top: 1.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      justify-content: center;
+      font-size: 0.74rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ink);
+    }
+
+    .dot.data {
+      background: var(--b);
+    }
+
+    .dot.live {
+      background: var(--a);
+    }
+
+    .dot.space {
+      background: var(--c);
+    }
+
+    .dot.proj {
+      background: var(--proj);
+    }
+
+    .dot.close {
+      background: var(--close);
+    }
+
+    @media (max-width: 520px) {
+      .fc-fork-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fc-appear {
+        animation: none;
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .fc-appear {
+        animation: none;
+        opacity: 1;
+        transform: none;
+      }
+      .card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="fc-appear" style="--i: 0">
+      <h1>Holistic Search Engine</h1>
+      </header>
+
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none" aria-hidden="true">
+      <symbol id="ico-map" viewBox="0 0 48 48">
+        <path fill="none" stroke="currentColor" stroke-width="2" d="M8 36V14l10-6 10 6 12-7v22l-12 7-10-6-10 6z"/>
+        <path fill="currentColor" opacity=".25" d="M18 8l10 6v22l-10-6V8z"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.5" d="M22 20h8M22 24h6"/>
+      </symbol>
+      <symbol id="ico-grid" viewBox="0 0 48 48">
+        <rect x="8" y="10" width="32" height="28" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path stroke="currentColor" stroke-width="1.5" d="M8 18h32M8 26h32M16 10v28M24 10v28M32 10v28"/>
+      </symbol>
+      <symbol id="ico-db" viewBox="0 0 48 48">
+        <ellipse cx="24" cy="12" rx="16" ry="6" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path fill="none" stroke="currentColor" stroke-width="2" d="M8 12v8c0 3.3 7.2 6 16 6s16-2.7 16-6v-8M8 28v8c0 3.3 7.2 6 16 6s16-2.7 16-6v-8"/>
+      </symbol>
+      <symbol id="ico-web" viewBox="0 0 48 48">
+        <rect x="6" y="10" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path stroke="currentColor" stroke-width="2" d="M6 16h36"/>
+        <circle cx="11" cy="13" r="1.5" fill="currentColor"/>
+        <circle cx="15" cy="13" r="1.5" fill="currentColor"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.5" d="M14 28h14M14 32h20"/>
+      </symbol>
+      <symbol id="ico-calc" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 24h12M24 18v12"/>
+        <circle cx="24" cy="24" r="3" fill="currentColor"/>
+      </symbol>
+      <symbol id="ico-phone" viewBox="0 0 48 48">
+        <rect x="14" y="6" width="20" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M20 22h8M24 18v8"/>
+        <circle cx="24" cy="36" r="2" fill="currentColor"/>
+      </symbol>
+      <symbol id="ico-beam" viewBox="0 0 48 48">
+        <rect x="4" y="14" width="28" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path fill="none" stroke="currentColor" stroke-width="2" d="M32 18l12-6v24l-12-6"/>
+        <path fill="currentColor" opacity=".2" d="M34 20 L44 15v18l-10-5V20z"/>
+      </symbol>
+      <symbol id="ico-dart" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="24" cy="24" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="24" cy="24" r="2" fill="currentColor"/>
+        <path stroke="currentColor" stroke-width="1.5" d="M24 6v6M24 36v6M6 24h6M36 24h6"/>
+      </symbol>
+      <symbol id="ico-mail" viewBox="0 0 48 48">
+        <rect x="6" y="12" width="36" height="24" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path fill="none" stroke="currentColor" stroke-width="2" d="M6 14l18 14 18-14"/>
+      </symbol>
+    </svg>
+
+    <!-- --i: sorszám az animációs sorrendhez (0 = fejléc, …, utolsó = jelmagyarázat) -->
+    <div class="flowchart">
+      <article class="card card--accent-a fc-appear" style="--i: 1">
+        <span class="role-badge">Adat · előkészítés</span>
+        <div class="card-num">01 · QGIS · elemzés · források</div>
+        <svg><use href="#ico-map"/></svg>
+        <h2>Térkép, térképelemzés, és külső adatbázisok</h2>
+        <p>A kiinduló adatok a QGIS-ben készült térképekből és térképelemzésből, valamint különböző külső adatbázisokból származó táblákból állnak össze; ezekből készülnek az adattáblák, amelyekből településenként 0–100-as mutatókat kapsz minden paraméterre.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 2" aria-hidden="true"></div>
+
+      <article class="card fc-appear" style="--i: 3">
+        <span class="role-badge">Adat · előkészítés</span>
+        <div class="card-num">02 · Paraméterek</div>
+        <svg><use href="#ico-grid"/></svg>
+        <h2>15–20 mutató</h2>
+        <p>Nagyjából ennyi független paraméter (erdő, víz, kultúra, …) külön oszlopként szerepel, hogy minden város egy közös skálán összevethető legyen.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 4" aria-hidden="true"></div>
+
+      <article class="card card--hub fc-appear" style="--i: 5">
+        <span class="role-badge">Adat · Supabase</span>
+        <div class="card-num">03 · Supabase</div>
+        <svg><use href="#ico-db"/></svg>
+        <h2>Központi adat</h2>
+        <p>Itt tárolódik a teljes város–paraméter mátrix, és ide íródik vissza a webapp keresésének eredménye is, hogy a telefon és a kivetítő ugyanabból olvasson.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 6" aria-hidden="true"></div>
+
+      <article class="card fc-appear" style="--i: 7">
+        <span class="role-badge">Webapp · telefon (PWA)</span>
+        <div class="card-num">04 · Referenciavárosok</div>
+        <svg><use href="#ico-web"/></svg>
+        <h2>Ugyanaz a webapp: referenciák</h2>
+        <p>A kiállításon a felhasználók <strong>QR-kód</strong> beszkennelésével jutnak el ehhez a <strong>webapphoz</strong> (telefonon fut); itt adják meg paraméterenként a referenciavárosokat, a Supabase-ből jönnek az értékek. A <strong>böngészőben</strong> használható nézet ugyanez az alkalmazás, de <strong>kiegészítés</strong>: a kiállításon nem jelenik meg; a kiállítás után viszont az interneten, installáció nélkül is elérhető.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 8" aria-hidden="true"></div>
+
+      <article class="card fc-appear" style="--i: 9">
+        <span class="role-badge">Webapp · keresés (telefon)</span>
+        <div class="card-num">05 · Illesztés</div>
+        <svg><use href="#ico-calc"/></svg>
+        <h2>Legközelebbi város</h2>
+        <p><strong>Ugyanabban a webappban</strong>, a telefonon: a rendszer összeveti a referenciaprofilt az összes településsel, kiválasztja a legjobban illeszkedőt, és ezt az eredményt visszatölti az adatbázisba.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 10" aria-hidden="true"></div>
+
+      <article class="card fc-appear" style="--i: 11">
+        <span class="role-badge">Webapp · sor / sorszám</span>
+        <div class="card-num">06 · Mobil</div>
+        <svg><use href="#ico-phone"/></svg>
+        <h2>Sorszám</h2>
+        <p>A <strong>webapp</strong> felületén megjelenő sorszám összeköti a felhasználót a sorral és a fizikai installációval, hogy a kivetítő és a térbeli élmény ugyanazt az esetet kövesse.</p>
+      </article>
+
+      <div class="fc-arrow fc-appear" style="--i: 12" aria-hidden="true"></div>
+
+      <p class="fork-label fc-appear" style="--i: 13">Párhuzamosan · installáció</p>
+
+      <div class="fc-fork-row">
+        <article class="card card--accent-proj fc-appear" style="--i: 14">
+          <span class="role-badge">Kivetítő · TouchDesigner</span>
+          <div class="card-num">07a · Kivetítő</div>
+          <svg><use href="#ico-beam"/></svg>
+          <h2>Realtime megjelenítés</h2>
+          <p>A <strong>kivetítő / előcsarnok</strong> része: a TouchDesigner a Supabase-ből (és Realtime-ból, ha van) friss adatot kap, és megjeleníti a sorszámot meg a kiválasztott „tökéletes” város adatait.</p>
+        </article>
+
+        <article class="card card--accent-b fc-appear" style="--i: 14">
+          <span class="role-badge">Fizikai installáció</span>
+          <div class="card-num">07b · Darts</div>
+          <svg><use href="#ico-dart"/></svg>
+          <h2>Tábla + találat</h2>
+          <p>A <strong>fizikai installáció</strong> része (darts tábla + érzékelés): a dart bedobásakor a találat szegmensébe kerül a neki kijött város és a szöveges infók.</p>
+        </article>
+      </div>
+
+      <div class="fc-arrow fc-merge-arrow fc-appear" style="--i: 15" aria-hidden="true"></div>
+
+      <article class="card card--accent-mail fc-appear" style="--i: 16">
+        <span class="role-badge">Webapp · zárás</span>
+        <div class="card-num">08 · Zárás</div>
+        <svg><use href="#ico-mail"/></svg>
+        <h2>E-mail összegzés</h2>
+        <p>A <strong>webapp</strong> felületén opcionálisan megadható az e-mail cím, és oda elküldhető a tökéletes helyhez tartozó összefoglaló, hogy később is meglegyen.</p>
+      </article>
+    </div>
+
+    <div class="legend fc-appear" style="--i: 17">
+      <span><i class="dot data"></i> adat / tárolás</span>
+      <span><i class="dot live"></i> webapp (telefon; böngésző = utólag)</span>
+      <span><i class="dot proj"></i> kivetítő</span>
+      <span><i class="dot space"></i> installáció</span>
+      <span><i class="dot close"></i> zárás</span>
+    </div>
+  </div>
+</body>
+</html>

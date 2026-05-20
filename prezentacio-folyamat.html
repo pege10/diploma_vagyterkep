@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rendszerfolyamat – Holistic Search</title>
+  <style>
+    :root {
+      --bg: #f6f5f2;
+      --card: #ffffff;
+      --ink: #0a0a0a;
+      --muted: #4a4a4a;
+      --line: rgba(10, 10, 10, 0.35);
+      --accent: #0a0a0a;
+      --soft: rgba(10, 10, 10, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      min-height: 100vh;
+      padding: clamp(24px, 4vw, 48px);
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    h1 {
+      font-size: clamp(1.35rem, 3vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .step {
+      width: 100%;
+      max-width: 640px;
+      background: var(--card);
+      border: 2px solid var(--ink);
+      border-radius: 6px;
+      padding: 1.1rem 1.25rem;
+      box-shadow: 4px 4px 0 var(--soft);
+    }
+
+    .step h2 {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .step p,
+    .step li {
+      font-size: 0.92rem;
+      color: var(--ink);
+    }
+
+    .step ul {
+      margin-top: 0.45rem;
+      padding-left: 1.15rem;
+    }
+
+    .step li + li {
+      margin-top: 0.25rem;
+    }
+
+    .step-role {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+      line-height: 1.35;
+    }
+
+    .step--hub {
+      border-width: 3px;
+      background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+    }
+
+    .step--hub h2 {
+      color: var(--ink);
+    }
+
+    .arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.35rem 0 0.5rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .arrow svg {
+      width: 28px;
+      height: 36px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .arrow span {
+      margin-top: 0.15rem;
+      opacity: 0.85;
+    }
+
+    .branch {
+      width: 100%;
+      max-width: 720px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-top: 0.25rem;
+    }
+
+    @media (min-width: 700px) {
+      .branch {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .branch .step {
+      max-width: none;
+    }
+
+    .note {
+      margin-top: 2.5rem;
+      padding: 1rem 1.15rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      border-left: 4px solid var(--ink);
+      background: var(--card);
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        padding: 16px;
+      }
+      .step {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Holistic Search – rendszerfolyamat</h1>
+      <p class="subtitle">QGIS (térkép + térképelemzés) + külső adatbázisok → Supabase → web / mobil → installáció → visszacsatolás</p>
+    </header>
+
+    <div class="flow">
+      <section class="step">
+        <h2>1. Adatelőkészítés (QGIS, térképelemzés, és különböző adatbázisok)</h2>
+        <p class="step-role"><em>Projektrész: adat · előkészítés (nem a webes UI).</em></p>
+        <p>A kiinduló adatok nemcsak <strong>QGIS-ből</strong> (térkép és térképelemzés, rétegek, számítások), hanem <strong>különböző külső adatbázisokból</strong> is származnak; ezekből paraméterenként adattáblák készülnek, minden településhez normalizált <strong>0–100</strong> értékekkel.</p>
+        <ul>
+          <li>Nagyjából <strong>15–20 paraméter</strong> (erdő, víz, kultúra, …)</li>
+          <li>Az eredmény táblázatok kerülnek tovább az adattárba</li>
+        </ul>
+      </section>
+
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40"><path d="M12 4v24M6 26l6 8 6-8"/></svg>
+        <span>adatfeltöltés</span>
+      </div>
+
+      <section class="step step--hub">
+        <h2>2. Központi adat (Supabase)</h2>
+        <p class="step-role"><em>Projektrész: adat · Supabase backend (API + tárolás).</em></p>
+        <p>Települések + paraméterértékek + <strong>keresés eredménye</strong> (kiválasztott „tökéletes” város, metaadatok) egy helyen.</p>
+      </section>
+
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40"><path d="M12 4v24M6 26l6 8 6-8"/></svg>
+        <span>lekérés / visszaírás</span>
+      </div>
+
+      <section class="step">
+        <h2>3. Webes frontend (HTML) — referenciavárosok és keresés</h2>
+        <p class="step-role"><em>Projektrész: web · böngésző (weboldal / web app), ahol a felhasználó interaktál.</em></p>
+        <p>Itt adja meg a felhasználó paraméterenként, melyik város a <strong>referencia</strong> (pl. erdő, víz, kultúra, …) — ez a projekt <strong>böngészős felülete</strong>.</p>
+        <ul>
+          <li>Az oldal a Supabase-ből lekéri a város–paraméter mátrixot</li>
+          <li><strong>Matematikailag</strong> kiszámolja a legközelebbi / legjobban illeszkedő várost</li>
+          <li>Az eredmény <strong>visszaíródik</strong> a Supabase-be (pl. session / sor)</li>
+        </ul>
+      </section>
+
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40"><path d="M12 4v24M6 26l6 8 6-8"/></svg>
+        <span>sorszám + állapot</span>
+      </div>
+
+      <section class="step">
+        <h2>4. Mobil alkalmazás</h2>
+        <p class="step-role"><em>Projektrész: mobil · PWA / telefonos felület.</em></p>
+        <p>A keresés után megjelenik egy <strong>sorszám</strong> (pl. várakozási / azonosító szám), ami összeköti a felhasználót a fizikai installációval.</p>
+      </section>
+
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40"><path d="M12 4v24M6 26l6 8 6-8"/></svg>
+        <span>Realtime / lekérés</span>
+      </div>
+
+      <div class="branch">
+        <section class="step">
+          <h2>5a. Kivetítő (TouchDesigner)</h2>
+          <p class="step-role"><em>Projektrész: kivetítő · előcsarnok (TouchDesigner).</em></p>
+          <p>Beolvassa a Supabase-ből a <strong>sorszámot</strong> és a hozzá tartozó <strong>tökéletes város</strong> adatait, megjeleníti a kivetítőn.</p>
+        </section>
+        <section class="step">
+          <h2>5b. Fizikai installáció (darts)</h2>
+          <p class="step-role"><em>Projektrész: fizikai installáció · térbeli élmény.</em></p>
+          <p>A felhasználó bedobja a dartot. A rendszer érzékeli a <strong>találat szegmensét</strong>, oda helyezi a kiválasztott várost, és <strong>kiírja a részleteket</strong>.</p>
+        </section>
+      </div>
+
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40"><path d="M12 4v24M6 26l6 8 6-8"/></svg>
+        <span>opcionális zárás</span>
+      </div>
+
+      <section class="step">
+        <h2>6. E-mail</h2>
+        <p class="step-role"><em>Projektrész: mobil app · zárás / értesítés.</em></p>
+        <p>A mobil appban a felhasználó megadhatja az <strong>e-mail címét</strong>; a <strong>tökéletes hely</strong> összefoglaló adatai elküldésre kerülnek.</p>
+      </section>
+    </div>
+
+    <p class="note">
+      <strong>Megjegyzés:</strong> A folyamat végig a Supabase körül forog: ugyanaz az adatforrás szolgálja ki a webes keresést, a mobil visszajelzést, a TouchDesigner kivetítőt és a későbbi e-mail értesítést. Ez az oldal független a fő alkalmazástól, csak prezentációhoz készült.
+    </p>
+
+    <footer>
+      Holistic Search · rendszerfolyamat ábra
+    </footer>
+  </div>
+</body>
+</html>

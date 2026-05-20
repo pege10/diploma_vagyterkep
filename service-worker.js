@@ -1,18 +1,24 @@
 /* ==========================================================
    Service Worker – Holistic Search Engine
-   Stratégia: Cache-first statikus eszközökre, network-first
-   dinamikus Supabase API hívásokra.
+   HTML/JS/CSS: network-first (friss app.js), egyéb statikus: cache-first.
+   Supabase / térkép csempék: mindig hálózat.
    ========================================================== */
 
-const CACHE_NAME = 'darts-cache-v25';
+const CACHE_NAME = 'darts-cache-v26';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=24',
-  '/app.js?v=24',
+  '/style.css?v=109',
+  '/app.js?v=112',
   '/manifest.json',
 ];
+
+function isNetworkFirstAsset(url) {
+  if (url.pathname === '/' || url.pathname.endsWith('.html')) return true;
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) return true;
+  return false;
+}
 
 // ---------- Install ----------
 self.addEventListener('install', (event) => {
@@ -41,11 +47,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Supabase API és tiles hálózati hívások: mindig hálózat
   if (
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('openfreemap.org') ||
-    url.hostname.includes('unpkg.com')
+    url.hostname.includes('unpkg.com') ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com')
   ) {
     event.respondWith(
       fetch(request).catch(() => new Response('Offline', { status: 503 }))
@@ -53,7 +60,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Statikus eszközök: cache-first
+  if (isNetworkFirstAsset(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );

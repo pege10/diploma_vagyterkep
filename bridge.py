@@ -1,5 +1,5 @@
 """
-Real-time bridge: Supabase talalatok INSERT events -> physical plotter G-code.
+Real-time bridge: Supabase best_city_finds INSERT events -> physical plotter G-code.
 Uses official supabase Python package. Run with: python bridge.py
 """
 
@@ -67,6 +67,32 @@ def gcode_x_mark(x_mm: float, y_mm: float) -> str:
     return "\n".join(lines)
 
 
+def record_lat_lng(record: dict) -> tuple[float, float]:
+    """WGS84 from best_city_finds row (all_parameters oszlopok)."""
+    lat_keys = ("CITYDATA_Latitude", "citydata_latitude", "lat", "GROCERIES_INDEX_lat")
+    lng_keys = ("CITYDATA_Longitude", "citydata_longitude", "lng", "GROCERIES_INDEX_lon")
+    lat = lng = None
+    for k in lat_keys:
+        if record.get(k) is not None:
+            try:
+                lat = float(record[k])
+                break
+            except (TypeError, ValueError):
+                pass
+    for k in lng_keys:
+        if record.get(k) is not None:
+            try:
+                lng = float(record[k])
+                break
+            except (TypeError, ValueError):
+                pass
+    if lat is None:
+        lat = 0.0
+    if lng is None:
+        lng = 0.0
+    return lat, lng
+
+
 def extract_record(payload: dict) -> dict | None:
     """Extract the inserted row from a postgres_changes INSERT payload."""
     # Realtime can send record at top level or under 'record' / 'new' / data.record
@@ -91,24 +117,21 @@ async def main():
         if not record:
             print("[WARN] INSERT event with no record:", payload)
             return
-        telepules_nev = record.get("telepules_nev") or ""
-        try:
-            lat = float(record.get("lat"))
-        except (TypeError, ValueError):
-            lat = 0.0
-        try:
-            lng = float(record.get("lng"))
-        except (TypeError, ValueError):
-            lng = 0.0
+        settlement = (
+            record.get("settlement_name")
+            or record.get("telepules_nev")
+            or ""
+        )
+        lat, lng = record_lat_lng(record)
 
         x_mm, y_mm = lat_lng_to_mm(lat, lng)
         gcode = gcode_x_mark(x_mm, y_mm)
 
         print()
         print("=" * 60)
-        print("NEW INSERT EVENT (talalatok)")
+        print("NEW INSERT EVENT (best_city_finds)")
         print("=" * 60)
-        print("  Település (settlement):", telepules_nev)
+        print("  Település (settlement):", settlement)
         print("  GPS (lat, lng):         ({}, {})".format(lat, lng))
         print("  Physical (X, Y) mm:     ({:.3f}, {:.3f})".format(x_mm, y_mm))
         print("  Generated G-code:")
@@ -118,16 +141,16 @@ async def main():
         print("-" * 60)
         print()
 
-    channel = client.channel("talalatok-plotter")
+    channel = client.channel("best-city-finds-plotter")
     channel.on_postgres_changes(
         event="INSERT",
         schema="public",
-        table="talalatok",
+        table="best_city_finds",
         callback=on_insert,
     )
     await channel.subscribe()
 
-    print("Listening for INSERT events on table 'talalatok'...")
+    print("Listening for INSERT events on table 'best_city_finds'...")
     print("(Press Ctrl+C to stop)")
     print()
 

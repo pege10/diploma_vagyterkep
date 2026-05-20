@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+.claude/
+.pre-revert-*
+app (1).js
+style (1).css
+wikipedia_images/
+*.log
+data/settlement_summaries_progress.json
+data/settlement_wikipedia_images.json

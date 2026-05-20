@@ -1,0 +1,5 @@
+parameter_key,ui_definicio
+forest_index,Ide tedd az erdőlefedettség mutató UI szövegét (parameter_info / Supabase).
+water_index,Ide a vízfelület lefedettség magyarázata.
+geo_important_a,Ide az 1. fontos hely kártya magyarázata.
+geo_important_b,Ide a 2. fontos hely kártya magyarázata.

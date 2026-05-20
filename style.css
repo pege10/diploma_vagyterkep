@@ -2332,8 +2332,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     justify-content: flex-start;
+    gap: 8px;
     padding: var(--sidebar-control-top) 18px 0 16px;
     box-sizing: border-box;
     min-width: 58px;
@@ -2342,7 +2343,6 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   .feedback-panel.feedback-panel--collapsed .feedback-panel__edge-wrap {
     padding: var(--sidebar-control-top) 0 0 0;
     min-width: 0;
-    align-items: center;
   }
 
   .feedback-panel__edge-tab {
@@ -2350,21 +2350,33 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     width: 22px;
     height: 22px;
     margin: 0;
-    margin-top: 0;
     padding: 0;
     border: 2.5px solid var(--ink);
     border-radius: 4px;
     background: #fff;
     color: var(--ink);
     cursor: pointer;
+    font-family: var(--font-app);
     font-size: 0.68rem;
     font-weight: 700;
     line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    align-self: flex-start;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .feedback-panel__edge-tab--on,
+  .feedback-panel__edge-tab--on:hover:not(:disabled) {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .feedback-panel__edge-tab--tool:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
   }
 
   .feedback-panel__edge-tab-glyph {
@@ -2435,12 +2447,16 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   line-height: 1.25;
 }
 
-.feedback-panel__title--city {
+.feedback-panel__title--city,
+.feedback-panel__title--winner {
   font-size: 1.05rem;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.feedback-panel .city-info__list {
+  margin-top: 6px;
 }
 
 .feedback-panel__summary {
@@ -3223,76 +3239,6 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   max-width: 28ch;
 }
 
-/* Térkép jobb felső sarok: H (hőtérkép) + i (találat részletei) — két diszkrét
-   pozíció (panel becsukva / kinyitva), nincs right-animáció. */
-.map-corner-toggle {
-  position: fixed;
-  z-index: 11;
-  right: calc(var(--map-zoom-gutter) + env(safe-area-inset-right, 0px));
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  padding: 0;
-  border: 2.5px solid var(--ink);
-  border-radius: 4px;
-  background: #fff;
-  color: var(--ink);
-  cursor: pointer;
-  font-family: var(--font-app);
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    opacity 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.heatmap-toggle {
-  top: calc(var(--sidebar-control-top) + 30px);
-}
-
-.match-details-toggle {
-  top: calc(var(--sidebar-control-top) + 60px);
-}
-
-body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
-  .map-corner-toggle {
-  right: calc(min(420px, 38vw) - 40px + env(safe-area-inset-right, 0px));
-}
-
-.map-corner-toggle__glyph {
-  display: block;
-  margin-top: -0.5px;
-  user-select: none;
-}
-
-.map-corner-toggle:hover:not(:disabled) {
-  background: #fafafa;
-}
-
-.map-corner-toggle--active,
-.map-corner-toggle--active:hover:not(:disabled) {
-  background: var(--ink);
-  color: #fff;
-}
-
-.map-corner-toggle:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-
-.map-corner-toggle:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-  z-index: 12;
-}
-
 /* Legenda — jobb alsó; kinyitott jobb panel mellett a panel bal szélére tolódik. */
 .heatmap-legend {
   position: fixed;
@@ -3364,7 +3310,6 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
 }
 
 @media (max-width: 919px) {
-  .map-corner-toggle,
   .heatmap-legend {
     display: none !important;
   }

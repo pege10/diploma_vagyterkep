@@ -329,6 +329,18 @@
         }
       }
 
+      function entrySettlementName(entry) {
+        if (!entry) return '';
+        return entry.settlement_name || entry.telepules_nev || '';
+      }
+
+      function entryMatchScore(entry) {
+        if (!entry) return null;
+        if (entry.match_score != null) return entry.match_score;
+        if (entry.egyezes_pontszam != null) return entry.egyezes_pontszam;
+        return null;
+      }
+
       function renderCurrent(entry) {
         if (!entry) {
           els.currentNumber.textContent = '–';
@@ -341,11 +353,9 @@
         void els.currentNumber.offsetWidth;
         els.currentNumber.classList.add('animate-in');
 
-        els.currentCity.textContent = entry.telepules_nev || '';
-        els.currentMatch.textContent =
-          entry.egyezes_pontszam != null
-            ? entry.egyezes_pontszam + '% egyezés'
-            : '';
+        els.currentCity.textContent = entrySettlementName(entry);
+        const score = entryMatchScore(entry);
+        els.currentMatch.textContent = score != null ? score + '% egyezés' : '';
       }
 
       function renderQueue() {
@@ -359,16 +369,14 @@
           .map((entry, idx) => {
             const isCurrent = idx === 0;
             const timeStr = formatTime(entry.created_at);
-            const matchStr =
-              entry.egyezes_pontszam != null
-                ? entry.egyezes_pontszam + '% egyezés'
-                : '';
+            const score = entryMatchScore(entry);
+            const matchStr = score != null ? score + '% egyezés' : '';
             const metaParts = [timeStr, matchStr].filter(Boolean).join(' · ');
 
             return `<div class="queue-item${isCurrent ? ' queue-item--current' : ''}${entry._isNew ? ' queue-item--new' : ''}" data-id="${entry.id}">
   <span class="queue-item-num">${entry.id}</span>
   <div class="queue-item-info">
-    <div class="queue-item-city">${entry.telepules_nev || '–'}</div>
+    <div class="queue-item-city">${entrySettlementName(entry) || '–'}</div>
     ${metaParts ? `<div class="queue-item-meta">${metaParts}</div>` : ''}
   </div>
 </div>`;
@@ -393,8 +401,8 @@
 
       async function loadInitial() {
         const { data, error } = await sb
-          .from('talalatok')
-          .select('id, telepules_nev, egyezes_pontszam, created_at')
+          .from('best_city_finds')
+          .select('id, settlement_name, match_score, created_at')
           .order('id', { ascending: false })
           .limit(MAX_QUEUE);
 
@@ -412,10 +420,10 @@
 
       function subscribeRealtime() {
         sb
-          .channel('projector-talalatok')
+          .channel('projector-best-city-finds')
           .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'talalatok' },
+            { event: 'INSERT', schema: 'public', table: 'best_city_finds' },
             (payload) => {
               prependEntry({ ...payload.new, _isNew: true });
             }

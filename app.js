@@ -24,11 +24,17 @@
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1YmNzeXJncnRsenZlZnh1aG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjQ3MTYsImV4cCI6MjA4ODY0MDcxNn0.rldtsMn7LCqtLtfDFPWTM96Ly0EQEm50LhkbTFey0R4';
 
   const SUPABASE_TABLE = 'all_parameters';
+  const SUPABASE_BEST_CITY_FINDS_TABLE = 'best_city_finds';
   const PARAMETER_INFO_TABLE = 'parameter_info';
+
+  /** Nem kerülnek a best_city_finds INSERT-be (saját id/created_at, vagy csak kliens mező). */
+  const BEST_CITY_FIND_ROW_OMIT = new Set(['id', 'created_at', 'nev']);
 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let citiesData = [];
+  /** all_parameters oszlopnevek → best_city_finds INSERT (match_score +). */
+  let bestCityFindInsertKeys = null;
   /** Oszlopnevek, amelyek kisbetűs „_index” végződéssel rendelkeznek (pl. …_forest_index) */
   let indexParamKeys = [];
   /** @type {Record<string, { min: number, max: number }>} */
@@ -2430,7 +2436,78 @@
     return { text: str.slice(0, 240) + '…', title: str };
   }
 
+  /** @type {{ winningCity: object, targets: object, finalScore: number, maxPossible: number, matchPercent: number | null } | null} */
+  let lastSearchFeedbackMeta = null;
+  /** @type {'search-details' | 'winner-info' | null} */
+  let rightPanelMode = null;
+
+  function openRightPanel() {
+    const panel = elements.feedbackPanel;
+    if (!panel) return;
+    panel.removeAttribute('hidden');
+    panel.classList.remove('feedback-panel--collapsed');
+    const fbBtn = document.getElementById('feedback-collapse-btn');
+    if (fbBtn) {
+      fbBtn.setAttribute('aria-expanded', 'true');
+      const g = fbBtn.querySelector('.feedback-panel__edge-tab-glyph');
+      if (g) g.textContent = '›';
+    }
+    if (map) setTimeout(function () { map.resize(); }, 80);
+  }
+
+  function syncWinnerInfoToggleUi() {
+    const btn = document.getElementById('winner-info-toggle-btn');
+    if (!btn) return;
+    const hasMeta = !!lastSearchFeedbackMeta;
+    btn.disabled = !hasMeta;
+    const active = hasMeta && rightPanelMode === 'search-details';
+    btn.classList.toggle('feedback-panel__edge-tab--on', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.title = hasMeta
+      ? active
+        ? 'Tökéletes hely mutatói vissza a panelben'
+        : 'Találat részletei megnyitása'
+      : 'Találat részletei (előbb keress)';
+  }
+
+  function renderWinnerInfoInRightPanel(city) {
+    const inner = elements.feedbackPanelInner;
+    if (!inner || !city) return;
+    rightPanelMode = 'winner-info';
+    syncWinnerInfoToggleUi();
+    inner.textContent = '';
+    const h2 = document.createElement('h2');
+    h2.className = 'feedback-panel__title feedback-panel__title--winner';
+    h2.textContent = 'Tökéletes hely ' + cityName(city);
+    inner.appendChild(h2);
+    appendCityInfoListToContainer(inner, city);
+    openRightPanel();
+  }
+
+  function showSearchDetailsInRightPanel() {
+    const meta = lastSearchFeedbackMeta;
+    if (!meta) return;
+    renderFeedbackPanel(
+      meta.winningCity,
+      meta.targets,
+      meta.finalScore,
+      meta.maxPossible,
+      meta.matchPercent
+    );
+  }
+
+  function toggleWinnerInfoInRightPanel() {
+    if (!lastSearchFeedbackMeta) return;
+    if (rightPanelMode === 'search-details') {
+      renderWinnerInfoInRightPanel(lastSearchFeedbackMeta.winningCity);
+    } else {
+      showSearchDetailsInRightPanel();
+    }
+  }
+
   function hideFeedbackPanel() {
+    rightPanelMode = null;
+    syncWinnerInfoToggleUi();
     if (elements.feedbackPanel) {
       elements.feedbackPanel.setAttribute('hidden', '');
       elements.feedbackPanel.classList.remove('feedback-panel--collapsed');
@@ -2637,14 +2714,9 @@
     inner.appendChild(h3b);
     inner.appendChild(wrapB);
 
-    panel.classList.remove('feedback-panel--collapsed');
-    const fbBtn = document.getElementById('feedback-collapse-btn');
-    if (fbBtn) {
-      fbBtn.setAttribute('aria-expanded', 'true');
-      const g = fbBtn.querySelector('.feedback-panel__edge-tab-glyph');
-      if (g) g.textContent = '›';
-    }
-    panel.removeAttribute('hidden');
+    rightPanelMode = 'search-details';
+    syncWinnerInfoToggleUi();
+    openRightPanel();
   }
 
   /** Aktuális csúszkaértékek mentése „eredeti” visszaállításhoz (build / első betöltés után). */
@@ -5205,7 +5277,7 @@
   function syncHeatmapToggleUi() {
     const btn = document.getElementById('heatmap-toggle-btn');
     if (btn) {
-      btn.classList.toggle('map-corner-toggle--active', heatmapEnabled);
+      btn.classList.toggle('feedback-panel__edge-tab--on', heatmapEnabled);
       btn.setAttribute('aria-pressed', heatmapEnabled ? 'true' : 'false');
       btn.title = heatmapEnabled
         ? 'Találat-hőtérkép kikapcsolása'
@@ -5249,7 +5321,19 @@
     syncHeatmapToggleUi();
   }
 
+  function initWinnerInfoToggle() {
+    const btn = document.getElementById('winner-info-toggle-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWinnerInfoInRightPanel();
+    });
+    syncWinnerInfoToggleUi();
+  }
+
   async function fetchAllParameters() {
+    lastSearchFeedbackMeta = null;
     hideFeedbackPanel();
     elements.resultBox.textContent = 'Települések betöltése (all_parameters)…';
     try {
@@ -5294,6 +5378,7 @@
       }
 
       citiesData = all;
+      bestCityFindInsertKeys = null;
       if (citiesData.length === 0) {
         indexParamKeys = [];
         sliderRanges = {};
@@ -5329,6 +5414,7 @@
     } catch (err) {
       console.error('Fetch error:', err);
       citiesData = [];
+      bestCityFindInsertKeys = null;
       indexParamKeys = [];
       sliderRanges = {};
       rebuildCityIndex();
@@ -5356,7 +5442,13 @@
   function showResult(winningCity, matchPercent, ticketId, meta) {
     const name = cityName(winningCity);
     const percentText = matchPercent != null ? ' – ' + matchPercent + '% egyezés' : '';
-    const ticketText = ticketId != null ? ' (#' + ticketId + ')' : '';
+    const ticketText = ticketId != null ? ' (#' + ticketId + ' · mentve)' : '';
+    let saveFailText = '';
+    if (meta && meta.persistError) {
+      saveFailText = ' · mentés hiba: ' + meta.persistError;
+    } else if (meta && meta.persistFailed) {
+      saveFailText = ' · adatbázis mentés sikertelen';
+    }
     let paramCount = 0;
     if (meta && meta.paramCount != null && Number.isFinite(meta.paramCount)) {
       paramCount = Math.max(0, Math.round(meta.paramCount));
@@ -5364,16 +5456,18 @@
       paramCount = Object.keys(meta.targets).length;
     }
     const paramText = paramCount > 0 ? ' · ' + paramCount + ' bekapcsolt paraméter alapján' : '';
-    elements.resultBox.textContent = name + percentText + paramText + ticketText;
+    elements.resultBox.textContent = name + percentText + paramText + ticketText + saveFailText;
 
-    if (meta && elements.feedbackPanelInner) {
-      renderFeedbackPanel(
-        winningCity,
-        meta.targets || {},
-        meta.finalScore != null ? meta.finalScore : 0,
-        meta.maxPossible != null ? meta.maxPossible : 1,
-        matchPercent
-      );
+    if (meta) {
+      lastSearchFeedbackMeta = {
+        winningCity: winningCity,
+        targets: meta.targets || {},
+        finalScore: meta.finalScore != null ? meta.finalScore : 0,
+        maxPossible: meta.maxPossible != null ? meta.maxPossible : 1,
+        matchPercent: matchPercent,
+      };
+      syncWinnerInfoToggleUi();
+      renderWinnerInfoInRightPanel(winningCity);
     }
 
     const lng = cityLng(winningCity);
@@ -5413,26 +5507,65 @@
     }
   }
 
-  async function saveSearchResult(winningCity, targets, egyezesPontszam) {
+  function rebuildBestCityFindInsertKeys() {
+    bestCityFindInsertKeys = null;
+    if (!citiesData.length || !citiesData[0]) return;
+    const keys = [];
+    for (const key of Object.keys(citiesData[0])) {
+      if (!BEST_CITY_FIND_ROW_OMIT.has(key)) keys.push(key);
+    }
+    bestCityFindInsertKeys = keys;
+  }
+
+  function buildBestCityFindRow(winningCity, matchPercent) {
+    if (!bestCityFindInsertKeys) rebuildBestCityFindInsertKeys();
+    const row = {};
+    const keys = bestCityFindInsertKeys || Object.keys(winningCity);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      if (BEST_CITY_FIND_ROW_OMIT.has(key)) continue;
+      if (Object.prototype.hasOwnProperty.call(winningCity, key)) {
+        row[key] = winningCity[key];
+      }
+    }
+    row.match_score =
+      matchPercent != null && Number.isFinite(Number(matchPercent))
+        ? Math.round(Number(matchPercent) * 10) / 10
+        : null;
+    return row;
+  }
+
+  async function saveSearchResult(winningCity, matchPercent) {
     try {
-      const row = {
-        telepules_nev: cityName(winningCity),
-        lat: cityLat(winningCity),
-        lng: cityLng(winningCity),
-        erdo_ertek: null,
-        kultura_ertek: null,
-        egyezes_pontszam: egyezesPontszam != null ? Number(egyezesPontszam) : null,
-      };
-      const { data, error } = await supabase.from('talalatok').insert(row).select('id').single();
+      if (!winningCity || typeof winningCity !== 'object') {
+        return { id: null, error: 'nincs nyertes település' };
+      }
+      const row = buildBestCityFindRow(winningCity, matchPercent);
+      const { data, error } = await supabase
+        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .insert(row)
+        .select('id')
+        .single();
 
       if (error) {
-        console.warn('Találat mentése (talalatok):', error.message || error);
-        return null;
+        const msg = error.message || String(error);
+        console.warn('Találat mentése (' + SUPABASE_BEST_CITY_FINDS_TABLE + '):', msg, error);
+        return { id: null, error: msg };
       }
-      return data?.id ?? null;
+      const savedId = data?.id ?? null;
+      if (savedId != null) {
+        console.log(
+          'Találat mentve:',
+          SUPABASE_BEST_CITY_FINDS_TABLE,
+          '#' + savedId,
+          row.settlement_name || cityName(winningCity)
+        );
+      }
+      return { id: savedId, error: null };
     } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
       console.warn('Találat mentése:', err);
-      return null;
+      return { id: null, error: msg };
     }
   }
 
@@ -5506,7 +5639,13 @@
     const result = findBestMatch(targets);
     const paramCount = Object.keys(targets).length;
 
-    if (heatmapEnabled) {
+    if (result) {
+      try {
+        await setHeatmapEnabled(true);
+      } catch (e) {
+        console.warn('Hőtérkép bekapcsolás keresés után:', e);
+      }
+    } else if (heatmapEnabled) {
       updateHeatmapFromTargets(targets);
     }
 
@@ -5514,8 +5653,11 @@
       const maxP = computeMaxPossibleDiff(targets);
       const matchPercent = diffToMatchPercent(result.finalScore, maxP);
       let ticketId = null;
+      let persistError = null;
       if (persistToDb) {
-        ticketId = await saveSearchResult(result.city, targets, matchPercent);
+        const saved = await saveSearchResult(result.city, matchPercent);
+        ticketId = saved && saved.id != null ? saved.id : null;
+        persistError = saved && saved.error ? saved.error : null;
       }
       let anchorY = NaN;
       if (layoutAnchor && scroller) {
@@ -5527,6 +5669,8 @@
         maxPossible: maxP,
         flyMapToResult: flyMapToResult,
         paramCount: paramCount,
+        persistFailed: persistToDb && ticketId == null,
+        persistError: persistError,
       });
       if (showTicket) showTicketOverlay(ticketId);
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
@@ -5548,6 +5692,7 @@
       }
       elements.resultBox.textContent = msg;
       removeWinningMarker();
+      lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
         applySidebarScrollAnchorAfterLayout(layoutAnchor, scroller, anchorY);
@@ -5631,11 +5776,32 @@
     });
   }
 
+  function mountFeedbackPanelForViewport() {
+    const panel = elements.feedbackPanel;
+    if (!panel) return;
+    const desktop = window.matchMedia('(min-width: 920px)').matches;
+    const legend = document.getElementById('heatmap-legend');
+    if (desktop) {
+      if (panel.parentElement !== document.body) {
+        if (legend) document.body.insertBefore(panel, legend);
+        else document.body.appendChild(panel);
+      }
+      return;
+    }
+    const scroll = document.querySelector('.sidebar-scroll');
+    if (scroll && panel.parentElement !== scroll) {
+      scroll.appendChild(panel);
+    }
+  }
+
   function initLayoutDocking() {
     const sidebarDock = document.getElementById('sidebar-dock');
     const sidebarCloseBtn = document.getElementById('sidebar-collapse-btn');
     const sidebarOpenBtn = document.getElementById('sidebar-expand-btn');
     const feedbackBtn = document.getElementById('feedback-collapse-btn');
+
+    mountFeedbackPanelForViewport();
+    window.addEventListener('resize', mountFeedbackPanelForViewport);
 
     function resizeMapSoon() {
       if (map) {
@@ -5684,6 +5850,7 @@
         const g = feedbackBtn.querySelector('.feedback-panel__edge-tab-glyph');
         if (g) g.textContent = collapsed ? '‹' : '›';
         if (collapsed) closeCityInfoPopup();
+        syncWinnerInfoToggleUi();
         resizeMapSoon();
       });
     }
@@ -5693,6 +5860,7 @@
     initElements();
     initLayoutDocking();
     initHeatmapToggle();
+    initWinnerInfoToggle();
     initFirstSearchHintModal();
     initParamInfoTooltips();
     initMap();
