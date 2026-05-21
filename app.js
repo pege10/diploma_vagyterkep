@@ -6,10 +6,9 @@
    * blokkolva van — ezért a JSON egy .js bundle-ben töltődik (window.__…), ami file:// alatt is működik.
    * HTTP(S) és GitHub Pages alatt is ugyanez a fájl (new URL relatív az oldalhoz).
    */
-  const BUNDLE_SCRIPT_SRC = new URL(
-    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2',
-    window.location.href
-  ).href;
+  /** Mindig a site gyökeréből ( /exhibition/ alatt is működjön). */
+  const BUNDLE_SCRIPT_SRC =
+    '/data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2';
 
   /** Fontos hely (földrajzi kör középpont) jelölő szövege a térképen */
   const MAP_MARK_IMPORTANT = 'Fontos hely';
@@ -1291,9 +1290,34 @@
   async function enableMobileGeoAutoPick(slot) {
     if (slot !== 'a' && slot !== 'b') return;
     const target = slot === 'a' ? 'geoA' : 'geoB';
+    const line = elements.geoWarnLine;
     try {
       await ensureGeoIndexed();
-    } catch (_) {}
+    } catch (err) {
+      console.error(err);
+      if (line) {
+        line.hidden = false;
+        line.classList.add('ref-line--warn');
+        line.textContent =
+          'A település-határok nem töltődtek be. Gépelj be településnevet, vagy frissítsd az oldalt.';
+      }
+      pickMode = null;
+      return;
+    }
+    if (!geoIndexed || geoIndexed.length === 0) {
+      if (line) {
+        line.hidden = false;
+        line.classList.add('ref-line--warn');
+        line.textContent =
+          'A település-határok nem állnak rendelkezésre. Gépelj be településnevet a listából.';
+      }
+      return;
+    }
+    if (line) {
+      line.hidden = true;
+      line.classList.remove('ref-line--warn');
+      line.textContent = '';
+    }
     pickMode = target;
     bindMapPickInteraction();
     if (elements.mapContainer) {
@@ -1360,6 +1384,21 @@
     syncMobileMapBackBtn();
   }
 
+  /** DOM-visszahelyezés: nextSibling csak akkor használható, ha még a parent gyereke (B-nél a warn a sheetben van). */
+  function restoreMobileGeoDomNode(node, parent, nextSibling, insertBeforeWarnInParent) {
+    if (!node || !parent) return;
+    if (nextSibling && nextSibling.parentNode === parent) {
+      parent.insertBefore(node, nextSibling);
+      return;
+    }
+    const warn = insertBeforeWarnInParent ? elements.geoWarnLine : null;
+    if (warn && warn.parentNode === parent) {
+      parent.insertBefore(node, warn);
+    } else {
+      parent.appendChild(node);
+    }
+  }
+
   function exitMobileGeoSetup(apply) {
     const slot = mobileGeoSetupSlot;
     const restore = mobileGeoSetupRestore;
@@ -1373,13 +1412,11 @@
 
     if (card) card.classList.remove('param-item--geo-editing');
     if (card && restore && restore.cardParent) {
-      if (restore.cardNext) restore.cardParent.insertBefore(card, restore.cardNext);
-      else restore.cardParent.appendChild(card);
+      restoreMobileGeoDomNode(card, restore.cardParent, restore.cardNext, true);
     }
     if (elements.mobileGeoCardHost) elements.mobileGeoCardHost.textContent = '';
     if (warn && restore && restore.warnParent) {
-      if (restore.warnNext) restore.warnParent.insertBefore(warn, restore.warnNext);
-      else restore.warnParent.appendChild(warn);
+      restoreMobileGeoDomNode(warn, restore.warnParent, restore.warnNext, false);
     }
 
     mobileGeoSetupSlot = null;
