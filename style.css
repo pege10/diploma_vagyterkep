@@ -3369,6 +3369,14 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     padding: 12px 18px 10px;
   }
 
+  /* Telefon (fő + /exhibition): nincs összes be/kikapcsolás, nincs szóló */
+  html.is-touch #param-clear-all-solo-btn,
+  html.is-touch #param-toggle-all-btn,
+  html.is-touch .param-solo-wrap--head {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
   html.is-touch .param-global-toolbar {
     margin-top: 12px;
   }

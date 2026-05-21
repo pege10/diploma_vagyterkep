@@ -7523,7 +7523,9 @@
   }
 
   function appendParamHeadSoloAndInfo(headRow, infoKey, paramKey) {
-    headRow.appendChild(createParamSoloButtonWrap(paramKey));
+    if (!document.documentElement.classList.contains('is-touch')) {
+      headRow.appendChild(createParamSoloButtonWrap(paramKey));
+    }
     headRow.appendChild(createParameterInfoWrapForKey(infoKey));
   }
 
