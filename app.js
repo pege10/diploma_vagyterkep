@@ -10080,11 +10080,7 @@
       }
     });
 
-    if (elements.ticketOverlay) {
-      elements.ticketOverlay.addEventListener('click', function (e) {
-        if (e.target === elements.ticketOverlay) hideTicketOverlay();
-      });
-    }
+    /* Sorszám-cetli: háttérkattintás nem zár — csak későbbi felfedés (pl. TouchDesigner jel). */
 
     if (elements.startOverlay) {
       elements.startOverlay.addEventListener('click', dismissStartOverlay);
