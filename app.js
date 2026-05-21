@@ -154,6 +154,11 @@
   let mapClickHandler = null;
   /** @type {((e: TouchEvent) => void) | null} */
   let mapTouchPickHandler = null;
+  let mapTouchPickStartHandler = null;
+  let mapTouchPickMoveHandler = null;
+  /** @type {{ id: number, startX: number, startY: number, moved: boolean } | null} */
+  let mapTouchPickTracking = null;
+  const MAP_PICK_TAP_MOVE_THRESHOLD_PX = 12;
   let mapPickTouchDedupeUntil = 0;
 
   /** Vezetett kitöltés: 2. fontos hely → mutatók a DOM sorrendjében */
@@ -608,12 +613,19 @@
     }
   }
 
+  /** Mobilon paraméter-szerkesztés: teljes panel (ne alsó 1/3 térképes lap). */
+  function ensureMobileFullParamPanelForEditing() {
+    if (!isTouchMobileAppStarted()) return;
+    setMobileFullParamPanel();
+  }
+
   function closeStrictParamsModal() {
     const ov = elements.strictParamsOverlay;
     if (ov) {
       ov.setAttribute('hidden', '');
       ov.setAttribute('aria-hidden', 'true');
     }
+    ensureMobileFullParamPanelForEditing();
   }
 
   function findParamCardByDbKey(dbKey) {
@@ -829,9 +841,12 @@
       }
     }
     closeStrictParamsModal();
-    setMobileMapView(false);
     sliderAutoSearchActive = true;
-    performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true }).catch(function (e) {
+    performSearch({
+      showTicket: true,
+      persistToDb: true,
+      flyMapToResult: shouldRevealSearchSolutionToUser(),
+    }).catch(function (e) {
       console.warn('Keresés (lazítás után):', e);
     });
   }
@@ -943,7 +958,7 @@
     if (elements.resultBox) elements.resultBox.textContent = msg;
     const analysis = buildStrictFilterSuggestions(targets);
     if (analysis) openStrictParamsModal(analysis);
-    setMobileMapView(false);
+    ensureMobileFullParamPanelForEditing();
   }
 
   function initMap() {
@@ -7947,10 +7962,27 @@
       map.off('click', mapClickHandler);
       mapClickHandler = null;
     }
-    if (elements.mapContainer && mapTouchPickHandler) {
-      elements.mapContainer.removeEventListener('touchend', mapTouchPickHandler);
-      mapTouchPickHandler = null;
+    mapTouchPickTracking = null;
+    if (elements.mapContainer) {
+      if (mapTouchPickStartHandler) {
+        elements.mapContainer.removeEventListener('touchstart', mapTouchPickStartHandler);
+        mapTouchPickStartHandler = null;
+      }
+      if (mapTouchPickMoveHandler) {
+        elements.mapContainer.removeEventListener('touchmove', mapTouchPickMoveHandler);
+        mapTouchPickMoveHandler = null;
+      }
+      if (mapTouchPickHandler) {
+        elements.mapContainer.removeEventListener('touchend', mapTouchPickHandler);
+        elements.mapContainer.removeEventListener('touchcancel', mapTouchPickHandler);
+        mapTouchPickHandler = null;
+      }
     }
+  }
+
+  function mapTouchPickExceededMoveThreshold(dx, dy) {
+    const t = MAP_PICK_TAP_MOVE_THRESHOLD_PX;
+    return dx * dx + dy * dy > t * t;
   }
 
   function bindMapPickInteraction() {
@@ -7964,14 +7996,66 @@
     map.on('click', mapClickHandler);
 
     if (!elements.mapContainer) return;
+
+    mapTouchPickStartHandler = function (ev) {
+      if (!pickMode || !map) return;
+      if (ev.touches.length > 1) {
+        mapTouchPickTracking = null;
+        return;
+      }
+      const t = ev.touches[0];
+      if (!t) return;
+      mapTouchPickTracking = {
+        id: t.identifier,
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+      };
+    };
+
+    mapTouchPickMoveHandler = function (ev) {
+      if (!pickMode || !mapTouchPickTracking) return;
+      if (ev.touches.length > 1) {
+        mapTouchPickTracking.moved = true;
+        return;
+      }
+      for (let i = 0; i < ev.touches.length; i++) {
+        const t = ev.touches[i];
+        if (t.identifier !== mapTouchPickTracking.id) continue;
+        const dx = t.clientX - mapTouchPickTracking.startX;
+        const dy = t.clientY - mapTouchPickTracking.startY;
+        if (mapTouchPickExceededMoveThreshold(dx, dy)) {
+          mapTouchPickTracking.moved = true;
+        }
+        break;
+      }
+    };
+
     mapTouchPickHandler = function (ev) {
       if (!pickMode || !map) return;
+      const tracking = mapTouchPickTracking;
+      mapTouchPickTracking = null;
+      if (!tracking || tracking.moved) return;
+
       const canvas = map.getCanvas && map.getCanvas();
       if (!canvas) return;
       const touches = ev.changedTouches;
       if (!touches || !touches.length) return;
+
+      let t = null;
+      for (let i = 0; i < touches.length; i++) {
+        if (touches[i].identifier === tracking.id) {
+          t = touches[i];
+          break;
+        }
+      }
+      if (!t) t = touches[0];
+
+      const endDx = t.clientX - tracking.startX;
+      const endDy = t.clientY - tracking.startY;
+      if (mapTouchPickExceededMoveThreshold(endDx, endDy)) return;
+
       const rect = canvas.getBoundingClientRect();
-      const t = touches[0];
       const x = t.clientX - rect.left;
       const y = t.clientY - rect.top;
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
@@ -7980,8 +8064,18 @@
       onMapPickClick({ lngLat: lngLat, originalEvent: ev });
       ev.preventDefault();
     };
+
+    elements.mapContainer.addEventListener('touchstart', mapTouchPickStartHandler, {
+      passive: true,
+    });
+    elements.mapContainer.addEventListener('touchmove', mapTouchPickMoveHandler, {
+      passive: true,
+    });
     elements.mapContainer.addEventListener('touchend', mapTouchPickHandler, {
       passive: false,
+    });
+    elements.mapContainer.addEventListener('touchcancel', mapTouchPickHandler, {
+      passive: true,
     });
   }
 
@@ -9161,7 +9255,7 @@
       lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
       syncHeatmapWithActiveParams();
-      setMobileMapView(false);
+      ensureMobileFullParamPanelForEditing();
       openStrictParamsModal({
         reason: 'none',
         message: noParamMsg,
