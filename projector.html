@@ -319,14 +319,30 @@
         els.statusText.textContent = online ? 'Élő kapcsolat' : 'Kapcsolat megszakadt';
       }
 
-      function formatTime(isoString) {
-        if (!isoString) return '';
-        try {
-          const d = new Date(isoString);
-          return d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-        } catch (_) {
-          return '';
+      /** Kiállítás / magyar néző: mindig budapesti helyi idő (Supabase timestamptz = UTC). */
+      const DISPLAY_TZ = 'Europe/Budapest';
+
+      function parseSupabaseTimestamp(isoString) {
+        if (!isoString) return null;
+        const s = String(isoString).trim();
+        if (!s) return null;
+        if (/[Zz]$/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s)) {
+          const d = new Date(s);
+          return Number.isNaN(d.getTime()) ? null : d;
         }
+        const normalized = s.includes('T') ? s + 'Z' : s.replace(' ', 'T') + 'Z';
+        const d = new Date(normalized);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      function formatTime(isoString) {
+        const d = parseSupabaseTimestamp(isoString);
+        if (!d) return '';
+        return d.toLocaleTimeString('hu-HU', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: DISPLAY_TZ,
+        });
       }
 
       function entrySettlementName(entry) {

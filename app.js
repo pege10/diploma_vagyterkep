@@ -4,35 +4,63 @@
   /**
    * Település-határok: `fetch()` a file:// protokollnál (dupla kattintásos index.html) böngészőben
    * blokkolva van — ezért a JSON egy .js bundle-ben töltődik (window.__…), ami file:// alatt is működik.
-   * HTTP(S) és GitHub Pages alatt is ugyanez a fájl (new URL relatív az oldalhoz).
+   * Az URL az app.js-hez képest relatív (GitHub Pages almappa, /exhibition/, file:// is).
    */
-  /** Mindig a site gyökeréből ( /exhibition/ alatt is működjön). */
-  const BUNDLE_SCRIPT_SRC =
-    '/data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2';
+  const BUNDLE_SCRIPT_FILE =
+    'data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2';
+
+  function getSettlementBoundariesBundleSrc() {
+    const scripts = document.getElementsByTagName('script');
+    for (let i = scripts.length - 1; i >= 0; i--) {
+      const srcAttr = scripts[i].getAttribute('src');
+      if (!srcAttr || srcAttr.indexOf('app.js') === -1) continue;
+      try {
+        return new URL(BUNDLE_SCRIPT_FILE, scripts[i].src).href;
+      } catch (_) {
+        break;
+      }
+    }
+    try {
+      return new URL(BUNDLE_SCRIPT_FILE, window.location.href).href;
+    } catch (_) {
+      return '/' + BUNDLE_SCRIPT_FILE;
+    }
+  }
 
   /** Fontos hely (földrajzi kör középpont) jelölő szövege a térképen */
   const MAP_MARK_IMPORTANT = 'Fontos hely';
 
   /**
    * Supabase: projekt URL (REST: .../rest/v1/<table> — a kliens kezeli).
-   * Tábla: public.all_parameters — pl.
-   * https://dubcsyrgrtlzvefxuhni.supabase.co/rest/v1/all_parameters
+   * Település-meta: city_data + paraméter-táblák (legacy oszlopnevekre mapelve a UI-hoz).
    */
   const SUPABASE_URL = 'https://dubcsyrgrtlzvefxuhni.supabase.co';
   const SUPABASE_ANON_KEY =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1YmNzeXJncnRsenZlZnh1aG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjQ3MTYsImV4cCI6MjA4ODY0MDcxNn0.rldtsMn7LCqtLtfDFPWTM96Ly0EQEm50LhkbTFey0R4';
 
-  const SUPABASE_TABLE = 'all_parameters';
+  const SUPABASE_TABLE_CITY_DATA = 'city_data';
   const SUPABASE_BEST_CITY_FINDS_TABLE = 'best_city_finds';
   const PARAMETER_INFO_TABLE = 'parameter_info';
 
-  /** Nem kerülnek a best_city_finds INSERT-be (saját id/created_at, vagy csak kliens mező). */
-  const BEST_CITY_FIND_ROW_OMIT = new Set(['id', 'created_at', 'nev']);
+  /** best_city_finds: csak all_parameters-sémával egyező oszlopok (sync a táblával). */
+  let bestCityFindAllowedCols = null;
+
+  function getBestCityFindAllowedColumns() {
+    if (bestCityFindAllowedCols) return bestCityFindAllowedCols;
+    bestCityFindAllowedCols = new Set(
+      'ID,settlement_name,CITYDATA_County,CITYDATA_PostalCode,CITYDATA_SettlementType,CITYDATA_Latitude,CITYDATA_Longitude,FOREST_INDEX_puffer_area_km2,FOREST_INDEX_forest_area_km2,FOREST_INDEX_forest_ratio,FOREST_INDEX_forest_index,WATER_INDEX_puffer_area_km2,WATER_INDEX_water_area_km2,WATER_INDEX_water_ratio,WATER_INDEX_water_index,TERRAIN_INDEX_puffer_m2,TERRAIN_INDEX_elev_mean,TERRAIN_INDEX_elev_min,TERRAIN_INDEX_elev_max,TERRAIN_INDEX_slope_mean,TERRAIN_INDEX_terrain_index,AIRPOLLUTION_INDEX_airpollution_index,BUDAPEST_CAR_TRAIN_INDEX_nearest_station,BUDAPEST_CAR_TRAIN_INDEX_car_to_station_min,BUDAPEST_CAR_TRAIN_INDEX_train_to_bp_min,BUDAPEST_CAR_TRAIN_INDEX_total_min,BUDAPEST_CAR_TRAIN_INDEX_budapest_car_train_index,BUDAPEST_CAR_TRAIN_INDEX_note,INTERNET_INDEX_avg_d_kbps,INTERNET_INDEX_avg_d_mbps,INTERNET_INDEX_tile_count,INTERNET_INDEX_internet_index,URBAN_MOBILITY_INDEX_tkv_forras,URBAN_MOBILITY_INDEX_gtfs_score,URBAN_MOBILITY_INDEX_teir_score,URBAN_MOBILITY_INDEX_tkv_score,URBAN_MOBILITY_INDEX_lakott_terulet_km2,URBAN_MOBILITY_INDEX_walk_score,URBAN_MOBILITY_INDEX_urban_mobility_index,TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye,TRANSPORT_FREQUENCY_INDEX_megye,TRANSPORT_FREQUENCY_INDEX_napi_jaratok,TRANSPORT_FREQUENCY_INDEX_pont,TRANSPORT_FREQUENCY_INDEX_transport_frequency_index,TRANSPORT_FREQUENCY_INDEX_modszer,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_perc,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_auto_index,BUDAPEST_ACCESS_INDEX_budapest_perc,BUDAPEST_ACCESS_INDEX_budapest_auto_index,CULTURAL_INDEX_kod,CULTURAL_INDEX_mozitermek_2024,CULTURAL_INDEX_szinhaz_2024,CULTURAL_INDEX_konyvtar_2023,CULTURAL_INDEX_reszt_mukvelodesi_2024,CULTURAL_INDEX_nepesseg_2024,CULTURAL_INDEX_mozi_score,CULTURAL_INDEX_szinhaz_score,CULTURAL_INDEX_konyvtar_score,CULTURAL_INDEX_aktivitas_score,CULTURAL_INDEX_cultural_index,GROCERIES_INDEX_lat,GROCERIES_INDEX_lon,GROCERIES_INDEX_legkozelebbi_uzlet_km,GROCERIES_INDEX_legkozelebbi_brand,GROCERIES_INDEX_unique_brandek_5km,GROCERIES_INDEX_brandek_5km_lista,GROCERIES_INDEX_s_base,GROCERIES_INDEX_s_variety,GROCERIES_INDEX_kisker_index,SPORT_INDEX_sportag_db,SPORT_INDEX_letesitmeny_db,SPORT_INDEX_sportag_index,SPORT_INDEX_letes_index,SPORT_INDEX_sport_index_nem_normalizalt,SPORT_INDEX_sport_index,GASTRO_INDEX_gasztro_db,GASTRO_INDEX_gasztro_index,SENIOR_INDEX_lakossag_osszesen,SENIOR_INDEX_fo_65_felett,SENIOR_INDEX_arany_65_felett,SENIOR_INDEX_senior_index,DIPLOMA_INDEX_lakossag_7_ev_felett_fo,DIPLOMA_INDEX_diplomasok_szama_fo,DIPLOMA_INDEX_diplomasok_aranya,DIPLOMA_INDEX_diploma_index,INGATLANPIAC_haz_emelkedes_pct,INGATLANPIAC_house_price_grow_5yrs_index,INGATLANPIAC_lakas_emelkedes_pct,INGATLANPIAC_flat_price_grow_5yrs_index,INGATLANPIAC_telek_emelkedes_pct,INGATLANPIAC_site_price_grow_5yrs_index,INGATLANPIAC_haz_atlag,INGATLANPIAC_house_avg_index,INGATLANPIAC_lakas_atlag,INGATLANPIAC_flat_avg_index,INGATLANPIAC_telek_atlag,INGATLANPIAC_site_avg_index,SLEEPING_CITY_INDEX_sleeping_city_index,SLEEPING_CITY_INDEX_kijaro_arany_nyers,JOBS_INDEX_jobs_index,JOBS_INDEX_munkalehetoseg_arany_nyers,TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo,TURISM_INDEX_turism_index,SCHOOL_PROXIMITY_INDEX_alt_sima_0km,SCHOOL_PROXIMITY_INDEX_alt_sima_0km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_5km,SCHOOL_PROXIMITY_INDEX_alt_sima_5km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_10km,SCHOOL_PROXIMITY_INDEX_alt_sima_10km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_15km,SCHOOL_PROXIMITY_INDEX_alt_sima_15km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_20km,SCHOOL_PROXIMITY_INDEX_alt_sima_20km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_25km,SCHOOL_PROXIMITY_INDEX_alt_sima_25km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_30km,SCHOOL_PROXIMITY_INDEX_alt_sima_30km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_35km,SCHOOL_PROXIMITY_INDEX_alt_sima_35km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_40km,SCHOOL_PROXIMITY_INDEX_alt_sima_40km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_45km,SCHOOL_PROXIMITY_INDEX_alt_sima_45km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_50km,SCHOOL_PROXIMITY_INDEX_alt_sima_50km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_index,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_alt_0km,SCHOOL_PROXIMITY_INDEX_alt_alt_0km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_5km,SCHOOL_PROXIMITY_INDEX_alt_alt_5km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_10km,SCHOOL_PROXIMITY_INDEX_alt_alt_10km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_15km,SCHOOL_PROXIMITY_INDEX_alt_alt_15km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_20km,SCHOOL_PROXIMITY_INDEX_alt_alt_20km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_25km,SCHOOL_PROXIMITY_INDEX_alt_alt_25km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_30km,SCHOOL_PROXIMITY_INDEX_alt_alt_30km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_35km,SCHOOL_PROXIMITY_INDEX_alt_alt_35km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_40km,SCHOOL_PROXIMITY_INDEX_alt_alt_40km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_45km,SCHOOL_PROXIMITY_INDEX_alt_alt_45km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_50km,SCHOOL_PROXIMITY_INDEX_alt_alt_50km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_sima_0km,SCHOOL_PROXIMITY_INDEX_gim_sima_0km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_5km,SCHOOL_PROXIMITY_INDEX_gim_sima_5km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_10km,SCHOOL_PROXIMITY_INDEX_gim_sima_10km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_15km,SCHOOL_PROXIMITY_INDEX_gim_sima_15km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_20km,SCHOOL_PROXIMITY_INDEX_gim_sima_20km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_25km,SCHOOL_PROXIMITY_INDEX_gim_sima_25km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_30km,SCHOOL_PROXIMITY_INDEX_gim_sima_30km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_35km,SCHOOL_PROXIMITY_INDEX_gim_sima_35km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_40km,SCHOOL_PROXIMITY_INDEX_gim_sima_40km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_45km,SCHOOL_PROXIMITY_INDEX_gim_sima_45km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_50km,SCHOOL_PROXIMITY_INDEX_gim_sima_50km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_index,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_alt_0km,SCHOOL_PROXIMITY_INDEX_gim_alt_0km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_5km,SCHOOL_PROXIMITY_INDEX_gim_alt_5km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_10km,SCHOOL_PROXIMITY_INDEX_gim_alt_10km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_15km,SCHOOL_PROXIMITY_INDEX_gim_alt_15km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_20km,SCHOOL_PROXIMITY_INDEX_gim_alt_20km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_25km,SCHOOL_PROXIMITY_INDEX_gim_alt_25km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_30km,SCHOOL_PROXIMITY_INDEX_gim_alt_30km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_35km,SCHOOL_PROXIMITY_INDEX_gim_alt_35km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_40km,SCHOOL_PROXIMITY_INDEX_gim_alt_40km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_45km,SCHOOL_PROXIMITY_INDEX_gim_alt_45km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_50km,SCHOOL_PROXIMITY_INDEX_gim_alt_50km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_index,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev'.split(',')
+    );
+    return bestCityFindAllowedCols;
+  }
+
+  function isBestCityFindDataColumn(key) {
+    return !!(key && getBestCityFindAllowedColumns().has(key));
+  }
 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let citiesData = [];
-  /** all_parameters oszlopnevek → best_city_finds INSERT (match_score +). */
+  /** Összefésült település-sor oszlopnevek → best_city_finds INSERT (match_score +). */
   let bestCityFindInsertKeys = null;
   /** Oszlopnevek, amelyek kisbetűs „_index” végződéssel rendelkeznek (pl. …_forest_index) */
   let indexParamKeys = [];
@@ -406,6 +434,7 @@
    */
   function startParamExpandScrollStabilize(wrap, headRow) {
     if (guidedFlowDisabledPermanently) return;
+    if (guidedFlowUnlocked) return;
     const sc = getSidebarScrollEl();
     const bodyEl = wrap && wrap.querySelector('.param-item__body');
     if (!sc || !headRow || !bodyEl) {
@@ -613,43 +642,10 @@
     }
   }
 
-  // #region agent log
-  function dbgMobile(hypothesisId, location, message, data) {
-    fetch('http://127.0.0.1:7598/ingest/f36e7d0f-bedf-4fb0-b013-2bbc8de09021', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '05bb3e' },
-      body: JSON.stringify({
-        sessionId: '05bb3e',
-        hypothesisId: hypothesisId,
-        location: location,
-        message: message,
-        data: data || {},
-        timestamp: Date.now(),
-      }),
-    }).catch(function () {});
-  }
-
-  function dbgMobileLayoutState(caller) {
-    const root = document.documentElement;
-    dbgMobile('H2', caller, 'layout', {
-      mobileMapView: root.classList.contains('mobile-map-view'),
-      paramPanelOpen: root.classList.contains('mobile-param-panel-open'),
-      geoSetup: root.classList.contains('mobile-geo-setup'),
-      mapPicking: root.classList.contains('map-picking'),
-    });
-  }
-  // #endregion
-
   /** Mobilon paraméter-szerkesztés: teljes panel (ne alsó 1/3 térképes lap). */
   function ensureMobileFullParamPanelForEditing() {
     if (!isTouchMobileAppStarted()) return;
-    // #region agent log
-    dbgMobile('H2', 'ensureMobileFullParamPanelForEditing', 'before', {});
-    // #endregion
     setMobileFullParamPanel();
-    // #region agent log
-    dbgMobileLayoutState('ensureMobileFullParamPanelForEditing:after');
-    // #endregion
   }
 
   function closeStrictParamsModal() {
@@ -837,12 +833,6 @@
           'Egy település sem esik az összes bekapcsolt fontos hely körébe. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrőket.',
         suggestions: [],
       };
-      // #region agent log
-      dbgMobile('H8', 'buildStrictFilterSuggestions', 'no-buttons', {
-        reason: out.reason,
-        suggestionCount: 0,
-      });
-      // #endregion
       return out;
     }
 
@@ -908,15 +898,6 @@
       fillBandLoosenScoresFallback(bandScores, targets, eligible, {
         passAllBandsZero: passAllBands === 0,
       });
-      // #region agent log
-      dbgMobile('H8', 'buildStrictFilterSuggestions', 'fallback-fill', {
-        passAllBands: passAllBands,
-        bandScoreCount: bandScores.length,
-        bandKeys: bandScores.map(function (s) {
-          return s.key;
-        }),
-      });
-      // #endregion
     }
 
     if (passAllBands === 0 && bandScores.length > 0) {
@@ -926,13 +907,6 @@
           'Túl szigorúak a beállítások: egy település sem felel meg minden sávnak egyszerre. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
         suggestions: bandScores.slice(0, 3),
       };
-      // #region agent log
-      dbgMobile('H8', 'buildStrictFilterSuggestions', 'band-with-buttons', {
-        passAllBands: passAllBands,
-        suggestionCount: out.suggestions.length,
-        usedFallback: bandScores.length > 0,
-      });
-      // #endregion
       return out;
     }
 
@@ -961,21 +935,11 @@
         'Nincs megfelelő település. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
       suggestions: bandScores.slice(0, 3),
     };
-    // #region agent log
-    dbgMobile('H8', 'buildStrictFilterSuggestions', genericOut.suggestions.length ? 'generic-with-buttons' : 'no-buttons', {
-      reason: genericOut.reason,
-      suggestionCount: genericOut.suggestions.length,
-      passAllBands: passAllBands,
-    });
-    // #endregion
     return genericOut;
   }
 
   function applyLoosenSuggestion(sug) {
     if (!sug) return;
-    // #region agent log
-    dbgMobileLayoutState('applyLoosenSuggestion:entry');
-    // #endregion
     if (sug.type === 'band' && sug.key) {
       const card = findParamCardByDbKey(sug.key);
       const flexEl =
@@ -992,14 +956,6 @@
             Math.floor(targetF * PARAM_WEIGHT_SLIDER_MAX + 1e-6)
           )
         );
-        // #region agent log
-        dbgMobile('H9', 'applyLoosenSuggestion', 'flex-change', {
-          key: sug.key,
-          before: beforeInt,
-          after: targetInt,
-          atMaxFlex: !!sug.atMaxFlex,
-        });
-        // #endregion
         flexEl.value = String(targetInt);
         flexEl.dispatchEvent(new Event('input', { bubbles: true }));
         flexEl.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1016,13 +972,7 @@
       }
     }
     closeStrictParamsModal();
-    // #region agent log
-    dbgMobileLayoutState('applyLoosenSuggestion:afterCloseModal');
-    // #endregion
     if (isTouchMobileAppStarted()) {
-      // #region agent log
-      dbgMobile('H6', 'applyLoosenSuggestion', 'mobile-research-no-fly', { type: sug.type });
-      // #endregion
       performSearch({
         showTicket: false,
         persistToDb: false,
@@ -1056,12 +1006,6 @@
     const sugs = analysis.suggestions || [];
     const subEl = ov.querySelector('.strict-params-sub');
     if (subEl) subEl.hidden = sugs.length === 0;
-    // #region agent log
-    dbgMobile('H8', 'openStrictParamsModal', 'render', {
-      reason: analysis.reason,
-      suggestionCount: sugs.length,
-    });
-    // #endregion
     if (sugs.length === 0) {
       const li = document.createElement('li');
       li.className = 'strict-params-list__empty';
@@ -1334,9 +1278,6 @@
   function setMobileMapView(on, opts) {
     if (!isTouchMobileAppStarted()) return;
     const forGeoEditor = !!(opts && opts.forGeoEditor);
-    // #region agent log
-    dbgMobile('H1', 'setMobileMapView', 'call', { on: on, forGeoEditor: forGeoEditor });
-    // #endregion
     const root = document.documentElement;
     root.classList.add('mobile-map-view');
     if (on) {
@@ -1527,9 +1468,6 @@
   async function enableMobileGeoAutoPick(slot) {
     if (slot !== 'a' && slot !== 'b') return;
     const target = slot === 'a' ? 'geoA' : 'geoB';
-    // #region agent log
-    dbgMobile('H4', 'enableMobileGeoAutoPick', 'call', { slot: slot });
-    // #endregion
     const line = elements.geoWarnLine;
     try {
       await ensureGeoIndexed();
@@ -2212,30 +2150,26 @@
         });
         break;
       case 'budapest_access_index':
-        preset = Object.assign({}, indexBand, {
+        preset = Object.assign({}, minutesLoHi, {
           intro:
-            'Elfogadható elérés Budapestre. Szűrés: index pont; felirat: utazási idő.',
-          bandLabel: 'Elfogadható elérés',
-          leftHint: 'Rosszabb',
+            'Elfogadható utazási idő Budapestre (percben). Balra hosszabb, jobbra rövidebb idő.',
+          bandLabel: 'Elfogadható időtartam',
           rightHint: 'Jobb (0 perc)',
         });
         break;
       case 'budapest_car_train_index':
-        preset = Object.assign({}, indexBand, {
+        preset = Object.assign({}, minutesLoHi, {
           intro:
-            'Elfogadható elérés Budapestre (autó + vonat). Szűrés: index; felirat: összidő.',
-          bandLabel: 'Elfogadható idő',
-          leftHint: 'Rosszabb',
+            'Elfogadható összidő Budapestre, autó + vonat (percben). Balra hosszabb, jobbra rövidebb.',
+          bandLabel: 'Elfogadható időtartam',
           rightHint: 'Jobb (0 perc)',
         });
         break;
       case 'district_seat_access_index':
-        preset = Object.assign({}, indexBand, {
+        preset = Object.assign({}, minutesLoHi, {
           intro:
-            'Elfogadható elérés a járásszékhelyre. Szűrés: index; felirat: utazási idő.',
-          bandLabel: 'Elfogadható elérés',
-          leftHint: 'Rosszabb',
-          rightHint: 'Jobb',
+            'Elfogadható utazási idő a járásszékhelyre (percben). Balra hosszabb, jobbra rövidebb idő.',
+          bandLabel: 'Elfogadható időtartam',
         });
         break;
       case 'internet_index':
@@ -2339,16 +2273,30 @@
     return enrichBandFilterConfig(dbKey, preset);
   }
 
-  /** Sáv: szűrés mindig index (dbKey); kiírás kísérő metrika, ha van. */
+  /** Sáv: utazási idő mutatóknál szűrés/perc oszlop; egyébként index (dbKey). */
   function enrichBandFilterConfig(indexKey, preset) {
-    const out = Object.assign({ filterCol: indexKey }, preset);
     const info = findCompanionInfoForIndexKey(indexKey);
-    if (info && info.pair) {
-      out.displayPair = info.pair;
-    } else if (info && info.companionKey && info.format) {
-      out.displayCompanionKey = info.companionKey;
-      out.displayFormat = info.format;
-      out.displayParse = info.parse;
+    let filterCol = indexKey;
+    let out = Object.assign({}, preset);
+    if (info && info.companionKey && info.format === formatMinutesForUi) {
+      filterCol = info.companionKey;
+      out = Object.assign({}, preset, {
+        scorePrefer: 'lower',
+        invertScale: true,
+        formatValue: formatDurationMinutesForUi,
+        parseValue: parseNumeric,
+      });
+    }
+    out.filterCol = filterCol;
+    out.indexKey = indexKey;
+    if (filterCol === indexKey) {
+      if (info && info.pair) {
+        out.displayPair = info.pair;
+      } else if (info && info.companionKey && info.format) {
+        out.displayCompanionKey = info.companionKey;
+        out.displayFormat = info.format;
+        out.displayParse = info.parse;
+      }
     }
     return out;
   }
@@ -2421,6 +2369,7 @@
 
   function createBandFilterDisplayModel(indexKey, cfg) {
     if (!cfg || !indexKey) return null;
+    if (cfg.filterCol && cfg.filterCol !== indexKey) return null;
     const ent = getUiParamEntryForDbKey(indexKey);
     if (ent && ent.id === 'transport_frequency_index') {
       return createTransportFrequencyBandDisplayModel(indexKey, cfg);
@@ -2726,9 +2675,10 @@
     let scaleMax = pack.scaleMax;
     if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
       const cfg = getBandFilterConfigForDbKey(pack.indexKey || '');
+      const parseValue = pack.parseValue || parseNumeric;
       const mr = cfg
         ? computeBandFilterDataRange(cfg, pack.indexKey)
-        : computeNumericColumnRange(col, parseValue);
+        : computeNumericColumnRange(pack.companionKey, parseValue);
       scaleMin = mr.min;
       scaleMax = mr.max;
     }
@@ -2742,7 +2692,17 @@
     return got >= b.effMin && got <= b.effMax;
   }
 
-  /** Sáv + rugalmasság: kisebb = jobb; flex növelése szűkebb effektív sávot és erősebb középpont-torzítást. */
+  /** Sáv jobb széle: scorePrefer alapján (magasabb / alacsonyabb jobb). */
+  function bandFilterBetterEdgeValue(pack) {
+    const lo = Math.min(pack.bandMin, pack.bandMax);
+    const hi = Math.max(pack.bandMin, pack.bandMax);
+    return pack.scorePrefer === 'higher' ? hi : lo;
+  }
+
+  /**
+   * Sávos mutató illeszkedése: mindig a sáv jobb szélét preferálja (nem a közepét).
+   * A rugalmasság (flex) csak a szűrő szélességét lazítja; a jobb szél súlya állandó.
+   */
   function computeBandFilterFitScore(city, pack) {
     if (!pack || pack.mode !== 'band') return null;
     const got = bandFilterValueForCity(city, pack);
@@ -2756,9 +2716,10 @@
     let scaleMax = pack.scaleMax;
     if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
       const cfg = getBandFilterConfigForDbKey(pack.indexKey || '');
+      const parseValue = pack.parseValue || parseNumeric;
       const mr = cfg
         ? computeBandFilterDataRange(cfg, pack.indexKey)
-        : computeNumericColumnRange(col, parseValue);
+        : computeNumericColumnRange(pack.companionKey, parseValue);
       scaleMin = mr.min;
       scaleMax = mr.max;
     }
@@ -2771,19 +2732,20 @@
     );
     const lo = Math.min(pack.bandMin, pack.bandMax);
     const hi = Math.max(pack.bandMin, pack.bandMax);
-    const mid = (lo + hi) / 2;
-    const span = Math.max(1, hi - lo, scaleMax - scaleMin);
+    const bandSpan = Math.max(1, hi - lo);
+    const fullSpan = Math.max(1, scaleMax - scaleMin);
 
     let outside = 0;
     if (got < b.effMin) outside = b.effMin - got;
     else if (got > b.effMax) outside = got - b.effMax;
 
-    const centerDist = Math.abs(got - mid);
     const preferHigh = pack.scorePrefer === 'higher';
-    const indexRank = preferHigh ? -got : got;
-    const strictPart = (outside / span) * (5 + flex * 95) + (centerDist / span) * flex * 40;
-    const looseWeight = 1 - flex;
-    return indexRank * (0.15 + looseWeight * 0.85) + strictPart;
+    const bestEdge = bandFilterBetterEdgeValue(pack);
+    const edgeDist = Math.abs(got - bestEdge);
+    const outsidePart = (outside / fullSpan) * (5 + flex * 95);
+    const edgePart = (edgeDist / bandSpan) * 40;
+    const rankPart = (preferHigh ? -got : got) * (0.05 + flex * 0.1);
+    return outsidePart + edgePart + rankPart;
   }
 
   var DEFAULT_WEIGHT_SLIDER_UI = {
@@ -3118,6 +3080,8 @@
 
     function emitChange() {
       paint();
+      minInput.dispatchEvent(new Event('change', { bubbles: true }));
+      maxInput.dispatchEvent(new Event('change', { bubbles: true }));
       if (onChange) onChange();
     }
 
@@ -3794,7 +3758,7 @@
 
   function cityName(c) {
     if (!c) return '–';
-    return c.settlement_name || c.nev || '–';
+    return c.settlement_name || c.nev || c.name || '–';
   }
 
   /**
@@ -3813,6 +3777,7 @@
     const pairs = [
       [c.CITYDATA_Latitude, c.CITYDATA_Longitude],
       [c.citydata_latitude, c.citydata_longitude],
+      [c.latitude, c.longitude],
       [c.lat, c.lng],
       [c.GROCERIES_INDEX_lat, c.GROCERIES_INDEX_lon],
       [c.groceries_index_lat, c.groceries_index_lon],
@@ -3835,7 +3800,7 @@
 
   function countyOfCity(c) {
     if (!c || typeof c !== 'object') return '';
-    return String(c.CITYDATA_County ?? c.citydata_county ?? '').trim();
+    return String(c.CITYDATA_County ?? c.citydata_county ?? c.county ?? '').trim();
   }
 
   /** Római számjegy sor (I–XXIII), pl. kerületjelölés. */
@@ -3931,7 +3896,7 @@
   }
 
   /**
-   * OSM / határadat név → all_parameters sor (Budapest kerületeknél gyakran eltér a szöveg).
+   * OSM / határadat név → city_data sor (Budapest kerületeknél gyakran eltér a szöveg).
    * @param {number} [lng] térképes kattintás / poligon középpont (homonimák feloldásához)
    * @param {number} [lat]
    */
@@ -4351,16 +4316,45 @@
     guidedParamKeys = [];
     const host = elements.paramCategoriesHost;
     if (!host) return;
-    host.querySelectorAll('input[type="range"][data-param-key]').forEach(function (el) {
-      const k = el.getAttribute('data-param-key');
+    host.querySelectorAll('.param-item').forEach(function (card) {
+      if (card.classList.contains('param-item--geo-place')) return;
+      if (card.getAttribute('data-param-band-filter') === '1') {
+        const minEl = card.querySelector('[data-param-band-min-for]');
+        const k = minEl && minEl.getAttribute('data-param-band-min-for');
+        if (k && guidedParamKeys.indexOf(k) === -1) guidedParamKeys.push(k);
+        return;
+      }
+      const main = card.querySelector('input[type="range"][data-param-key]');
+      const k = main && main.getAttribute('data-param-key');
       if (k && guidedParamKeys.indexOf(k) === -1) guidedParamKeys.push(k);
     });
-    host.querySelectorAll('.param-item[data-param-band-filter="1"]').forEach(function (card) {
-      const minEl = card.querySelector('[data-param-band-min-for]');
-      if (!minEl) return;
-      const k = minEl.getAttribute('data-param-band-min-for');
-      if (k && guidedParamKeys.indexOf(k) === -1) guidedParamKeys.push(k);
-    });
+  }
+
+  function guidedParamKeyIndex(key) {
+    if (!key) return -1;
+    return guidedParamKeys.indexOf(key);
+  }
+
+  /** Szekció nyitva, ha benne van aktív vezetett lépés (index csúszka vagy tól–ig sáv). */
+  function paramGroupShouldOpenForGuidedIndex(group, activeIndex) {
+    if (!group || activeIndex < 0) return false;
+    const cards = group.querySelectorAll('.param-item');
+    for (let c = 0; c < cards.length; c++) {
+      const card = cards[c];
+      const bandMinEl = card.querySelector('[data-param-band-min-for]');
+      if (bandMinEl) {
+        const bk = bandMinEl.getAttribute('data-param-band-min-for');
+        const bi = guidedParamKeyIndex(bk);
+        if (bi !== -1 && bi <= activeIndex) return true;
+      }
+      const ranges = card.querySelectorAll('input[type="range"]');
+      for (let r = 0; r < ranges.length; r++) {
+        const k = getGuidedParamKeyFromRangeInput(ranges[r]);
+        const idx = guidedParamKeyIndex(k);
+        if (idx !== -1 && idx <= activeIndex) return true;
+      }
+    }
+    return false;
   }
 
   function expandParamGroupEl(group) {
@@ -4531,22 +4525,11 @@
     const groups = host.querySelectorAll('.param-group');
     for (let g = 0; g < groups.length; g++) {
       const group = groups[g];
-      let open = false;
-      const ranges = group.querySelectorAll('input[type="range"]');
-      for (let r = 0; r < ranges.length; r++) {
-        const input = ranges[r];
-        let k = input.getAttribute('data-param-key');
-        if (!k) k = input.getAttribute('data-param-band-min-for');
-        if (!k) k = input.getAttribute('data-param-band-max-for');
-        if (!k) continue;
-        const idx = guidedParamKeys.indexOf(k);
-        if (idx !== -1 && idx <= activeIndex) {
-          open = true;
-          break;
-        }
+      if (paramGroupShouldOpenForGuidedIndex(group, activeIndex)) {
+        expandParamGroupEl(group);
+      } else {
+        collapseParamGroupEl(group);
       }
-      if (open) expandParamGroupEl(group);
-      else collapseParamGroupEl(group);
     }
   }
 
@@ -4573,6 +4556,36 @@
     expandParamItemEl(card);
   }
 
+  /** Vezetett lépés: kártya a sidebar görgetőbe (kinyitás + layout után, többször pótolva). */
+  function scrollGuidedParamCardIntoView(card) {
+    if (!card) return;
+    const scroller = getSidebarScrollEl();
+    const anchor = card.querySelector('.param-item__head-row') || card;
+
+    function applyScroll() {
+      if (!card || !document.contains(card)) return;
+      if (scroller && scroller.contains(card)) {
+        const cr = anchor.getBoundingClientRect();
+        const sr = scroller.getBoundingClientRect();
+        const nextTop =
+          scroller.scrollTop + (cr.top - sr.top) - Math.max(24, (sr.height - cr.height) * 0.28);
+        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+        return;
+      }
+      if (typeof card.scrollIntoView === 'function') {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
+    }
+
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        applyScroll();
+        window.setTimeout(applyScroll, 100);
+        window.setTimeout(applyScroll, 280);
+      });
+    });
+  }
+
   function revealGuidedParamStep(index) {
     if (guidedFlowDisabledPermanently) return;
     if (!elements.paramCategoriesHost || index < 0 || index >= guidedParamKeys.length) return;
@@ -4593,19 +4606,10 @@
         elements.paramCategoriesHost.querySelector('[data-param-band-max-for="' + esc + '"]');
       card = el && el.closest('.param-item');
     }
-    const scroller = getSidebarScrollEl();
-    window.requestAnimationFrame(function () {
-      if (!card) return;
-      if (scroller && scroller.contains(card)) {
-        const cr = card.getBoundingClientRect();
-        const sr = scroller.getBoundingClientRect();
-        const nextTop =
-          scroller.scrollTop + (cr.top - sr.top) - Math.max(0, (sr.height - cr.height) / 2);
-        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
-      } else if (typeof card.scrollIntoView === 'function') {
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      }
-    });
+    if (card && card.getAttribute('data-param-band-filter') === '1') {
+      ensureBandFilterCardReady(card);
+    }
+    scrollGuidedParamCardIntoView(card);
   }
 
   function getGuidedParamKeyFromRangeInput(el) {
@@ -4725,7 +4729,11 @@
     if (guidedFlowDisabledPermanently) return;
     if (mobileGeoSetupSlot || guidedFlowIgnoreInputs || !guidedFlowUnlocked) return;
     const t = e.target;
-    if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
+    if (!t || t.nodeName !== 'INPUT') return;
+    const isBandHidden =
+      t.type === 'hidden' &&
+      (t.getAttribute('data-param-band-min-for') || t.getAttribute('data-param-band-max-for'));
+    if (t.type !== 'range' && !isBandHidden) return;
     if (t.closest('.param-item--geo-place')) return;
     if (t.id === 'geo-radius-a' || t.id === 'geo-radius-b') return;
     const key = getGuidedParamKeyFromRangeInput(t);
@@ -4785,7 +4793,7 @@
       if (line) {
         line.hidden = false;
         line.classList.add('ref-line--warn');
-        line.textContent = 'Előbb töltsd be az all_parameters táblát.';
+        line.textContent = 'Előbb töltsd be a település-adatokat.';
       }
       return;
     }
@@ -7008,7 +7016,7 @@
     const cityLab = document.createElement('label');
     cityLab.className = 'control-label control-label-sub';
     cityLab.setAttribute('for', 'geo-city-input-' + slot);
-    cityLab.textContent = 'Település (all_parameters)';
+    cityLab.textContent = 'Település (adatbázis)';
 
     const acWrap = document.createElement('div');
     acWrap.className = 'geo-autocomplete-wrap';
@@ -7161,7 +7169,7 @@
 
     if (indexParamKeys.length === 0) {
       root.innerHTML =
-        '<p class="ref-line ref-line--warn">Nincs _index mező betöltve. Ellenőrizd az all_parameters táblát.</p>';
+        '<p class="ref-line ref-line--warn">Nincs _index mező betöltve. Ellenőrizd a paraméter-táblákat.</p>';
       guidedParamKeys = [];
       guidedFlowUnlocked = false;
       guidedFlowParamIndex = 0;
@@ -8073,7 +8081,8 @@
       var s = document.createElement('script');
       s.id = scriptId;
       s.async = true;
-      s.src = BUNDLE_SCRIPT_SRC;
+      const bundleSrc = getSettlementBoundariesBundleSrc();
+      s.src = bundleSrc;
       s.onload = function () {
         var gj = window.__HSE_SETTLEMENT_BOUNDARIES;
         delete window.__HSE_SETTLEMENT_BOUNDARIES;
@@ -8088,7 +8097,7 @@
       s.onerror = function () {
         var failed = document.getElementById(scriptId);
         if (failed) failed.remove();
-        reject(new Error('Nem sikerült betölteni: ' + BUNDLE_SCRIPT_SRC));
+        reject(new Error('Nem sikerült betölteni: ' + bundleSrc));
       };
       document.head.appendChild(s);
     });
@@ -8298,9 +8307,6 @@
   }
 
   function endPick() {
-    // #region agent log
-    dbgMobile('H7', 'endPick', 'call', { pickMode: pickMode, mobileGeoSlot: mobileGeoSetupSlot });
-    // #endregion
     unbindMapPickInteraction();
     pickMode = null;
     document.documentElement.classList.remove('map-picking');
@@ -8338,7 +8344,7 @@
         line.hidden = false;
         line.classList.add('ref-line--warn');
         line.textContent =
-          'A térképen: ' + settlementName + ' — ez a település nincs az all_parameters táblában.';
+          'A térképen: ' + settlementName + ' — ez a település nincs a település-adatbázisban.';
       }
       return;
     }
@@ -8361,27 +8367,27 @@
     endPick();
   }
 
+  let startPickGuardUntil = 0;
+  let startPickGuardMode = '';
+
   async function startPick(mode) {
     if (mode !== 'geoA' && mode !== 'geoB') return;
     const target = mode;
     const slot = mode === 'geoA' ? 'a' : 'b';
+    const nowGuard = Date.now();
+    if (nowGuard < startPickGuardUntil && startPickGuardMode === target) {
+      return;
+    }
+    startPickGuardUntil = nowGuard + 120;
+    startPickGuardMode = target;
     if (pickMode === target) {
       if (shouldUseMobileGeoEditor() && mobileGeoSetupSlot === slot) {
-        // #region agent log
-        dbgMobile('H7', 'startPick', 'already-active-mobile-geo', { slot: slot });
-        // #endregion
         return;
       }
-      // #region agent log
-      dbgMobile('H7', 'startPick', 'toggle-off', { slot: slot });
-      // #endregion
       endPick();
       return;
     }
     if (pickMode) endPick();
-    // #region agent log
-    dbgMobile('H7', 'startPick', 'activate', { slot: slot, mobileGeoSlot: mobileGeoSetupSlot });
-    // #endregion
 
     if (shouldUseMobileGeoEditor()) {
       openMobileGeoEditorIfNeeded(slot);
@@ -8426,7 +8432,7 @@
     if (citiesData.length === 0) {
       endPick();
       if (elements.resultBox)
-        elements.resultBox.textContent = 'Előbb töltsd be az all_parameters adatokat.';
+        elements.resultBox.textContent = 'Előbb töltsd be a település-adatokat.';
       return;
     }
 
@@ -8957,9 +8963,15 @@
    * @param {Record<string, { value: number, weight: number }>} targets
    */
   function updateHeatmapFromTargets(targets) {
-    if (!heatmapLayersReady || !map.getSource('hse-choropleth')) return;
-    if (!citiesData.length || indexParamKeys.length === 0) return;
-    if (!geoIndexed || geoIndexed.length === 0) return;
+    if (!heatmapLayersReady || !map.getSource('hse-choropleth')) {
+      return;
+    }
+    if (!citiesData.length || indexParamKeys.length === 0) {
+      return;
+    }
+    if (!geoIndexed || geoIndexed.length === 0) {
+      return;
+    }
 
     if (!targets || Object.keys(targets).length === 0) {
       clearHeatmapFeatureStates();
@@ -9137,59 +9149,252 @@
     syncWinnerInfoToggleUi();
   }
 
+  const SPLIT_PARAM_SKIP_COLS = { id: true, name: true };
+
+  /**
+   * Paraméter-táblák → legacy oszlopnevek (a UI és sávok ezeket várják).
+   * @type {Array<{ table: string, prefix?: string, columnMap?: Record<string, string> }>}
+   */
+  const SPLIT_PARAM_SOURCES = [
+    { table: 'forest_index', prefix: 'FOREST_INDEX' },
+    { table: 'water_index', prefix: 'WATER_INDEX' },
+    { table: 'terrain_index', prefix: 'TERRAIN_INDEX' },
+    { table: 'airpollution_index', prefix: 'AIRPOLLUTION_INDEX' },
+    { table: 'budapest_car_train_index', prefix: 'BUDAPEST_CAR_TRAIN_INDEX' },
+    { table: 'internet_index', prefix: 'INTERNET_INDEX' },
+    { table: 'urban_mobility_index', prefix: 'URBAN_MOBILITY_INDEX' },
+    { table: 'transport_frequency_index', prefix: 'TRANSPORT_FREQUENCY_INDEX' },
+    { table: 'district_seat_access_index', prefix: 'DISTRICT_SEAT_ACCESS_INDEX' },
+    { table: 'budapest_access_index', prefix: 'BUDAPEST_ACCESS_INDEX' },
+    { table: 'cultural_index', prefix: 'CULTURAL_INDEX' },
+    { table: 'groceries_index', prefix: 'GROCERIES_INDEX' },
+    { table: 'sport_index', prefix: 'SPORT_INDEX' },
+    { table: 'gastro_index', prefix: 'GASTRO_INDEX' },
+    { table: 'senior_index', prefix: 'SENIOR_INDEX' },
+    { table: 'diploma_index', prefix: 'DIPLOMA_INDEX' },
+    {
+      table: 'turism_index',
+      columnMap: {
+        idegenforgalmi_ado_2024_eft_fo: 'TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo',
+        turism_index: 'TURISM_INDEX_turism_index',
+      },
+    },
+    {
+      table: 'work_index',
+      columnMap: {
+        sleeping_city_index: 'SLEEPING_CITY_INDEX_sleeping_city_index',
+        kijaro_arany_nyers: 'SLEEPING_CITY_INDEX_kijaro_arany_nyers',
+        jobs_index: 'JOBS_INDEX_jobs_index',
+        munkalehetoseg_arany_nyers: 'JOBS_INDEX_munkalehetoseg_arany_nyers',
+      },
+    },
+    { table: 'real_estate_price_grow_5yrs_index', prefix: 'INGATLANPIAC' },
+    { table: 'real_estate_price_avg5mth_index', prefix: 'INGATLANPIAC' },
+    { table: 'school_proximity_index', prefix: 'SCHOOL_PROXIMITY_INDEX' },
+  ];
+
+  function settlementRowId(row) {
+    if (!row || typeof row !== 'object') return null;
+    const raw = row.ID != null ? row.ID : row.id;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function baseCityRowFromCityData(row) {
+    const id = settlementRowId(row);
+    const name = row.name != null ? String(row.name) : row.nev != null ? String(row.nev) : '';
+    const lat = row.latitude != null ? row.latitude : row.lat;
+    const lng = row.longitude != null ? row.longitude : row.lng;
+    return {
+      ID: id,
+      id: id,
+      settlement_name: name,
+      nev: name,
+      name: name,
+      CITYDATA_County: row.county != null ? row.county : row.varmegye,
+      CITYDATA_PostalCode: row.postal_code != null ? row.postal_code : row.iranyitoszam,
+      CITYDATA_SettlementType:
+        row.settlement_type != null ? row.settlement_type : row.rang,
+      CITYDATA_Latitude: lat,
+      CITYDATA_Longitude: lng,
+      latitude: lat,
+      longitude: lng,
+      lat: lat,
+      lng: lng,
+    };
+  }
+
+  function applySplitParamRowToCity(city, paramRow, source) {
+    if (!city || !paramRow || !source) return;
+    if (source.columnMap) {
+      const map = source.columnMap;
+      for (const shortCol in map) {
+        if (!Object.prototype.hasOwnProperty.call(map, shortCol)) continue;
+        if (!Object.prototype.hasOwnProperty.call(paramRow, shortCol)) continue;
+        city[map[shortCol]] = paramRow[shortCol];
+      }
+      return;
+    }
+    const prefix = source.prefix;
+    if (!prefix) return;
+    for (const col in paramRow) {
+      if (SPLIT_PARAM_SKIP_COLS[col]) continue;
+      city[prefix + '_' + col] = paramRow[col];
+    }
+  }
+
+  async function fetchSupabaseTablePaged(tableName, orderColumn) {
+    const pageSize = 1000;
+    const all = [];
+    let from = 0;
+    let fetchError = null;
+
+    for (;;) {
+      let query = supabase.from(tableName).select('*').range(from, from + pageSize - 1);
+      if (orderColumn) {
+        query = query.order(orderColumn, { ascending: true });
+      }
+      const { data, error } = await query;
+      if (error) {
+        fetchError = error;
+        break;
+      }
+      const chunk = Array.isArray(data) ? data : [];
+      for (let i = 0; i < chunk.length; i++) {
+        all.push(chunk[i]);
+      }
+      if (chunk.length < pageSize) break;
+      from += pageSize;
+      if (from > 500000) {
+        console.warn('fetchSupabaseTablePaged: biztonsági határ (' + tableName + ').');
+        break;
+      }
+    }
+    return { rows: all, error: fetchError };
+  }
+
+  async function fetchCitiesFromSplitTables() {
+    const warnings = [];
+    const cityRes = await fetchSupabaseTablePaged(SUPABASE_TABLE_CITY_DATA, 'name');
+    if (cityRes.error) {
+      return { rows: [], error: cityRes.error, warnings: warnings };
+    }
+    if (!cityRes.rows.length) {
+      return {
+        rows: [],
+        error: { message: 'Nincs sor a city_data táblában.' },
+        warnings: warnings,
+      };
+    }
+
+    /** @type {Map<number, object>} */
+    const byId = new Map();
+    for (let i = 0; i < cityRes.rows.length; i++) {
+      const base = baseCityRowFromCityData(cityRes.rows[i]);
+      const id = settlementRowId(base);
+      if (id != null) byId.set(id, base);
+    }
+
+    const paramResults = await Promise.all(
+      SPLIT_PARAM_SOURCES.map(function (source) {
+        return fetchSupabaseTablePaged(source.table, 'id').then(function (res) {
+          return { source: source, res: res };
+        });
+      })
+    );
+    for (let pi = 0; pi < paramResults.length; pi++) {
+      const pr = paramResults[pi];
+      const source = pr.source;
+      const res = pr.res;
+      if (res.error) {
+        warnings.push(source.table + ': ' + (res.error.message || 'hiba'));
+        continue;
+      }
+      if (!res.rows.length) {
+        warnings.push(source.table + ': üres tábla');
+        continue;
+      }
+      for (let ri = 0; ri < res.rows.length; ri++) {
+        const paramRow = res.rows[ri];
+        const id = settlementRowId(paramRow);
+        if (id == null) continue;
+        const city = byId.get(id);
+        if (!city) continue;
+        applySplitParamRowToCity(city, paramRow, source);
+      }
+    }
+
+    const rows = Array.from(byId.values());
+    rows.sort(function (a, b) {
+      return String(cityName(a)).localeCompare(String(cityName(b)), 'hu');
+    });
+    return { rows: rows, error: null, warnings: warnings };
+  }
+
+  function applyLoadedCitiesData(rows, loadWarnings) {
+    citiesData = rows;
+    bestCityFindInsertKeys = null;
+    if (citiesData.length === 0) {
+      indexParamKeys = [];
+      sliderRanges = {};
+      if (elements.paramCategoriesHost) elements.paramCategoriesHost.innerHTML = '';
+      elements.resultBox.textContent =
+        'Nincs település-adat. Ellenőrizd az RLS-t (SELECT engedélyezése anon számára).';
+      guidedParamKeys = [];
+      guidedFlowUnlocked = false;
+      guidedFlowParamIndex = 0;
+      clearGuidedScrollTimer();
+      return;
+    }
+
+    indexParamKeys = discoverIndexKeys(citiesData[0]);
+    indexParamKeys = augmentIndexParamKeysWithSchool(indexParamKeys);
+    indexParamKeys = orderIndexKeysForUi(indexParamKeys);
+    sliderRanges = {};
+    for (let i = 0; i < indexParamKeys.length; i++) {
+      const k = indexParamKeys[i];
+      sliderRanges[k] = columnMinMax(k, citiesData);
+    }
+
+    rebuildCityIndex();
+    buildParamSliders();
+    updateImportantPlaceCircles();
+    syncGuidedFlowFromPersistedGeo();
+
+    let status =
+      citiesData.length +
+      ' település · ' +
+      indexParamKeys.length +
+      ' mutató. Állítsd a csúszkákat, majd nyomd meg a „Tökéletes hely keresése” gombot — utána minden csúszka módosításra újra keres.';
+    if (loadWarnings && loadWarnings.length) {
+      status += ' (Figyelmeztetés: ' + loadWarnings.join('; ') + ')';
+    }
+    elements.resultBox.textContent = status;
+  }
+
   async function fetchAllParameters() {
     lastSearchFeedbackMeta = null;
     hideFeedbackPanel();
-    elements.resultBox.textContent = 'Települések betöltése (all_parameters)…';
+    elements.resultBox.textContent = 'Települések betöltése…';
     try {
-      const pageSize = 1000;
-      const all = [];
-      let from = 0;
-      let fetchError = null;
+      const split = await fetchCitiesFromSplitTables();
 
-      for (;;) {
-        const { data, error } = await supabase
-          .from(SUPABASE_TABLE)
-          .select('*')
-          .order('settlement_name', { ascending: true })
-          .range(from, from + pageSize - 1);
-
-        if (error) {
-          fetchError = error;
-          break;
-        }
-
-        const chunk = Array.isArray(data) ? data : [];
-        for (let i = 0; i < chunk.length; i++) {
-          all.push(chunk[i]);
-        }
-
-        if (chunk.length < pageSize) {
-          break;
-        }
-        from += pageSize;
-        if (from > 500000) {
-          console.warn('fetchAllParameters: biztonsági határ, megállítva.');
-          break;
-        }
-      }
-
-      if (fetchError) {
-        console.error('Supabase error:', fetchError);
+      if (split.error) {
+        console.error('Supabase error:', split.error);
         elements.resultBox.textContent =
-          'Hiba: ' + (fetchError.message || 'Nem sikerült betöltenival parameters.');
+          'Hiba: ' + (split.error.message || 'Nem sikerült betölteni a település-adatokat.');
         clearGuidedScrollTimer();
         return;
       }
 
-      citiesData = all;
-      bestCityFindInsertKeys = null;
-      if (citiesData.length === 0) {
+      if (!split.rows.length) {
+        citiesData = [];
+        bestCityFindInsertKeys = null;
         indexParamKeys = [];
         sliderRanges = {};
         if (elements.paramCategoriesHost) elements.paramCategoriesHost.innerHTML = '';
         elements.resultBox.textContent =
-          'Nincs sor az all_parameters táblában. Ellenőrizd az RLS-t (SELECT engedélyezése anon számára).';
+          'Nincs település-adat a city_data táblában. Ellenőrizd az RLS-t (SELECT anon).';
         guidedParamKeys = [];
         guidedFlowUnlocked = false;
         guidedFlowParamIndex = 0;
@@ -9197,25 +9402,7 @@
         return;
       }
 
-      indexParamKeys = discoverIndexKeys(citiesData[0]);
-      indexParamKeys = augmentIndexParamKeysWithSchool(indexParamKeys);
-      indexParamKeys = orderIndexKeysForUi(indexParamKeys);
-      sliderRanges = {};
-      for (let i = 0; i < indexParamKeys.length; i++) {
-        const k = indexParamKeys[i];
-        sliderRanges[k] = columnMinMax(k, citiesData);
-      }
-
-      rebuildCityIndex();
-      buildParamSliders();
-      updateImportantPlaceCircles();
-      syncGuidedFlowFromPersistedGeo();
-
-      elements.resultBox.textContent =
-        citiesData.length +
-        ' település · ' +
-        indexParamKeys.length +
-        ' mutató. Állítsd a csúszkákat, majd nyomd meg a „Tökéletes hely keresése” gombot — utána minden csúszka módosításra újra keres.';
+      applyLoadedCitiesData(split.rows, split.warnings || []);
     } catch (err) {
       console.error('Fetch error:', err);
       citiesData = [];
@@ -9225,7 +9412,11 @@
       rebuildCityIndex();
       if (elements.paramCategoriesHost) elements.paramCategoriesHost.innerHTML = '';
       updateImportantPlaceCircles();
-      elements.resultBox.textContent = 'Hiba: nem sikerült csatlakozni az adatbázishoz.';
+      const errDetail =
+        err && err.message ? String(err.message) : err ? String(err) : '';
+      elements.resultBox.textContent =
+        'Hiba: nem sikerült betölteni az adatokat.' +
+        (errDetail ? ' (' + errDetail + ')' : '');
       guidedParamKeys = [];
       guidedFlowUnlocked = false;
       guidedFlowParamIndex = 0;
@@ -9340,7 +9531,7 @@
     if (!citiesData.length || !citiesData[0]) return;
     const keys = [];
     for (const key of Object.keys(citiesData[0])) {
-      if (!BEST_CITY_FIND_ROW_OMIT.has(key)) keys.push(key);
+      if (isBestCityFindDataColumn(key)) keys.push(key);
     }
     bestCityFindInsertKeys = keys;
   }
@@ -9351,7 +9542,7 @@
     const keys = bestCityFindInsertKeys || Object.keys(winningCity);
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
-      if (BEST_CITY_FIND_ROW_OMIT.has(key)) continue;
+      if (!isBestCityFindDataColumn(key)) continue;
       if (Object.prototype.hasOwnProperty.call(winningCity, key)) {
         row[key] = winningCity[key];
       }
@@ -9473,7 +9664,7 @@
     }
 
     if (!citiesData.length) {
-      elements.resultBox.textContent = 'Előbb töltsd be az all_parameters adatokat.';
+      elements.resultBox.textContent = 'Előbb töltsd be a település-adatokat.';
       return;
     }
 
@@ -9534,9 +9725,6 @@
       });
       if (showTicket && shouldShowSearchTicketOverlay()) showTicketOverlay(ticketId);
       if (flyMapToResult && isTouchMobileAppStarted()) {
-        // #region agent log
-        dbgMobile('H1', 'performSearch:success', 'setMobileMapView', { flyMapToResult: true });
-        // #endregion
         setMobileMapView(true);
       }
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
@@ -9601,11 +9789,6 @@
 
   function scheduleSearchFromSliders() {
     if (isTouchMobileAppStarted()) {
-      // #region agent log
-      dbgMobile('H5', 'scheduleSearchFromSliders', 'mobile-blocked', {
-        sliderAutoSearchActive: sliderAutoSearchActive,
-      });
-      // #endregion
       return;
     }
     if (!sliderAutoSearchActive) return;
@@ -9834,16 +10017,7 @@
       });
     }
 
-    if (elements.pickGeoABtn) {
-      elements.pickGeoABtn.addEventListener('click', function () {
-        startPick('geoA');
-      });
-    }
-    if (elements.pickGeoBBtn) {
-      elements.pickGeoBBtn.addEventListener('click', function () {
-        startPick('geoB');
-      });
-    }
+    /* Pin gomb: startPick csak bindMobileGeoCardEditorTriggers-ben (createImportantPlaceCard). */
 
     if (elements.geoCityInputA) {
       elements.geoCityInputA.addEventListener('keydown', function (e) {
@@ -9934,7 +10108,10 @@
     });
 
     await fetchParameterInfoMap();
-    await fetchAllParameters();
+    const geoPreload = ensureGeoIndexed().catch(function (err) {
+      console.warn('Település-határok előtöltés:', err);
+    });
+    await Promise.all([fetchAllParameters(), geoPreload]);
     aliasParameterInfoTooltipsToIndexColumns();
     refreshParameterInfoTooltipTexts();
     bindParamInfoWraps(document.getElementById('sidebar-main'));
