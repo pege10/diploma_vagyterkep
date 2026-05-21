@@ -64,6 +64,14 @@
 
   <main id="map-container" class="map-container" aria-label="Térkép"></main>
 
+  <button type="button" id="mobile-map-back-btn" class="mobile-map-back-btn" hidden aria-label="Vissza a paraméterekhez" title="Paraméterek">
+    <span class="mobile-map-back-btn__glyph" aria-hidden="true">‹</span>
+  </button>
+
+  <div id="mobile-winner-sheet" class="mobile-winner-sheet" hidden aria-hidden="true">
+    <div id="mobile-winner-sheet-body" class="mobile-winner-sheet__body"></div>
+  </div>
+
   <div id="feedback-panel" class="feedback-panel" hidden aria-label="Találat részletei és oszlopok">
     <div class="feedback-panel__edge-wrap" aria-label="Jobb panel és térkép eszközök">
       <button type="button" id="feedback-collapse-btn" class="feedback-panel__edge-tab" aria-expanded="true" title="Jobb panel elrejtése" aria-label="Jobb panel elrejtése">
@@ -147,7 +155,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=146"></script>
+  <script src="app.js?v=147"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

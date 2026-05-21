@@ -3417,7 +3417,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     transition: transform 0.28s ease, visibility 0s linear 0.28s;
   }
 
-  html.is-touch.app-started.mobile-map-view .sidebar-dock__collapse-pill--expand {
+  html.is-touch.app-started.mobile-map-view:not(.mobile-winner-sheet-open) .sidebar-dock__collapse-pill--expand {
     display: inline-flex !important;
     position: fixed;
     z-index: 200;
@@ -3425,6 +3425,99 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     left: 12px;
     margin: 0;
     top: auto;
+  }
+
+  /* Vissza a paraméterekhez (bal felső) */
+  .mobile-map-back-btn {
+    display: none;
+    position: fixed;
+    z-index: 165;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: calc(10px + env(safe-area-inset-left, 0px));
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    -webkit-tap-highlight-color: transparent;
+    font-family: var(--font-app);
+  }
+
+  .mobile-map-back-btn[hidden] {
+    display: none !important;
+  }
+
+  html.is-touch.mobile-map-view .mobile-map-back-btn:not([hidden]) {
+    display: inline-flex;
+  }
+
+  .mobile-map-back-btn__glyph {
+    display: block;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: -2px;
+    user-select: none;
+  }
+
+  .mobile-map-back-btn:hover,
+  .mobile-map-back-btn:focus-visible {
+    background: #fafafa;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* Keresés után: tökéletes hely mutatói (alsó görgethető panel) */
+  .mobile-winner-sheet {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 135;
+    flex-direction: column;
+    max-height: min(48vh, 440px);
+    background: var(--paper);
+    border-top: 2px solid var(--ink);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.14);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html.is-touch.mobile-winner-sheet-open .mobile-winner-sheet {
+    display: flex !important;
+  }
+
+  .mobile-winner-sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px 16px;
+  }
+
+  .mobile-winner-sheet__body .feedback-panel__title {
+    margin-top: 0;
+  }
+
+  .mobile-winner-sheet__body .city-info__list {
+    font-size: 0.88rem;
+  }
+
+  html.is-touch.mobile-map-view.mobile-winner-sheet-open #map-container.map-container {
+    bottom: min(48vh, 440px);
+  }
+
+  html.is-touch.mobile-map-view.mobile-winner-sheet-open.map-picking #map-container.map-container {
+    bottom: min(48vh, 440px);
   }
 
   html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {

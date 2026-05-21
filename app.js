@@ -244,6 +244,9 @@
     mobileGeoSheetWarnHost: null,
     mobileGeoSheetOk: null,
     mobileGeoSheetCancel: null,
+    mobileMapBackBtn: null,
+    mobileWinnerSheet: null,
+    mobileWinnerSheetBody: null,
   };
 
   function initElements() {
@@ -278,6 +281,9 @@
     elements.mobileGeoSheetWarnHost = document.getElementById('mobile-geo-sheet-warn-host');
     elements.mobileGeoSheetOk = document.getElementById('mobile-geo-sheet-ok');
     elements.mobileGeoSheetCancel = document.getElementById('mobile-geo-sheet-cancel');
+    elements.mobileMapBackBtn = document.getElementById('mobile-map-back-btn');
+    elements.mobileWinnerSheet = document.getElementById('mobile-winner-sheet');
+    elements.mobileWinnerSheetBody = document.getElementById('mobile-winner-sheet-body');
   }
 
   function initImportantPlaceElements() {
@@ -880,11 +886,78 @@
     );
   }
 
+  function syncMobileMapBackBtn() {
+    const btn = elements.mobileMapBackBtn;
+    if (!btn) return;
+    const show =
+      isTouchMobileAppStarted() &&
+      document.documentElement.classList.contains('mobile-map-view') &&
+      !document.documentElement.classList.contains('mobile-geo-setup') &&
+      !document.documentElement.classList.contains('map-picking');
+    if (show) {
+      btn.removeAttribute('hidden');
+      btn.setAttribute('aria-hidden', 'false');
+    } else {
+      btn.setAttribute('hidden', '');
+      btn.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function showMobileWinnerSheetEl(show) {
+    const sheet = elements.mobileWinnerSheet;
+    const root = document.documentElement;
+    if (!sheet) return;
+    if (show) {
+      sheet.removeAttribute('hidden');
+      sheet.setAttribute('aria-hidden', 'false');
+      root.classList.add('mobile-winner-sheet-open');
+    } else {
+      sheet.setAttribute('hidden', '');
+      sheet.setAttribute('aria-hidden', 'true');
+      root.classList.remove('mobile-winner-sheet-open');
+    }
+  }
+
+  function hideMobileWinnerSheet() {
+    if (elements.mobileWinnerSheetBody) elements.mobileWinnerSheetBody.innerHTML = '';
+    showMobileWinnerSheetEl(false);
+    syncMobileMapBackBtn();
+    syncMobileMapDockButtons();
+    if (map) setTimeout(function () { if (map) map.resize(); }, 120);
+  }
+
+  function fillWinnerInfoContainer(container, city, matchPercent) {
+    if (!container || !city) return;
+    container.textContent = '';
+    const h2 = document.createElement('h2');
+    h2.className = 'feedback-panel__title feedback-panel__title--winner';
+    let title = 'Tökéletes hely · ' + cityName(city);
+    if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
+      title += ' · ' + Math.round(Number(matchPercent)) + '% egyezés';
+    }
+    h2.textContent = title;
+    container.appendChild(h2);
+    appendCityInfoListToContainer(container, city);
+  }
+
+  function renderMobileWinnerSheet(city, matchPercent) {
+    if (!isTouchMobileAppStarted() || !elements.mobileWinnerSheetBody || !city) return;
+    fillWinnerInfoContainer(elements.mobileWinnerSheetBody, city, matchPercent);
+    showMobileWinnerSheetEl(true);
+    syncMobileMapBackBtn();
+    syncMobileMapDockButtons();
+    if (map) setTimeout(function () { if (map) map.resize(); }, 120);
+  }
+
   function setMobileMapView(on) {
     if (!isTouchMobileAppStarted()) return;
     const root = document.documentElement;
     if (on) root.classList.add('mobile-map-view');
-    else root.classList.remove('mobile-map-view');
+    else {
+      root.classList.remove('mobile-map-view');
+      hideMobileWinnerSheet();
+    }
+    syncMobileMapBackBtn();
     syncMobileMapDockButtons();
     if (!on && elements.sidebarDock) {
       elements.sidebarDock.classList.remove('sidebar-dock--collapsed');
@@ -899,6 +972,16 @@
           if (on) {
             syncGeoMarkersFromState();
             updateImportantPlaceCircles();
+            if (
+              lastSearchFeedbackMeta &&
+              lastSearchFeedbackMeta.winningCity &&
+              !root.classList.contains('mobile-geo-setup')
+            ) {
+              renderMobileWinnerSheet(
+                lastSearchFeedbackMeta.winningCity,
+                lastSearchFeedbackMeta.matchPercent
+              );
+            }
           }
         }
       }, 320);
@@ -909,6 +992,7 @@
     if (!isTouchMobileAppStarted()) return;
     const inGeoSetup = document.documentElement.classList.contains('mobile-geo-setup');
     const inMap = document.documentElement.classList.contains('mobile-map-view');
+    const hasWinnerSheet = document.documentElement.classList.contains('mobile-winner-sheet-open');
     const openBtn = document.getElementById('sidebar-expand-btn');
     const closeBtn = document.getElementById('sidebar-collapse-btn');
     if (inGeoSetup) {
@@ -917,7 +1001,8 @@
       return;
     }
     if (openBtn) {
-      openBtn.setAttribute('aria-hidden', inMap ? 'false' : 'true');
+      const showExpand = inMap && !hasWinnerSheet;
+      openBtn.setAttribute('aria-hidden', showExpand ? 'false' : 'true');
       openBtn.title = 'Paraméterek megnyitása';
       openBtn.setAttribute('aria-label', 'Paraméterek megnyitása');
     }
@@ -925,6 +1010,15 @@
       closeBtn.setAttribute('aria-hidden', inMap ? 'true' : 'false');
       closeBtn.title = 'Térkép megnyitása';
       closeBtn.setAttribute('aria-label', 'Térkép megnyitása');
+    }
+  }
+
+  function initMobileMapChrome() {
+    if (elements.mobileMapBackBtn) {
+      elements.mobileMapBackBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setMobileMapView(false);
+      });
     }
   }
 
@@ -4247,17 +4341,22 @@
       : 'Találat részletei (előbb keress)';
   }
 
-  function renderWinnerInfoInRightPanel(city) {
+  function renderWinnerInfoInRightPanel(city, matchPercent) {
     const inner = elements.feedbackPanelInner;
     if (!inner || !city) return;
     rightPanelMode = 'winner-info';
     syncWinnerInfoToggleUi();
-    inner.textContent = '';
-    const h2 = document.createElement('h2');
-    h2.className = 'feedback-panel__title feedback-panel__title--winner';
-    h2.textContent = 'Tökéletes hely ' + cityName(city);
-    inner.appendChild(h2);
-    appendCityInfoListToContainer(inner, city);
+    const pct =
+      matchPercent != null
+        ? matchPercent
+        : lastSearchFeedbackMeta && lastSearchFeedbackMeta.matchPercent != null
+          ? lastSearchFeedbackMeta.matchPercent
+          : null;
+    fillWinnerInfoContainer(inner, city, pct);
+    if (isTouchMobileAppStarted()) {
+      renderMobileWinnerSheet(city, pct);
+      return;
+    }
     openRightPanel();
   }
 
@@ -4285,6 +4384,7 @@
   function hideFeedbackPanel() {
     rightPanelMode = null;
     syncWinnerInfoToggleUi();
+    hideMobileWinnerSheet();
     if (elements.feedbackPanel) {
       elements.feedbackPanel.setAttribute('hidden', '');
       elements.feedbackPanel.classList.remove('feedback-panel--collapsed');
@@ -8619,6 +8719,7 @@
     initFirstSearchHintModal();
     initStrictParamsModal();
     initMobileGeoSheet();
+    initMobileMapChrome();
     syncMobileMapDockButtons();
     initParamInfoTooltips();
     initMap();
