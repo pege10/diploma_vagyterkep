@@ -162,6 +162,8 @@
   let guidedFlowUnlocked = false;
   let guidedFlowParamIndex = 0;
   let guidedFlowIgnoreInputs = false;
+  /** @type {Record<string, { primary: boolean, secondary: boolean }>} */
+  let guidedParamStepDone = {};
   /** Vezetett lépés következő kártyához: görg csak change + ~0,5 s után */
   let guidedScrollTimer = null;
 
@@ -876,6 +878,21 @@
     return root.classList.contains('is-touch') && root.classList.contains('app-started');
   }
 
+  function isMobileLayoutViewport() {
+    try {
+      return window.matchMedia('(max-width: 900px)').matches;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** Fontos-hely szerkesztő: érintős telefon vagy keskeny nézet indítás után. */
+  function shouldUseMobileGeoEditor() {
+    const root = document.documentElement;
+    if (!root.classList.contains('app-started')) return false;
+    return root.classList.contains('is-touch') || isMobileLayoutViewport();
+  }
+
   /** Mobilon panel-only UI: térkép rejtve, kivéve térképválasztás és keresés utáni térképnézet. */
   function isMobileMapPanelMode() {
     const root = document.documentElement;
@@ -1039,7 +1056,7 @@
   }
 
   function shouldAutoOpenMobileGeoSetup(slot) {
-    if (!isTouchMobileAppStarted()) return false;
+    if (!shouldUseMobileGeoEditor()) return false;
     if (!isGeoPlaceSwitchOn(slot)) return false;
     return !geoSlotReady(slot);
   }
@@ -1050,48 +1067,67 @@
   }
 
   /** Főpanelen érintés / fókusz: csak a fontos-hely panel kerül a térkép fölé. */
-  function openMobileGeoEditorIfNeeded(slot) {
-    if (!isTouchMobileAppStarted() || (slot !== 'a' && slot !== 'b')) return;
+  function openMobileGeoEditorIfNeeded(slot, focusTarget) {
+    if (!shouldUseMobileGeoEditor() || (slot !== 'a' && slot !== 'b')) return;
     if (!isGeoPlaceSwitchOn(slot)) return;
-    if (mobileGeoSetupSlot === slot) return;
-    enterMobileGeoSetup(slot);
+    const alreadyOpen = mobileGeoSetupSlot === slot;
+    if (!alreadyOpen) enterMobileGeoSetup(slot);
+    if (focusTarget && typeof focusTarget.focus === 'function') {
+      window.setTimeout(function () {
+        try {
+          focusTarget.focus({ preventScroll: true });
+        } catch (_) {
+          focusTarget.focus();
+        }
+      }, alreadyOpen ? 0 : 120);
+    }
   }
 
   function bindMobileGeoCardEditorTriggers(wrap, slot, inp, pickBtn, rInput) {
-    function openEditor() {
-      openMobileGeoEditorIfNeeded(slot);
+    function openEditor(focusEl) {
+      openMobileGeoEditorIfNeeded(slot, focusEl || inp || null);
     }
     wrap.addEventListener(
-      'pointerdown',
+      'touchstart',
       function (e) {
-        if (!isTouchMobileAppStarted()) return;
+        if (!shouldUseMobileGeoEditor()) return;
         if (!isGeoPlaceSwitchOn(slot)) return;
         if (e.target.closest('.param-item__ios-switch')) return;
         if (e.target.closest('.param-item__toggle')) return;
-        openEditor();
+        openEditor(e.target.closest('input, button.pick-map-btn') || inp);
       },
-      { passive: true }
+      { capture: true, passive: true }
     );
     if (inp) {
-      inp.addEventListener('focus', openEditor);
+      inp.addEventListener('focus', function () {
+        openEditor(inp);
+      });
       inp.addEventListener('click', function (e) {
         e.stopPropagation();
-        openEditor();
+        openEditor(inp);
       });
     }
     if (pickBtn) {
       pickBtn.addEventListener(
-        'pointerdown',
+        'touchstart',
         function (e) {
           e.stopPropagation();
-          openEditor();
+          openEditor(pickBtn);
         },
-        { passive: true }
+        { capture: true, passive: true }
       );
+      pickBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openEditor(pickBtn);
+      });
     }
     if (rInput) {
-      rInput.addEventListener('pointerdown', openEditor, { passive: true });
-      rInput.addEventListener('focus', openEditor);
+      rInput.addEventListener('touchstart', function () {
+        openEditor(rInput);
+      }, { passive: true });
+      rInput.addEventListener('focus', function () {
+        openEditor(rInput);
+      });
     }
   }
 
@@ -1108,27 +1144,28 @@
   }
 
   function enterMobileGeoSetup(slot) {
-    if (!isTouchMobileAppStarted() || (slot !== 'a' && slot !== 'b')) return;
+    if (!shouldUseMobileGeoEditor() || (slot !== 'a' && slot !== 'b')) return;
     if (mobileGeoSetupSlot === slot) return;
     if (mobileGeoSetupSlot) exitMobileGeoSetup(true);
 
     const card = getGeoPlaceCardEl(slot);
-    const bodyHost = elements.mobileGeoSheetBody;
-    if (!card || !bodyHost) return;
+    if (!card) return;
+
+    document.querySelectorAll('.param-item--geo-editing').forEach(function (c) {
+      c.classList.remove('param-item--geo-editing');
+    });
 
     card.classList.remove('param-item--collapsed');
     const toggle = card.querySelector('.param-item__toggle');
     if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    card.classList.add('param-item--geo-editing');
 
     const warn = elements.geoWarnLine;
     mobileGeoSetupRestore = {
-      cardParent: card.parentNode,
-      cardNext: card.nextSibling,
       warnParent: warn ? warn.parentNode : null,
       warnNext: warn ? warn.nextSibling : null,
     };
 
-    bodyHost.appendChild(card);
     if (warn && elements.mobileGeoSheetWarnHost) {
       elements.mobileGeoSheetWarnHost.appendChild(warn);
     }
@@ -1151,10 +1188,7 @@
     const card = slot ? getGeoPlaceCardEl(slot) : null;
     const warn = elements.geoWarnLine;
 
-    if (card && restore && restore.cardParent) {
-      if (restore.cardNext) restore.cardParent.insertBefore(card, restore.cardNext);
-      else restore.cardParent.appendChild(card);
-    }
+    if (card) card.classList.remove('param-item--geo-editing');
     if (warn && restore && restore.warnParent) {
       if (restore.warnNext) restore.warnParent.insertBefore(warn, restore.warnNext);
       else restore.warnParent.appendChild(warn);
@@ -3852,8 +3886,12 @@
     if (!elements.paramCategoriesHost || index < 0 || index >= guidedParamKeys.length) return;
     syncGuidedParamCardsToStep(index);
     const key = guidedParamKeys[index];
-    const el = elements.paramCategoriesHost.querySelector('[data-param-key="' + key + '"]');
-    const card = el && el.closest('.param-item');
+    guidedParamStepDone[key] = { primary: false, secondary: false };
+    let card = findParamCardByDbKey(key);
+    if (!card) {
+      const el = elements.paramCategoriesHost.querySelector('[data-param-key="' + key + '"]');
+      card = el && el.closest('.param-item');
+    }
     window.requestAnimationFrame(function () {
       if (card && typeof card.scrollIntoView === 'function') {
         card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
@@ -3861,11 +3899,78 @@
     });
   }
 
+  function getGuidedParamKeyFromRangeInput(el) {
+    if (!el) return null;
+    const k = el.getAttribute('data-param-key');
+    if (k) return k;
+    const w = el.getAttribute('data-param-weight-for');
+    if (w) return w;
+    const f = el.getAttribute('data-param-flex-for');
+    if (f) return f;
+    const bmin = el.getAttribute('data-param-band-min-for');
+    if (bmin) return bmin;
+    const bmax = el.getAttribute('data-param-band-max-for');
+    if (bmax) return bmax;
+    return null;
+  }
+
+  function isGuidedPrimaryRangeInput(el) {
+    return !!(
+      el.getAttribute('data-param-key') ||
+      el.getAttribute('data-param-band-min-for') ||
+      el.getAttribute('data-param-band-max-for')
+    );
+  }
+
+  function isGuidedSecondaryRangeInput(el) {
+    return !!(
+      el.getAttribute('data-param-weight-for') ||
+      el.getAttribute('data-param-flex-for')
+    );
+  }
+
+  function guidedParamNeedsSecondaryStep(card) {
+    if (!card) return false;
+    if (card.getAttribute('data-param-band-filter') === '1') {
+      return !!card.querySelector('input[type="range"][data-param-flex-for]');
+    }
+    return !!card.querySelector('input[type="range"][data-param-weight-for]');
+  }
+
+  function tryAdvanceGuidedParamAfterInput() {
+    const key = guidedParamKeys[guidedFlowParamIndex];
+    if (!key) return;
+    const card = findParamCardByDbKey(key);
+    const step = guidedParamStepDone[key];
+    if (!step) return;
+    const needsSecondary = guidedParamNeedsSecondaryStep(card);
+    if (!needsSecondary && step.primary) {
+      advanceGuidedParamStep();
+      return;
+    }
+    if (needsSecondary && step.primary && step.secondary) {
+      advanceGuidedParamStep();
+    }
+  }
+
+  function advanceGuidedParamStep() {
+    guidedFlowParamIndex++;
+    clearGuidedScrollTimer();
+    if (guidedFlowParamIndex < guidedParamKeys.length) {
+      const nextIndex = guidedFlowParamIndex;
+      guidedScrollTimer = setTimeout(function () {
+        guidedScrollTimer = null;
+        if (guidedFlowParamIndex !== nextIndex) return;
+        revealGuidedParamStep(nextIndex);
+      }, 500);
+    }
+  }
+
   function maybeAdvanceGuidedFlowAfterGeo(slot) {
     if (slot === 'a') {
       expandImportantPlaceCard('b');
       setGeoPlaceCardActive('b', true);
-      if (isTouchMobileAppStarted()) {
+      if (shouldUseMobileGeoEditor()) {
         mobileGeoSetupTurnedOnBySheet = true;
         enterMobileGeoSetup('b');
       }
@@ -3874,6 +3979,7 @@
     if (slot === 'b') {
       guidedFlowUnlocked = true;
       guidedFlowParamIndex = 0;
+      guidedParamStepDone = {};
       rebuildGuidedParamKeysFromDom();
       clearGuidedScrollTimer();
       revealGuidedParamStep(0);
@@ -3903,7 +4009,7 @@
       if (aOk) {
         expandImportantPlaceCard('b');
         setGeoPlaceCardActive('b', true);
-        if (isTouchMobileAppStarted() && shouldAutoOpenMobileGeoSetup('b')) {
+        if (shouldUseMobileGeoEditor() && shouldAutoOpenMobileGeoSetup('b')) {
           mobileGeoSetupTurnedOnBySheet = true;
           enterMobileGeoSetup('b');
         }
@@ -3914,25 +4020,27 @@
     }
   }
 
-  /** Csak a fő csúszka elengedésekor (change); következő lépés ~0,5 s múlva. */
+  /**
+   * Vezetett lépés: előbb fő érték (index / tól–ig), majd fontosság vagy rugalmasság — utána következő mutató.
+   */
   function onGuidedParamRangeChange(e) {
     if (guidedFlowIgnoreInputs || !guidedFlowUnlocked) return;
     const t = e.target;
     if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
-    if (t.getAttribute('data-param-weight-for')) return;
-    const key = t.getAttribute('data-param-key');
-    if (!key) return;
-    if (key !== guidedParamKeys[guidedFlowParamIndex]) return;
-    guidedFlowParamIndex++;
-    clearGuidedScrollTimer();
-    if (guidedFlowParamIndex < guidedParamKeys.length) {
-      const nextIndex = guidedFlowParamIndex;
-      guidedScrollTimer = setTimeout(function () {
-        guidedScrollTimer = null;
-        if (guidedFlowParamIndex !== nextIndex) return;
-        revealGuidedParamStep(nextIndex);
-      }, 500);
+    const key = getGuidedParamKeyFromRangeInput(t);
+    if (!key || key !== guidedParamKeys[guidedFlowParamIndex]) return;
+    if (!guidedParamStepDone[key]) {
+      guidedParamStepDone[key] = { primary: false, secondary: false };
     }
+    const step = guidedParamStepDone[key];
+    if (isGuidedPrimaryRangeInput(t)) {
+      step.primary = true;
+    } else if (isGuidedSecondaryRangeInput(t)) {
+      step.secondary = true;
+    } else {
+      return;
+    }
+    tryAdvanceGuidedParamAfterInput();
   }
 
   function countGeoEligibleCities() {
@@ -6280,7 +6388,7 @@
       refreshGeoFilterWarning();
       scheduleSearchFromSliders();
       updateImportantPlaceCircles();
-      if (isTouchMobileAppStarted()) {
+      if (shouldUseMobileGeoEditor()) {
         if (nowOn) {
           mobileGeoSetupTurnedOnBySheet = turningOn;
           enterMobileGeoSetup(slot);
@@ -6335,6 +6443,7 @@
       guidedParamKeys = [];
       guidedFlowUnlocked = false;
       guidedFlowParamIndex = 0;
+      guidedParamStepDone = {};
       return;
     }
 
@@ -7456,7 +7565,7 @@
     }
     if (pickMode) endPick();
 
-    if (isTouchMobileAppStarted()) {
+    if (shouldUseMobileGeoEditor()) {
       openMobileGeoEditorIfNeeded(slot);
     }
 

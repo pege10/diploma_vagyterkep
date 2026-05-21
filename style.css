@@ -3539,9 +3539,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 140;
+    z-index: 144;
     flex-direction: column;
-    max-height: min(58vh, 520px);
+    max-height: none;
     background: var(--paper);
     border-top: 2px solid var(--ink);
     border-radius: 14px 14px 0 0;
@@ -3566,12 +3566,37 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   .mobile-geo-sheet__body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    display: none;
+  }
+
+  /* Fontos-hely kártya: fixen a térkép fölött (DOM a panelben marad, nincs áthelyezés) */
+  html.is-touch.mobile-geo-setup .param-item--geo-editing {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 143 !important;
+    max-height: min(52vh, 480px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 10px 14px 4px;
+    margin: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    background: var(--paper) !important;
+    border-top: 2px solid var(--ink) !important;
+    border-radius: 14px 14px 0 0 !important;
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.12) !important;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+  }
+
+  html.is-touch.mobile-geo-setup .param-item--geo-editing .param-item__body {
+    display: block !important;
+  }
+
+  html.is-touch.mobile-geo-setup .param-item--geo-editing .param-item__toggle .param-item__chevron {
+    display: none;
   }
 
   .mobile-geo-sheet__warn-host {
@@ -3631,27 +3656,17 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     color: var(--ink);
   }
 
-  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item--geo-place {
-    margin: 0;
-    border: none;
-    box-shadow: none;
-    background: transparent;
-  }
-
-  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item--geo-place .param-item__body {
-    display: block !important;
-  }
-
-  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item__toggle .param-item__chevron {
-    display: none;
-  }
-
   html.is-touch.mobile-geo-setup #map-container.map-container {
-    bottom: min(58vh, 520px);
+    bottom: calc(min(52vh, 480px) + 118px + env(safe-area-inset-bottom, 0px));
   }
 
   html.is-touch.mobile-geo-setup.map-picking #map-container.map-container {
-    bottom: min(58vh, 520px);
+    bottom: calc(min(52vh, 480px) + 118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.is-touch.mobile-geo-setup .param-item--geo-editing input,
+  html.is-touch.mobile-geo-setup .param-item--geo-editing button {
+    touch-action: manipulation;
   }
 
   /* Térképes pontválasztás (fontos hely): térkép elő, panel eltűnik, alsó szalag */
