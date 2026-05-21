@@ -14,7 +14,7 @@ const STATIC_ASSETS = [
   '/exhibition/manifest.json',
   '/exhibition.html',
   '/style.css?v=124',
-  '/app.js?v=169',
+  '/app.js?v=170',
   '/sorszam.html',
   '/manifest.json',
 ];

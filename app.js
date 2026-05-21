@@ -882,8 +882,15 @@
     // #endregion
     if (isTouchMobileAppStarted()) {
       // #region agent log
-      dbgMobile('H1', 'applyLoosenSuggestion', 'mobile-skip-search', { type: sug.type });
+      dbgMobile('H6', 'applyLoosenSuggestion', 'mobile-research-no-fly', { type: sug.type });
       // #endregion
+      performSearch({
+        showTicket: false,
+        persistToDb: false,
+        flyMapToResult: false,
+      }).catch(function (e) {
+        console.warn('Keresés (lazítás után, mobil):', e);
+      });
       return;
     }
     sliderAutoSearchActive = true;
@@ -8129,6 +8136,9 @@
   }
 
   function endPick() {
+    // #region agent log
+    dbgMobile('H7', 'endPick', 'call', { pickMode: pickMode, mobileGeoSlot: mobileGeoSetupSlot });
+    // #endregion
     unbindMapPickInteraction();
     pickMode = null;
     document.documentElement.classList.remove('map-picking');
@@ -8194,10 +8204,22 @@
     const target = mode;
     const slot = mode === 'geoA' ? 'a' : 'b';
     if (pickMode === target) {
+      if (shouldUseMobileGeoEditor() && mobileGeoSetupSlot === slot) {
+        // #region agent log
+        dbgMobile('H7', 'startPick', 'already-active-mobile-geo', { slot: slot });
+        // #endregion
+        return;
+      }
+      // #region agent log
+      dbgMobile('H7', 'startPick', 'toggle-off', { slot: slot });
+      // #endregion
       endPick();
       return;
     }
     if (pickMode) endPick();
+    // #region agent log
+    dbgMobile('H7', 'startPick', 'activate', { slot: slot, mobileGeoSlot: mobileGeoSetupSlot });
+    // #endregion
 
     if (shouldUseMobileGeoEditor()) {
       openMobileGeoEditorIfNeeded(slot);
