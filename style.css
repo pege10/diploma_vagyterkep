@@ -663,6 +663,158 @@ body {
   outline: none;
 }
 
+.first-search-hint-proceed {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: var(--font-app);
+}
+
+.first-search-hint-proceed:hover,
+.first-search-hint-proceed:focus-visible {
+  background: #fff;
+  color: var(--ink);
+}
+
+/* Túl szűk paraméterek – nincs találat */
+.strict-params-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1900001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.strict-params-overlay[hidden] {
+  display: none !important;
+}
+
+.strict-params-dialog {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(85vh, 520px);
+  overflow-y: auto;
+  padding: 20px 40px 20px 20px;
+  border-radius: 7px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.strict-params-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.35rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.strict-params-close:hover,
+.strict-params-close:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
+}
+
+.strict-params-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.strict-params-message {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.strict-params-sub {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.strict-params-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strict-params-list__item {
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.strict-params-list__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.strict-params-list__label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.strict-params-loosen-btn {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-app);
+}
+
+.strict-params-loosen-btn:hover,
+.strict-params-loosen-btn:focus-visible {
+  background: #fff;
+  color: var(--ink);
+}
+
+.strict-params-list__empty {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  padding: 8px 0;
+}
+
 .control-group > .control-label,
 .form-group > label {
   font-size: 0.75rem;
@@ -3245,10 +3397,38 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     stroke: rgba(255, 255, 255, 0.45);
   }
 
-  /* Indítás után: térkép rejtve, csak a csúszka-panel teljes képernyőn */
-  html.is-touch.app-started #map-container.map-container {
+  /* Indítás után: alapból paraméter-panel; keresés után mobile-map-view = térkép */
+  html.is-touch.app-started:not(.mobile-map-view) #map-container.map-container {
     opacity: 0 !important;
     pointer-events: none !important;
+  }
+
+  html.is-touch.app-started.mobile-map-view #map-container.map-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+    visibility: visible !important;
+  }
+
+  html.is-touch.app-started.mobile-map-view .sidebar-dock {
+    transform: translateY(100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  html.is-touch.app-started.mobile-map-view .sidebar-dock__collapse-pill--expand {
+    display: inline-flex !important;
+    position: fixed;
+    z-index: 200;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    margin: 0;
+    top: auto;
+  }
+
+  html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
+    display: none !important;
   }
 
   /* Térképes pontválasztás (fontos hely): térkép elő, panel eltűnik, alsó szalag */
@@ -3269,7 +3449,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
   html.is-touch.app-started.map-picking #feedback-panel,
   html.is-touch.app-started.map-picking #heatmap-legend,
-  html.is-touch.app-started.map-picking #first-search-hint-overlay {
+  html.is-touch.app-started.map-picking #first-search-hint-overlay,
+  html.is-touch.app-started.map-picking #strict-params-overlay {
     display: none !important;
     pointer-events: none !important;
   }

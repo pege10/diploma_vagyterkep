@@ -112,6 +112,17 @@
       <p id="first-search-hint-title" class="first-search-hint-text first-search-hint-text--lead"></p>
       <p class="first-search-hint-text first-search-hint-text--sub">A következő mutatók még kikapcsoltak (egymás alatt; a bal oldali kapcsolóval bekapcsolhatod őket):</p>
       <ul id="first-search-hint-list" class="first-search-hint-list"></ul>
+      <button type="button" id="first-search-hint-proceed" class="first-search-hint-proceed">Keresés így is</button>
+    </div>
+  </div>
+
+  <div id="strict-params-overlay" class="strict-params-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="strict-params-title" aria-describedby="strict-params-message">
+    <div class="strict-params-dialog">
+      <button type="button" id="strict-params-close" class="strict-params-close" aria-label="Bezárás">×</button>
+      <p id="strict-params-title" class="strict-params-title">Túl szűk a keresés</p>
+      <p id="strict-params-message" class="strict-params-message"></p>
+      <p class="strict-params-sub">Javasolt lazítás (a gomb a mutatót „Laza” rugalmasságra állítja, majd újrakeres):</p>
+      <ul id="strict-params-list" class="strict-params-list"></ul>
     </div>
   </div>
 
@@ -127,7 +138,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=144"></script>
+  <script src="app.js?v=145"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

@@ -225,6 +225,13 @@
     feedbackPanelInner: null,
     firstSearchHintOverlay: null,
     firstSearchHintCloseBtn: null,
+    firstSearchHintProceedBtn: null,
+    strictParamsOverlay: null,
+    strictParamsTitle: null,
+    strictParamsMessage: null,
+    strictParamsList: null,
+    strictParamsCloseBtn: null,
+    sidebarDock: null,
   };
 
   function initElements() {
@@ -247,6 +254,13 @@
       : null;
     elements.firstSearchHintOverlay = document.getElementById('first-search-hint-overlay');
     elements.firstSearchHintCloseBtn = document.getElementById('first-search-hint-close');
+    elements.firstSearchHintProceedBtn = document.getElementById('first-search-hint-proceed');
+    elements.strictParamsOverlay = document.getElementById('strict-params-overlay');
+    elements.strictParamsTitle = document.getElementById('strict-params-title');
+    elements.strictParamsMessage = document.getElementById('strict-params-message');
+    elements.strictParamsList = document.getElementById('strict-params-list');
+    elements.strictParamsCloseBtn = document.getElementById('strict-params-close');
+    elements.sidebarDock = document.getElementById('sidebar-dock');
   }
 
   function initImportantPlaceElements() {
@@ -523,10 +537,18 @@
   function initFirstSearchHintModal() {
     const ov = elements.firstSearchHintOverlay;
     const btn = elements.firstSearchHintCloseBtn;
+    const proceed = elements.firstSearchHintProceedBtn;
     if (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         closeFirstSearchHintModal();
+      });
+    }
+    if (proceed) {
+      proceed.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeFirstSearchHintModal();
+        runMainSearchFromButton();
       });
     }
     if (ov) {
@@ -534,6 +556,260 @@
         if (e.target === ov) closeFirstSearchHintModal();
       });
     }
+  }
+
+  function closeStrictParamsModal() {
+    const ov = elements.strictParamsOverlay;
+    if (ov) {
+      ov.setAttribute('hidden', '');
+      ov.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function findParamCardByDbKey(dbKey) {
+    if (!elements.paramCategoriesHost || !dbKey) return null;
+    const esc =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(dbKey)
+        : String(dbKey).replace(/"/g, '\\"');
+    let card = elements.paramCategoriesHost.querySelector(
+      '.param-item [data-param-band-min-for="' + esc + '"]'
+    );
+    if (card) return card.closest('.param-item');
+    card = elements.paramCategoriesHost.querySelector(
+      '.param-item input[data-param-key="' + esc + '"]'
+    );
+    return card ? card.closest('.param-item') : null;
+  }
+
+  function cityPassesAllBandFiltersExcept(city, targets, exceptKey) {
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
+      if (key === exceptKey) continue;
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      if (!passesBandFilterForCity(city, pack)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Nincs találat: mely sávos mutatók szűrik ki legtöbb települést (rugalmasság lazítás javaslat).
+   * @returns {{ reason: string, message: string, suggestions: Array<{ key: string, label: string, type: string, failOnly: number, flex: number }> } | null}
+   */
+  function buildStrictFilterSuggestions(targets) {
+    const geoOn = geoSlotReady('a') || geoSlotReady('b');
+    if (geoOn && countGeoEligibleCities() === 0) {
+      return {
+        reason: 'geo',
+        message:
+          'Egy település sem esik az összes bekapcsolt fontos hely körébe. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrőket.',
+        suggestions: [],
+      };
+    }
+
+    const eligible = [];
+    for (let i = 0; i < citiesData.length; i++) {
+      if (passesGeoFilter(citiesData[i])) eligible.push(citiesData[i]);
+    }
+    if (eligible.length === 0) {
+      return {
+        reason: 'empty',
+        message: 'Nincs település a jelenlegi szűrők mellett.',
+        suggestions: [],
+      };
+    }
+
+    let passAllBands = 0;
+    for (let j = 0; j < eligible.length; j++) {
+      if (cityPassesActiveBandFilters(eligible[j], targets)) passAllBands++;
+    }
+
+    const bandScores = [];
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      let failOnly = 0;
+      for (let k = 0; k < eligible.length; k++) {
+        const city = eligible[k];
+        if (
+          !passesBandFilterForCity(city, pack) &&
+          cityPassesAllBandFiltersExcept(city, targets, key)
+        ) {
+          failOnly++;
+        }
+      }
+      const flex =
+        pack.flex != null && Number.isFinite(pack.flex)
+          ? Math.max(0, Math.min(1, pack.flex))
+          : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
+      if (failOnly > 0) {
+        bandScores.push({
+          key: key,
+          label: paramLabelForDbKey(key),
+          type: 'band',
+          failOnly: failOnly,
+          flex: flex,
+          score: failOnly * (0.35 + flex * 0.65),
+        });
+      }
+    }
+
+    bandScores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+
+    if (passAllBands === 0 && bandScores.length > 0) {
+      return {
+        reason: 'band',
+        message:
+          'Túl szigorúak a beállítások: egy település sem felel meg minden sávnak egyszerre. Lazítsd a rugalmasságot (Laza), vagy szélesítsd a tól–ig sávokat.',
+        suggestions: bandScores.slice(0, 3),
+      };
+    }
+
+    if (passAllBands > 0) {
+      let anyScore = false;
+      for (let m = 0; m < eligible.length; m++) {
+        const sc = computeCitySearchScore(eligible[m], targets);
+        if (sc.used > 0) {
+          anyScore = true;
+          break;
+        }
+      }
+      if (!anyScore) {
+        return {
+          reason: 'data',
+          message:
+            'A bekapcsolt mutatóknál sok településnél hiányzik az adat. Kapcsolj ki pár mutatót, vagy válassz másikat.',
+          suggestions: [],
+        };
+      }
+    }
+
+    return {
+      reason: 'generic',
+      message:
+        'Nincs megfelelő település. Lazítsd a rugalmasságot (Laza), szélesítsd a sávokat, vagy kapcsolj ki pár mutatót.',
+      suggestions: bandScores.slice(0, 3),
+    };
+  }
+
+  function applyLoosenSuggestion(sug) {
+    if (!sug) return;
+    if (sug.type === 'band' && sug.key) {
+      const card = findParamCardByDbKey(sug.key);
+      const flexEl =
+        card && card.querySelector('input[type="range"][data-param-flex-for]');
+      if (flexEl) {
+        flexEl.value = '0';
+        flexEl.dispatchEvent(new Event('input', { bubbles: true }));
+        flexEl.dispatchEvent(new Event('change', { bubbles: true }));
+        try {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (_) {}
+      }
+    } else if (sug.type === 'geo') {
+      const host = document.getElementById('important-places-host');
+      if (host) {
+        try {
+          host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (_) {}
+      }
+    }
+    closeStrictParamsModal();
+    setMobileMapView(false);
+    sliderAutoSearchActive = true;
+    performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true }).catch(function (e) {
+      console.warn('Keresés (lazítás után):', e);
+    });
+  }
+
+  function openStrictParamsModal(analysis) {
+    const ov = elements.strictParamsOverlay;
+    const titleEl = elements.strictParamsTitle;
+    const msgEl = elements.strictParamsMessage;
+    const listEl = elements.strictParamsList;
+    if (!ov || !titleEl || !msgEl || !listEl || !analysis) return;
+
+    titleEl.textContent = 'Túl szűk a keresés';
+    msgEl.textContent = analysis.message || '';
+
+    listEl.innerHTML = '';
+    const sugs = analysis.suggestions || [];
+    if (sugs.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'strict-params-list__empty';
+      li.textContent =
+        analysis.reason === 'geo'
+          ? 'Állíts a fontos helyek sugarain vagy központjain.'
+          : 'Kapcsolj ki mutatókat, vagy állíts a csúszkákon.';
+      listEl.appendChild(li);
+    } else {
+      for (let i = 0; i < sugs.length; i++) {
+        const sug = sugs[i];
+        const li = document.createElement('li');
+        li.className = 'strict-params-list__item';
+        const row = document.createElement('div');
+        row.className = 'strict-params-list__row';
+        const label = document.createElement('span');
+        label.className = 'strict-params-list__label';
+        label.textContent = sug.label;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'strict-params-loosen-btn';
+        btn.textContent = 'Lazítsd (Laza)';
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          applyLoosenSuggestion(sug);
+        });
+        row.appendChild(label);
+        row.appendChild(btn);
+        li.appendChild(row);
+        listEl.appendChild(li);
+      }
+    }
+
+    ov.removeAttribute('hidden');
+    ov.setAttribute('aria-hidden', 'false');
+    if (elements.strictParamsCloseBtn) {
+      try {
+        elements.strictParamsCloseBtn.focus();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }
+
+  function initStrictParamsModal() {
+    const ov = elements.strictParamsOverlay;
+    const btn = elements.strictParamsCloseBtn;
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeStrictParamsModal();
+      });
+    }
+    if (ov) {
+      ov.addEventListener('click', function (e) {
+        if (e.target === ov) closeStrictParamsModal();
+      });
+    }
+  }
+
+  function showNoSearchResultFeedback(targets) {
+    let msg =
+      'Nincs olyan település, amely minden bekapcsolt mutatónak egyszerre megfelel. Lazítsd a rugalmasságot (Laza), szélesítsd a sávokat, vagy kapcsolj ki pár mutatót.';
+    const geoOn = geoSlotReady('a') || geoSlotReady('b');
+    if (geoOn && countGeoEligibleCities() === 0) {
+      msg =
+        'Nincs település, amely minden bekapcsolt fontos hely körön belül esik. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrő(k)et.';
+    }
+    if (elements.resultBox) elements.resultBox.textContent = msg;
+    const analysis = buildStrictFilterSuggestions(targets);
+    if (analysis) openStrictParamsModal(analysis);
+    setMobileMapView(false);
   }
 
   function initMap() {
@@ -571,14 +847,62 @@
   /** Sávos (tól–ig) mutatók rugalmasság csúszka alapértéke (0–10 skála). */
   var PARAM_BAND_FLEX_DEFAULT = 5;
 
-  /** Mobilon panel-only UI: térkép rejtve, kivéve térképes pontválasztás. */
+  /** Mobilon indítás után (érintős UI). */
+  function isTouchMobileAppStarted() {
+    const root = document.documentElement;
+    return root.classList.contains('is-touch') && root.classList.contains('app-started');
+  }
+
+  /** Mobilon panel-only UI: térkép rejtve, kivéve térképválasztás és keresés utáni térképnézet. */
   function isMobileMapPanelMode() {
     const root = document.documentElement;
     return (
-      root.classList.contains('is-touch') &&
-      root.classList.contains('app-started') &&
-      !root.classList.contains('map-picking')
+      isTouchMobileAppStarted() &&
+      !root.classList.contains('map-picking') &&
+      !root.classList.contains('mobile-map-view')
     );
+  }
+
+  function setMobileMapView(on) {
+    if (!isTouchMobileAppStarted()) return;
+    const root = document.documentElement;
+    if (on) root.classList.add('mobile-map-view');
+    else root.classList.remove('mobile-map-view');
+    syncMobileMapDockButtons();
+    if (!on && elements.sidebarDock) {
+      elements.sidebarDock.classList.remove('sidebar-dock--collapsed');
+    }
+    if (map) {
+      setTimeout(function () {
+        if (map) map.resize();
+      }, 80);
+      setTimeout(function () {
+        if (map) {
+          map.resize();
+          if (on) {
+            syncGeoMarkersFromState();
+            updateImportantPlaceCircles();
+          }
+        }
+      }, 320);
+    }
+  }
+
+  function syncMobileMapDockButtons() {
+    if (!isTouchMobileAppStarted()) return;
+    const inMap = document.documentElement.classList.contains('mobile-map-view');
+    const openBtn = document.getElementById('sidebar-expand-btn');
+    const closeBtn = document.getElementById('sidebar-collapse-btn');
+    if (openBtn) {
+      openBtn.setAttribute('aria-hidden', inMap ? 'false' : 'true');
+      openBtn.title = 'Paraméterek megnyitása';
+      openBtn.setAttribute('aria-label', 'Paraméterek megnyitása');
+    }
+    if (closeBtn) {
+      closeBtn.setAttribute('aria-hidden', inMap ? 'true' : 'false');
+      closeBtn.title = 'Térkép megnyitása';
+      closeBtn.setAttribute('aria-label', 'Térkép megnyitása');
+    }
   }
 
   /** Kiállítás / mobil sorszám: holisticsearch.space/exhibition */
@@ -7816,6 +8140,7 @@
     requestFullscreen();
 
     document.documentElement.classList.add('app-started');
+    syncMobileMapDockButtons();
 
     elements.startOverlay.classList.add('start-overlay--hidden');
 
@@ -7853,12 +8178,19 @@
     const paramCount = Object.keys(targets).length;
 
     if (paramCount === 0) {
-      elements.resultBox.textContent =
+      const noParamMsg =
         'Nincs aktív keresési mutató. Kapcsolj be legalább egyet a bal oldali panelen, és állítsd be a sávot vagy csúszkát.';
+      if (elements.resultBox) elements.resultBox.textContent = noParamMsg;
       removeWinningMarker();
       lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
       syncHeatmapWithActiveParams();
+      setMobileMapView(false);
+      openStrictParamsModal({
+        reason: 'none',
+        message: noParamMsg,
+        suggestions: [],
+      });
       return;
     }
 
@@ -7898,6 +8230,7 @@
         persistError: persistError,
       });
       if (showTicket && shouldShowSearchTicketOverlay()) showTicketOverlay(ticketId);
+      if (flyMapToResult && isTouchMobileAppStarted()) setMobileMapView(true);
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
         applySidebarScrollAnchorAfterLayout(layoutAnchor, scroller, anchorY);
       }
@@ -7906,14 +8239,7 @@
       if (layoutAnchor && scroller) {
         anchorY = layoutAnchor.getBoundingClientRect().top;
       }
-      let msg =
-        'Nincs olyan település, amely minden bekapcsolt mutatónak egyszerre megfelel. Lazítsd a rugalmasságot (Laza), szélesítsd a sávokat, vagy kapcsolj ki pár mutatót.';
-      const geoOn = geoSlotReady('a') || geoSlotReady('b');
-      if (geoOn && countGeoEligibleCities() === 0) {
-        msg =
-          'Nincs település, amely minden bekapcsolt fontos hely körön belül esik. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrő(k)et.';
-      }
-      elements.resultBox.textContent = msg;
+      showNoSearchResultFeedback(targets);
       removeWinningMarker();
       lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
@@ -7923,15 +8249,19 @@
     }
   }
 
-  async function onSearchClick() {
+  async function runMainSearchFromButton() {
     sliderAutoSearchActive = true;
+    firstMainSearchClickWithPrompt = false;
+    await performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true });
+  }
+
+  async function onSearchClick() {
     const inactiveLabels = getInactiveParamCategoryLabels();
     if (firstMainSearchClickWithPrompt && inactiveLabels.length > 0) {
       openFirstSearchHintModal(inactiveLabels);
       return;
     }
-    firstMainSearchClickWithPrompt = false;
-    await performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true });
+    await runMainSearchFromButton();
   }
 
   /** Csúszka-változás indítson keresést (első gomb után): index, súly, sáv, rugalmasság. */
@@ -8067,6 +8397,11 @@
 
     function toggleSidebarDock() {
       if (!sidebarDock) return;
+      if (isTouchMobileAppStarted()) {
+        const inMap = document.documentElement.classList.contains('mobile-map-view');
+        setMobileMapView(!inMap);
+        return;
+      }
       const collapsed = !sidebarDock.classList.contains('sidebar-dock--collapsed');
       setSidebarDockCollapsed(collapsed);
     }
@@ -8098,6 +8433,8 @@
     initHeatmapToggle();
     initWinnerInfoToggle();
     initFirstSearchHintModal();
+    initStrictParamsModal();
+    syncMobileMapDockButtons();
     initParamInfoTooltips();
     initMap();
     buildImportantPlacesPanel();
@@ -8205,6 +8542,15 @@
       ) {
         e.preventDefault();
         closeFirstSearchHintModal();
+        return;
+      }
+      if (
+        e.key === 'Escape' &&
+        elements.strictParamsOverlay &&
+        !elements.strictParamsOverlay.hasAttribute('hidden')
+      ) {
+        e.preventDefault();
+        closeStrictParamsModal();
       }
     });
 
