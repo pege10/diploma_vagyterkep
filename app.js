@@ -1314,19 +1314,27 @@
       });
     }
     if (pickBtn) {
+      let pickBtnTouchHandledAt = 0;
       function onPickMapBtn(e) {
         e.stopPropagation();
         openEditor(pickBtn);
         startPick(slot === 'a' ? 'geoA' : 'geoB');
       }
       pickBtn.addEventListener(
-        'touchstart',
+        'touchend',
         function (e) {
           e.stopPropagation();
+          e.preventDefault();
+          pickBtnTouchHandledAt = Date.now();
+          onPickMapBtn(e);
         },
-        { capture: true, passive: true }
+        { passive: false }
       );
-      pickBtn.addEventListener('click', onPickMapBtn);
+      pickBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (Date.now() - pickBtnTouchHandledAt < 500) return;
+        onPickMapBtn(e);
+      });
     }
     if (rInput) {
       rInput.addEventListener('touchstart', function () {
