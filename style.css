@@ -3410,11 +3410,19 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     visibility: visible !important;
   }
 
-  html.is-touch.app-started.mobile-map-view .sidebar-dock {
+  html.is-touch.app-started.mobile-map-view .sidebar-dock,
+  html.is-touch.app-started.mobile-geo-setup .sidebar-dock {
     transform: translateY(100%);
     visibility: hidden;
     pointer-events: none;
     transition: transform 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  html.is-touch.app-started.mobile-geo-setup #map-container.map-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+    visibility: visible !important;
   }
 
   html.is-touch.app-started.mobile-map-view:not(.mobile-winner-sheet-open) .sidebar-dock__collapse-pill--expand {
@@ -3543,6 +3551,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
   html.is-touch.mobile-geo-setup .mobile-geo-sheet {
     display: flex !important;
+    pointer-events: auto;
+  }
+
+  .mobile-geo-sheet__body input,
+  .mobile-geo-sheet__body button,
+  .mobile-geo-sheet__actions button {
+    touch-action: manipulation;
   }
 
   html.is-touch.mobile-geo-setup.map-picking .mobile-geo-sheet {

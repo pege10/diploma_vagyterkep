@@ -949,8 +949,13 @@
     if (map) setTimeout(function () { if (map) map.resize(); }, 120);
   }
 
-  function setMobileMapView(on) {
+  /**
+   * @param {boolean} on
+   * @param {{ forGeoEditor?: boolean }} [opts]
+   */
+  function setMobileMapView(on, opts) {
     if (!isTouchMobileAppStarted()) return;
+    const forGeoEditor = !!(opts && opts.forGeoEditor);
     const root = document.documentElement;
     if (on) root.classList.add('mobile-map-view');
     else {
@@ -973,9 +978,10 @@
             syncGeoMarkersFromState();
             updateImportantPlaceCircles();
             if (
+              !forGeoEditor &&
+              !root.classList.contains('mobile-geo-setup') &&
               lastSearchFeedbackMeta &&
-              lastSearchFeedbackMeta.winningCity &&
-              !root.classList.contains('mobile-geo-setup')
+              lastSearchFeedbackMeta.winningCity
             ) {
               renderMobileWinnerSheet(
                 lastSearchFeedbackMeta.winningCity,
@@ -1086,10 +1092,12 @@
     document.documentElement.classList.add('mobile-geo-setup');
     document.documentElement.setAttribute('data-geo-setup-slot', slot);
     showMobileGeoSheetEl(true);
-    setMobileMapView(true);
+    hideMobileWinnerSheet();
+    setMobileMapView(true, { forGeoEditor: true });
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
     syncGeoMarkersFromState();
+    syncMobileMapBackBtn();
   }
 
   function exitMobileGeoSetup(apply) {
@@ -1124,6 +1132,11 @@
     syncMobileMapDockButtons();
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
+    if (map) {
+      setTimeout(function () {
+        if (map) map.resize();
+      }, 120);
+    }
   }
 
   function onMobileGeoSheetOk() {
@@ -6237,6 +6250,8 @@
       collapseToggle.setAttribute('aria-expanded', 'false');
     }
 
+    bindMobileGeoCardEditorTriggers(wrap, slot, inp, pickBtn, rInput);
+
     return wrap;
   }
 
@@ -7334,7 +7349,7 @@
     updatePickButtonActive();
     if (map) map.resize();
     if (mobileGeoSetupSlot) {
-      setMobileMapView(true);
+      setMobileMapView(true, { forGeoEditor: true });
       showMobileGeoSheetEl(true);
       syncMobileMapDockButtons();
     }
@@ -7389,11 +7404,16 @@
   async function startPick(mode) {
     if (mode !== 'geoA' && mode !== 'geoB') return;
     const target = mode;
+    const slot = mode === 'geoA' ? 'a' : 'b';
     if (pickMode === target) {
       endPick();
       return;
     }
     if (pickMode) endPick();
+
+    if (isTouchMobileAppStarted()) {
+      openMobileGeoEditorIfNeeded(slot);
+    }
 
     if (elements.geoCityInputA) elements.geoCityInputA.blur();
     if (elements.geoCityInputB) elements.geoCityInputB.blur();
