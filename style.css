@@ -700,7 +700,8 @@ body {
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.48);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
 }
 
 .strict-params-overlay[hidden] {
@@ -709,29 +710,30 @@ body {
 
 .strict-params-dialog {
   position: relative;
-  width: min(420px, 100%);
-  max-height: min(85vh, 520px);
+  width: min(460px, 100%);
+  max-height: min(88vh, 600px);
   overflow-y: auto;
-  padding: 20px 40px 20px 20px;
-  border-radius: 7px;
+  padding: 28px 24px 24px;
+  border-radius: 10px;
   border: 1px solid var(--ink);
   background: var(--paper);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  text-align: center;
 }
 
 .strict-params-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
   margin: 0;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: transparent;
   color: var(--ink-soft);
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 300;
   line-height: 1;
   cursor: pointer;
@@ -744,66 +746,91 @@ body {
 }
 
 .strict-params-title {
-  margin: 0 0 10px;
-  font-size: 1rem;
+  margin: 0 0 12px;
+  font-size: 1.12rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--ink);
+  text-align: center;
 }
 
 .strict-params-message {
-  margin: 0 0 10px;
-  font-size: 0.88rem;
+  margin: 0 auto 14px;
+  max-width: 38ch;
+  font-size: 0.9rem;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--ink);
+  text-align: center;
 }
 
 .strict-params-sub {
-  margin: 0 0 8px;
+  margin: 0 0 14px;
   font-size: 0.78rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ink-soft);
+  text-align: center;
 }
 
 .strict-params-list {
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .strict-params-list__item {
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
 }
 
 .strict-params-list__row {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 14px 14px 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  text-align: center;
 }
 
 .strict-params-list__label {
-  font-size: 0.86rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 700;
   line-height: 1.35;
   color: var(--ink);
 }
 
+.strict-params-list__hint {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
 .strict-params-loosen-btn {
-  align-self: flex-start;
-  padding: 8px 12px;
-  border: 1px solid var(--ink);
-  border-radius: 4px;
+  align-self: center;
+  min-width: 170px;
+  padding: 9px 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
   background: var(--ink);
   color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
   font-family: var(--font-app);
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .strict-params-loosen-btn:hover,
@@ -813,10 +840,11 @@ body {
 }
 
 .strict-params-list__empty {
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 500;
   color: var(--ink-soft);
-  padding: 8px 0;
+  padding: 10px 0;
+  text-align: center;
 }
 
 .control-group > .control-label,
@@ -3435,13 +3463,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
-    display: inline-flex !important;
-    position: fixed;
-    z-index: 200;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    left: 12px;
-    margin: 0;
-    top: auto;
+    display: none !important;
   }
 
   /* Térképes mód: paraméterek alsó ~1/3 panelben */
@@ -3516,7 +3538,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     display: none !important;
   }
 
-  html.is-touch.app-started .mobile-map-back-btn:not([hidden]) {
+  html.is-touch.mobile-map-view .mobile-map-back-btn:not([hidden]) {
     display: inline-flex;
   }
 
@@ -3730,36 +3752,33 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     color: var(--ink);
   }
 
+  /* Stabil pozíció: a lap mindig alul ül, billentyűzetkor felfelé csúszik (nem ugrál). */
+  html.is-touch.mobile-geo-setup .mobile-geo-sheet {
+    bottom: var(--mobile-vv-bottom, 0px);
+    max-height: min(
+      var(--mobile-geo-sheet-max),
+      calc(100dvh - var(--mobile-vv-bottom, 0px) - 16px)
+    );
+    transition:
+      bottom 120ms ease-out,
+      max-height 120ms ease-out;
+  }
+
   html.is-touch.mobile-geo-setup #map-container.map-container {
-    bottom: var(--mobile-geo-sheet-max);
+    bottom: calc(var(--mobile-geo-sheet-max) + var(--mobile-vv-bottom, 0px));
+    transition: bottom 120ms ease-out;
   }
 
   html.is-touch.mobile-geo-setup.map-picking #map-container.map-container {
-    bottom: var(--mobile-geo-sheet-max);
+    bottom: calc(var(--mobile-geo-sheet-max) + var(--mobile-vv-bottom, 0px));
   }
 
-  /* Billentyűzet: fontos-hely lap felül, bevitel látható */
-  html.is-touch.mobile-geo-setup.mobile-geo-keyboard .mobile-geo-sheet,
-  html.is-touch.mobile-geo-setup.mobile-geo-input-focused .mobile-geo-sheet {
-    top: max(0px, env(safe-area-inset-top, 0px));
-    bottom: auto;
-    max-height: min(48vh, calc(100dvh - env(safe-area-inset-top, 0px) - 16px));
+  html.is-touch.mobile-geo-setup.mobile-geo-keyboard #map-container.map-container {
+    opacity: 0.4;
   }
 
-  html.is-touch.mobile-geo-setup.mobile-geo-keyboard #map-container.map-container,
-  html.is-touch.mobile-geo-setup.mobile-geo-input-focused #map-container.map-container {
-    bottom: 0 !important;
-    opacity: 0.2 !important;
-  }
-
-  html.is-touch.mobile-geo-setup.mobile-geo-keyboard .mobile-geo-sheet__card-host,
-  html.is-touch.mobile-geo-setup.mobile-geo-input-focused .mobile-geo-sheet__card-host {
-    max-height: min(36vh, 280px);
-  }
-
-  html.is-touch.mobile-geo-setup.mobile-geo-keyboard .geo-suggest-list,
-  html.is-touch.mobile-geo-setup.mobile-geo-input-focused .geo-suggest-list {
-    max-height: min(28vh, 200px);
+  html.is-touch.mobile-geo-setup .geo-suggest-list {
+    max-height: min(32vh, 220px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }

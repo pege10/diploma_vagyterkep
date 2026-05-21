@@ -166,6 +166,11 @@
   let guidedParamStepDone = {};
   /** Vezetett lépés következő kártyához: görg csak change + ~0,5 s után */
   let guidedScrollTimer = null;
+  /**
+   * Az első „Tökéletes hely keresése” kattintás után végleg leáll minden auto-úsztatás,
+   * vezetett lépéscsere és scroll-stabilizáció — a felhasználó szabadon görget.
+   */
+  let guidedFlowDisabledPermanently = false;
 
   function clearGuidedScrollTimer() {
     if (guidedScrollTimer != null) {
@@ -359,8 +364,9 @@
    * @param {HTMLElement} scroller
    * @param {number} durationMs
    * @param {number} [viewportTopTarget] Ha megadod, ehhez igazít (pl. a preserve 2× rAF után mért top).
+   * @param {() => boolean} [shouldAbort] Optional abort flag: igazra állítva azonnal leáll.
    */
-  function maintainSidebarHeadRowViewportTop(anchorEl, scroller, durationMs, viewportTopTarget) {
+  function maintainSidebarHeadRowViewportTop(anchorEl, scroller, durationMs, viewportTopTarget, shouldAbort) {
     if (!anchorEl || !scroller) return;
     const ms = Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 550;
     const targetTop = Number.isFinite(viewportTopTarget)
@@ -371,6 +377,7 @@
         ? performance.now()
         : Date.now();
     function frame() {
+      if (typeof shouldAbort === 'function' && shouldAbort()) return;
       const cur = anchorEl.getBoundingClientRect().top;
       const dy = cur - targetTop;
       if (Math.abs(dy) > 0.5) {
@@ -394,15 +401,32 @@
    * @param {HTMLElement} headRow .param-item__head-row
    */
   function startParamExpandScrollStabilize(wrap, headRow) {
+    if (guidedFlowDisabledPermanently) return;
     const sc = getSidebarScrollEl();
     const bodyEl = wrap && wrap.querySelector('.param-item__body');
     if (!sc || !headRow || !bodyEl) {
       return;
     }
+    let cancelled = false;
+    const cancel = function () {
+      cancelled = true;
+      sc.removeEventListener('wheel', cancel);
+      sc.removeEventListener('touchstart', cancel);
+      sc.removeEventListener('touchmove', cancel);
+      sc.removeEventListener('pointerdown', cancel);
+    };
+    // Felhasználói görgetésre azonnal vége a stabilizációnak (nincs ugrálás).
+    sc.addEventListener('wheel', cancel, { passive: true });
+    sc.addEventListener('touchstart', cancel, { passive: true });
+    sc.addEventListener('touchmove', cancel, { passive: true });
+    sc.addEventListener('pointerdown', cancel, { passive: true });
+
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
+        if (cancelled) return;
         const targetTop = headRow.getBoundingClientRect().top;
         function applyHeadRowAnchor() {
+          if (cancelled) return;
           const cur = headRow.getBoundingClientRect().top;
           const dy = cur - targetTop;
           if (Math.abs(dy) > 0.5) {
@@ -421,9 +445,11 @@
             ro = null;
           }
         }
-        maintainSidebarHeadRowViewportTop(headRow, sc, 950, targetTop);
+        maintainSidebarHeadRowViewportTop(headRow, sc, 320, targetTop, function () {
+          return cancelled;
+        });
         window.setTimeout(function () {
-          applyHeadRowAnchor();
+          if (!cancelled) applyHeadRowAnchor();
           if (ro) {
             try {
               ro.disconnect();
@@ -432,10 +458,8 @@
             }
             ro = null;
           }
-          requestAnimationFrame(function () {
-            applyHeadRowAnchor();
-          });
-        }, 1000);
+          cancel();
+        }, 360);
       });
     });
   }
@@ -621,6 +645,52 @@
   }
 
   /**
+   * Az adott sávra a *legkisebb mértékű* lazítás (legnagyobb flex01 érték a [0..1]
+   * tartományban), amelynél már létezik olyan település, amely (1) áll a geo-szűrőn,
+   * (2) az összes többi aktív sávon átmegy a jelen flex‑szel, és (3) ezt a sávot is teljesíti.
+   * @returns {number} flex01 ∈ [0, 1], vagy 0 ha nincs ilyen jelölt.
+   */
+  function computeMinimalFlexLooseningForBand(targets, problemKey) {
+    const pack = targets[problemKey];
+    if (!pack || pack.mode !== 'band') return 0;
+
+    let scaleMin = pack.scaleMin;
+    let scaleMax = pack.scaleMax;
+    if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
+      const cfg = getBandFilterConfigForDbKey(pack.indexKey || '');
+      const mr = cfg
+        ? computeBandFilterDataRange(cfg, pack.indexKey)
+        : computeNumericColumnRange(pack.companionKey, pack.parseValue || parseNumeric);
+      scaleMin = mr.min;
+      scaleMax = mr.max;
+    }
+    const lo = Math.min(pack.bandMin, pack.bandMax);
+    const hi = Math.max(pack.bandMin, pack.bandMax);
+
+    let bestF = -1;
+    for (let i = 0; i < citiesData.length; i++) {
+      const city = citiesData[i];
+      if (!passesGeoFilter(city)) continue;
+      if (!cityPassesAllBandFiltersExcept(city, targets, problemKey)) continue;
+      const got = bandFilterValueForCity(city, pack);
+      if (got == null) continue;
+      let maxF;
+      if (got >= lo && got <= hi) {
+        maxF = 1;
+      } else if (got < lo) {
+        const denom = lo - scaleMin;
+        maxF = denom <= 0 ? 0 : Math.max(0, Math.min(1, (got - scaleMin) / denom));
+      } else {
+        const denom = scaleMax - hi;
+        maxF = denom <= 0 ? 0 : Math.max(0, Math.min(1, (scaleMax - got) / denom));
+      }
+      if (maxF > bestF) bestF = maxF;
+    }
+    if (bestF < 0) return 0;
+    return bestF;
+  }
+
+  /**
    * Nincs találat: mely sávos mutatók szűrik ki legtöbb települést (rugalmasság lazítás javaslat).
    * @returns {{ reason: string, message: string, suggestions: Array<{ key: string, label: string, type: string, failOnly: number, flex: number }> } | null}
    */
@@ -672,12 +742,15 @@
           ? Math.max(0, Math.min(1, pack.flex))
           : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
       if (failOnly > 0) {
+        const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
         bandScores.push({
           key: key,
           label: paramLabelForDbKey(key),
           type: 'band',
           failOnly: failOnly,
           flex: flex,
+          // Cél flex (0..1) — a legkevésbé lazább érték, ami már enged át találatot
+          targetFlex: minLooseF,
           score: failOnly * (0.35 + flex * 0.65),
         });
       }
@@ -691,7 +764,7 @@
       return {
         reason: 'band',
         message:
-          'Túl szigorúak a beállítások: egy település sem felel meg minden sávnak egyszerre. Lazítsd a rugalmasságot (Laza), vagy szélesítsd a tól–ig sávokat.',
+          'Túl szigorúak a beállítások: egy település sem felel meg minden sávnak egyszerre. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
         suggestions: bandScores.slice(0, 3),
       };
     }
@@ -718,7 +791,7 @@
     return {
       reason: 'generic',
       message:
-        'Nincs megfelelő település. Lazítsd a rugalmasságot (Laza), szélesítsd a sávokat, vagy kapcsolj ki pár mutatót.',
+        'Nincs megfelelő település. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
       suggestions: bandScores.slice(0, 3),
     };
   }
@@ -730,7 +803,18 @@
       const flexEl =
         card && card.querySelector('input[type="range"][data-param-flex-for]');
       if (flexEl) {
-        flexEl.value = '0';
+        const targetF = Number.isFinite(sug.targetFlex)
+          ? Math.max(0, Math.min(1, sug.targetFlex))
+          : 0;
+        // A legszigorúbb (legmagasabb) flex egész‑lépés, ahol már épp van találat.
+        const targetInt = Math.max(
+          0,
+          Math.min(
+            PARAM_WEIGHT_SLIDER_MAX,
+            Math.floor(targetF * PARAM_WEIGHT_SLIDER_MAX + 1e-6)
+          )
+        );
+        flexEl.value = String(targetInt);
         flexEl.dispatchEvent(new Event('input', { bubbles: true }));
         flexEl.dispatchEvent(new Event('change', { bubbles: true }));
         try {
@@ -780,18 +864,42 @@
         li.className = 'strict-params-list__item';
         const row = document.createElement('div');
         row.className = 'strict-params-list__row';
+
         const label = document.createElement('span');
         label.className = 'strict-params-list__label';
         label.textContent = sug.label;
+        row.appendChild(label);
+
+        if (sug.type === 'band' && Number.isFinite(sug.targetFlex)) {
+          const targetInt = Math.max(
+            0,
+            Math.min(
+              PARAM_WEIGHT_SLIDER_MAX,
+              Math.floor(sug.targetFlex * PARAM_WEIGHT_SLIDER_MAX + 1e-6)
+            )
+          );
+          const currentInt = Math.max(
+            0,
+            Math.min(
+              PARAM_WEIGHT_SLIDER_MAX,
+              Math.round(sug.flex * PARAM_WEIGHT_SLIDER_MAX)
+            )
+          );
+          const hint = document.createElement('span');
+          hint.className = 'strict-params-list__hint';
+          hint.textContent =
+            'Rugalmasság: ' + currentInt + ' → ' + targetInt + ' / ' + PARAM_WEIGHT_SLIDER_MAX;
+          row.appendChild(hint);
+        }
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'strict-params-loosen-btn';
-        btn.textContent = 'Lazítsd (Laza)';
+        btn.textContent = 'Lazíts ennyivel';
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           applyLoosenSuggestion(sug);
         });
-        row.appendChild(label);
         row.appendChild(btn);
         li.appendChild(row);
         listEl.appendChild(li);
@@ -909,27 +1017,22 @@
     const btn = elements.mobileMapBackBtn;
     if (!btn) return;
     const root = document.documentElement;
-    if (!isTouchMobileAppStarted() || root.classList.contains('mobile-geo-setup') || root.classList.contains('map-picking')) {
-      btn.setAttribute('hidden', '');
-      btn.setAttribute('aria-hidden', 'true');
-      return;
-    }
-    const inMap = root.classList.contains('mobile-map-view');
-    const glyph = btn.querySelector('.mobile-map-back-btn__glyph');
-    if (inMap) {
+    const show =
+      isTouchMobileAppStarted() &&
+      root.classList.contains('mobile-map-view') &&
+      !root.classList.contains('mobile-geo-setup') &&
+      !root.classList.contains('map-picking');
+    if (show) {
       btn.removeAttribute('hidden');
       btn.setAttribute('aria-hidden', 'false');
       btn.title = 'Vissza a paraméterekhez';
       btn.setAttribute('aria-label', 'Vissza a paraméterekhez');
       btn.dataset.direction = 'to-panel';
+      const glyph = btn.querySelector('.mobile-map-back-btn__glyph');
       if (glyph) glyph.textContent = '‹';
     } else {
-      btn.removeAttribute('hidden');
-      btn.setAttribute('aria-hidden', 'false');
-      btn.title = 'Térkép megnyitása';
-      btn.setAttribute('aria-label', 'Térkép megnyitása');
-      btn.dataset.direction = 'to-map';
-      if (glyph) glyph.textContent = '›';
+      btn.setAttribute('hidden', '');
+      btn.setAttribute('aria-hidden', 'true');
     }
   }
 
@@ -1081,12 +1184,7 @@
     if (elements.mobileMapBackBtn) {
       elements.mobileMapBackBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        const dir = elements.mobileMapBackBtn.dataset.direction;
-        if (dir === 'to-map') {
-          setMobileMapView(true);
-        } else {
-          setMobileFullParamPanel();
-        }
+        setMobileFullParamPanel();
       });
     }
   }
@@ -1318,6 +1416,7 @@
   }
 
   function unlockGuidedParamFlow(revealNow) {
+    if (guidedFlowDisabledPermanently) return;
     guidedFlowUnlocked = true;
     guidedFlowParamIndex = 0;
     guidedParamStepDone = {};
@@ -1332,7 +1431,17 @@
   }
 
   function onMobileGeoSheetOk() {
+    const slot = mobileGeoSetupSlot;
     exitMobileGeoSetup(true);
+    // 1. fontos hely után: ha 2. még nincs beállítva, automatikusan nyissuk meg azt is.
+    if (slot === 'a' && geoSlotReady('a') && !geoSlotReady('b')) {
+      if (!isGeoPlaceSwitchOn('b')) {
+        setGeoPlaceCardActive('b', true);
+        mobileGeoSetupTurnedOnBySheet = true;
+      }
+      enterMobileGeoSetup('b');
+      return;
+    }
     if (isGeoSetupCompleteForGuidedUnlock()) {
       unlockGuidedParamFlow(true);
     }
@@ -1340,6 +1449,9 @@
 
   function onMobileGeoSheetCancel() {
     exitMobileGeoSetup(false);
+    if (isGeoSetupCompleteForGuidedUnlock()) {
+      unlockGuidedParamFlow(true);
+    }
   }
 
   function syncMobileGeoSheetForKeyboard() {
@@ -4129,6 +4241,7 @@
   }
 
   function revealGuidedParamStep(index) {
+    if (guidedFlowDisabledPermanently) return;
     if (!elements.paramCategoriesHost || index < 0 || index >= guidedParamKeys.length) return;
     if (isTouchMobileAppStarted()) {
       setMobileFullParamPanel();
@@ -4201,6 +4314,7 @@
   }
 
   function tryAdvanceGuidedParamAfterInput() {
+    if (guidedFlowDisabledPermanently) return;
     const key = guidedParamKeys[guidedFlowParamIndex];
     if (!key) return;
     const card = findParamCardByDbKey(key);
@@ -4218,6 +4332,7 @@
   }
 
   function advanceGuidedParamStep() {
+    if (guidedFlowDisabledPermanently) return;
     guidedFlowParamIndex++;
     clearGuidedScrollTimer();
     if (guidedFlowParamIndex < guidedParamKeys.length) {
@@ -4274,6 +4389,7 @@
    * Vezetett lépés: előbb fő érték (index / tól–ig), majd fontosság vagy rugalmasság — utána következő mutató.
    */
   function onGuidedParamRangeChange(e) {
+    if (guidedFlowDisabledPermanently) return;
     if (mobileGeoSetupSlot || guidedFlowIgnoreInputs || !guidedFlowUnlocked) return;
     const t = e.target;
     if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
@@ -6487,13 +6603,25 @@
     inp.addEventListener('focus', function () {
       renderSuggestions();
       if (shouldUseMobileGeoEditor() && document.documentElement.classList.contains('mobile-geo-setup')) {
-        document.documentElement.classList.add('mobile-geo-input-focused');
+        // Gépelés közben a térképes auto-pick legyen kikapcsolva, hogy ne ugorjon be
+        // a "Nem sikerült beazonosítani a települést" üzenet véletlen koppintástól.
+        disableMobileGeoAutoPick();
         scrollMobileGeoInputIntoView(inp);
       }
     });
     inp.addEventListener('blur', function () {
-      document.documentElement.classList.remove('mobile-geo-input-focused');
       hideListSoon();
+      if (shouldUseMobileGeoEditor() && mobileGeoSetupSlot) {
+        const slot = mobileGeoSetupSlot;
+        window.setTimeout(function () {
+          if (
+            mobileGeoSetupSlot === slot &&
+            !document.activeElement?.matches?.('.geo-city-input')
+          ) {
+            enableMobileGeoAutoPick(slot);
+          }
+        }, 280);
+      }
     });
     document.addEventListener('click', function (e) {
       if (!acWrap.contains(/** @type {Node} */ (e.target))) {
@@ -9009,6 +9137,14 @@
   async function runMainSearchFromButton() {
     sliderAutoSearchActive = true;
     firstMainSearchClickWithPrompt = false;
+    // Az első „Tökéletes hely keresése” kattintás után már semmilyen vezetett auto-úsztatás
+    // / scroll-stabilizáció nem fut — a felhasználó szabadon mozog a panelen.
+    guidedFlowDisabledPermanently = true;
+    guidedFlowUnlocked = false;
+    guidedFlowParamIndex = 0;
+    guidedParamStepDone = {};
+    clearGuidedScrollTimer();
+    sidebarLayoutAnchorEl = null;
     await performSearch({
       showTicket: true,
       persistToDb: true,
