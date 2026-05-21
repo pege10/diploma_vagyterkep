@@ -971,9 +971,27 @@
     if (map) setTimeout(function () { if (map) map.resize(); }, 120);
   }
 
+  /** Mobilon: teljes képernyős paraméter-panel, térkép rejtve (fontos hely Alkalmaz / vezetett lépés után). */
+  function setMobileFullParamPanel() {
+    if (!isTouchMobileAppStarted()) return;
+    const root = document.documentElement;
+    root.classList.remove('mobile-map-view', 'mobile-param-panel-open');
+    hideMobileWinnerSheet();
+    syncMobileMapBackBtn();
+    syncMobileMapDockButtons();
+    if (elements.sidebarDock) {
+      elements.sidebarDock.classList.remove('sidebar-dock--collapsed');
+    }
+    if (map) {
+      setTimeout(function () {
+        if (map) map.resize();
+      }, 120);
+    }
+  }
+
   /**
-   * Mobilon: térkép mindig látszik (mobile-map-view). on=true → csak térkép (+ találat panel);
-   * on=false → alsó ~1/3 paraméter-panel.
+   * Mobilon: térkép látszik (mobile-map-view). on=true → csak térkép (+ találat panel);
+   * on=false → alsó ~1/3 paraméter-panel a térkép felett.
    * @param {boolean} on
    * @param {{ forGeoEditor?: boolean }} [opts]
    */
@@ -1026,6 +1044,7 @@
     const root = document.documentElement;
     const inGeoSetup = root.classList.contains('mobile-geo-setup');
     const inMap = root.classList.contains('mobile-map-view');
+    const fullPanel = root.classList.contains('app-started') && !inMap;
     const hasWinnerSheet = root.classList.contains('mobile-winner-sheet-open');
     const paramPanelOpen = root.classList.contains('mobile-param-panel-open');
     const openBtn = document.getElementById('sidebar-expand-btn');
@@ -1036,10 +1055,10 @@
       return;
     }
     if (openBtn) {
-      const showExpand = inMap && !hasWinnerSheet && !paramPanelOpen;
+      const showExpand = (fullPanel || (inMap && !hasWinnerSheet && !paramPanelOpen));
       openBtn.setAttribute('aria-hidden', showExpand ? 'false' : 'true');
-      openBtn.title = 'Paraméterek megnyitása';
-      openBtn.setAttribute('aria-label', 'Paraméterek megnyitása');
+      openBtn.title = fullPanel ? 'Térkép megnyitása' : 'Paraméterek megnyitása';
+      openBtn.setAttribute('aria-label', openBtn.title);
     }
     if (closeBtn) {
       const showClose = inMap && paramPanelOpen && !hasWinnerSheet;
@@ -1196,6 +1215,7 @@
     document.documentElement.setAttribute('data-geo-setup-slot', slot);
     showMobileGeoSheetEl(true);
     hideMobileWinnerSheet();
+    document.documentElement.classList.remove('mobile-geo-keyboard');
     setMobileMapView(true, { forGeoEditor: true });
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
@@ -1230,7 +1250,8 @@
     const turnedOnBySheet = mobileGeoSetupTurnedOnBySheet;
     mobileGeoSetupTurnedOnBySheet = false;
 
-    document.documentElement.classList.remove('mobile-geo-setup');
+    document.documentElement.classList.remove('mobile-geo-setup', 'mobile-geo-keyboard', 'mobile-geo-input-focused');
+    document.documentElement.style.removeProperty('--mobile-vv-bottom');
     document.documentElement.removeAttribute('data-geo-setup-slot');
     showMobileGeoSheetEl(false);
 
@@ -1238,7 +1259,7 @@
       setGeoPlaceCardActive(slot, false);
     }
 
-    setMobileMapView(false);
+    setMobileFullParamPanel();
     syncMobileMapDockButtons();
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
@@ -1278,6 +1299,54 @@
 
   function onMobileGeoSheetCancel() {
     exitMobileGeoSetup(false);
+  }
+
+  function syncMobileGeoSheetForKeyboard() {
+    const root = document.documentElement;
+    if (!root.classList.contains('mobile-geo-setup')) {
+      root.classList.remove('mobile-geo-keyboard');
+      root.style.removeProperty('--mobile-vv-bottom');
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    if (gap > 72) {
+      root.classList.add('mobile-geo-keyboard');
+      root.style.setProperty('--mobile-vv-bottom', Math.round(gap) + 'px');
+    } else {
+      root.classList.remove('mobile-geo-keyboard');
+      root.style.removeProperty('--mobile-vv-bottom');
+    }
+  }
+
+  function scrollMobileGeoInputIntoView(inp) {
+    if (!inp || !document.documentElement.classList.contains('mobile-geo-setup')) return;
+    const host = elements.mobileGeoCardHost;
+    window.setTimeout(function () {
+      syncMobileGeoSheetForKeyboard();
+      if (host && host.contains(inp)) {
+        const hostRect = host.getBoundingClientRect();
+        const inpRect = inp.getBoundingClientRect();
+        const vv = window.visualViewport;
+        const viewTop = vv ? vv.offsetTop + 12 : 12;
+        const viewBottom = vv ? vv.offsetTop + vv.height - 12 : window.innerHeight - 12;
+        if (inpRect.top < viewTop || inpRect.bottom > viewBottom) {
+          const delta = inpRect.top - (viewTop + (viewBottom - viewTop) * 0.28);
+          host.scrollTop += delta;
+        }
+      }
+      try {
+        inp.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      } catch (_) {}
+    }, 320);
+  }
+
+  function initMobileGeoKeyboardGuard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    vv.addEventListener('resize', syncMobileGeoSheetForKeyboard);
+    vv.addEventListener('scroll', syncMobileGeoSheetForKeyboard);
   }
 
   function initMobileGeoSheet() {
@@ -1329,6 +1398,26 @@
     } else {
       document.documentElement.classList.remove('exhibition-mode');
     }
+  }
+
+  function tryLockPortraitOrientation() {
+    try {
+      if (screen.orientation && typeof screen.orientation.lock === 'function') {
+        screen.orientation.lock('portrait').catch(function () {});
+      }
+    } catch (_) {}
+  }
+
+  function initPortraitOrientationLock() {
+    if (!document.documentElement.classList.contains('is-touch')) return;
+    tryLockPortraitOrientation();
+    document.addEventListener(
+      'click',
+      function lockOnce() {
+        tryLockPortraitOrientation();
+      },
+      { once: true, capture: true }
+    );
   }
 
   /**
@@ -4001,7 +4090,7 @@
   function revealGuidedParamStep(index) {
     if (!elements.paramCategoriesHost || index < 0 || index >= guidedParamKeys.length) return;
     if (isTouchMobileAppStarted()) {
-      setMobileMapView(false);
+      setMobileFullParamPanel();
     }
     syncGuidedParamCardsToStep(index);
     const key = guidedParamKeys[index];
@@ -6354,8 +6443,17 @@
     });
 
     inp.addEventListener('input', renderSuggestions);
-    inp.addEventListener('focus', renderSuggestions);
-    inp.addEventListener('blur', hideListSoon);
+    inp.addEventListener('focus', function () {
+      renderSuggestions();
+      if (shouldUseMobileGeoEditor() && document.documentElement.classList.contains('mobile-geo-setup')) {
+        document.documentElement.classList.add('mobile-geo-input-focused');
+        scrollMobileGeoInputIntoView(inp);
+      }
+    });
+    inp.addEventListener('blur', function () {
+      document.documentElement.classList.remove('mobile-geo-input-focused');
+      hideListSoon();
+    });
     document.addEventListener('click', function (e) {
       if (!acWrap.contains(/** @type {Node} */ (e.target))) {
         list.hidden = true;
@@ -8748,6 +8846,7 @@
     if (!elements.startOverlay) return;
 
     requestFullscreen();
+    tryLockPortraitOrientation();
 
     document.documentElement.classList.add('app-started', 'mobile-map-view');
     syncMobileMapDockButtons();
@@ -9020,7 +9119,14 @@
       if (!sidebarDock) return;
       if (isTouchMobileAppStarted()) {
         const root = document.documentElement;
-        if (root.classList.contains('mobile-param-panel-open')) {
+        if (!root.classList.contains('mobile-map-view')) {
+          root.classList.add('mobile-map-view');
+          root.classList.remove('mobile-param-panel-open');
+          hideMobileWinnerSheet();
+          syncMobileMapBackBtn();
+          syncMobileMapDockButtons();
+          if (map) setTimeout(function () { if (map) map.resize(); }, 120);
+        } else if (root.classList.contains('mobile-param-panel-open')) {
           setMobileMapView(true);
         } else {
           setMobileMapView(false);
@@ -9061,6 +9167,8 @@
     initFirstSearchHintModal();
     initStrictParamsModal();
     initMobileGeoSheet();
+    initMobileGeoKeyboardGuard();
+    initPortraitOrientationLock();
     initMobileMapChrome();
     if (isTouchMobileAppStarted()) {
       document.documentElement.classList.add('mobile-map-view');

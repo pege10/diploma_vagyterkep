@@ -111,6 +111,11 @@
     <button type="button" id="map-picking-cancel" class="map-picking-cancel">Mégse</button>
   </div>
 
+  <div id="orientation-lock-overlay" class="orientation-lock-overlay" aria-hidden="true">
+    <span class="orientation-lock-overlay__icon" aria-hidden="true">↻</span>
+    <p class="orientation-lock-overlay__text">Kérjük, állítsd állóba a telefont</p>
+  </div>
+
   <div id="start-overlay" class="start-overlay">
     <div class="start-content">
       <p class="start-title">Holistic Search Engine</p>
@@ -156,7 +161,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/app.js?v=154"></script>
+  <script src="/app.js?v=155"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
