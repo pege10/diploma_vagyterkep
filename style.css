@@ -3574,7 +3574,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
     z-index: 143 !important;
     max-height: min(52vh, 480px) !important;
     overflow-x: hidden !important;
@@ -3617,6 +3617,15 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     padding: 10px 14px 12px;
     border-top: 1px solid var(--line-strong);
     background: var(--paper);
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+  }
+
+  .mobile-geo-sheet__actions .mobile-geo-sheet__btn {
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .mobile-geo-sheet__btn {
@@ -3657,11 +3666,11 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch.mobile-geo-setup #map-container.map-container {
-    bottom: calc(min(52vh, 480px) + 118px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(min(46vh, 420px) + 132px + env(safe-area-inset-bottom, 0px));
   }
 
   html.is-touch.mobile-geo-setup.map-picking #map-container.map-container {
-    bottom: calc(min(52vh, 480px) + 118px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(min(46vh, 420px) + 132px + env(safe-area-inset-bottom, 0px));
   }
 
   html.is-touch.mobile-geo-setup .param-item--geo-editing input,

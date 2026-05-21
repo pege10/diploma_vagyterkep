@@ -1218,13 +1218,30 @@
     }
   }
 
+  function isGeoSetupCompleteForGuidedUnlock() {
+    if (!geoSlotReady('a')) return false;
+    if (isGeoPlaceSwitchOn('b')) return geoSlotReady('b');
+    return true;
+  }
+
+  function unlockGuidedParamFlow(revealNow) {
+    guidedFlowUnlocked = true;
+    guidedFlowParamIndex = 0;
+    guidedParamStepDone = {};
+    rebuildGuidedParamKeysFromDom();
+    clearGuidedScrollTimer();
+    if (revealNow) {
+      guidedScrollTimer = setTimeout(function () {
+        guidedScrollTimer = null;
+        revealGuidedParamStep(0);
+      }, 450);
+    }
+  }
+
   function onMobileGeoSheetOk() {
-    const slot = mobileGeoSetupSlot;
     exitMobileGeoSetup(true);
-    if (slot === 'a' && geoSlotReady('a')) {
-      maybeAdvanceGuidedFlowAfterGeo('a');
-    } else if (slot === 'b' && geoSlotReady('b')) {
-      maybeAdvanceGuidedFlowAfterGeo('b');
+    if (isGeoSetupCompleteForGuidedUnlock()) {
+      unlockGuidedParamFlow(true);
     }
   }
 
@@ -1233,6 +1250,24 @@
   }
 
   function initMobileGeoSheet() {
+    const sheet = elements.mobileGeoSheet;
+    function handleSheetAction(e) {
+      if (e.target.closest('#mobile-geo-sheet-ok')) {
+        e.preventDefault();
+        e.stopPropagation();
+        onMobileGeoSheetOk();
+        return;
+      }
+      if (e.target.closest('#mobile-geo-sheet-cancel')) {
+        e.preventDefault();
+        e.stopPropagation();
+        onMobileGeoSheetCancel();
+      }
+    }
+    if (sheet) {
+      sheet.addEventListener('click', handleSheetAction);
+      sheet.addEventListener('touchend', handleSheetAction, { passive: false });
+    }
     if (elements.mobileGeoSheetOk) {
       elements.mobileGeoSheetOk.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -3844,9 +3879,11 @@
     if (!host) return;
     for (let i = 0; i < guidedParamKeys.length; i++) {
       const key = guidedParamKeys[i];
-      const el = host.querySelector('[data-param-key="' + key + '"]');
-      if (!el) continue;
-      const card = el.closest('.param-item');
+      let card = findParamCardByDbKey(key);
+      if (!card) {
+        const el = host.querySelector('[data-param-key="' + key + '"]');
+        card = el && el.closest('.param-item');
+      }
       if (!card) continue;
       if (i <= activeIndex) {
         setParamCardSwitchOn(card, true);
@@ -3966,26 +4003,6 @@
     }
   }
 
-  function maybeAdvanceGuidedFlowAfterGeo(slot) {
-    if (slot === 'a') {
-      expandImportantPlaceCard('b');
-      setGeoPlaceCardActive('b', true);
-      if (shouldUseMobileGeoEditor()) {
-        mobileGeoSetupTurnedOnBySheet = true;
-        enterMobileGeoSetup('b');
-      }
-      return;
-    }
-    if (slot === 'b') {
-      guidedFlowUnlocked = true;
-      guidedFlowParamIndex = 0;
-      guidedParamStepDone = {};
-      rebuildGuidedParamKeysFromDom();
-      clearGuidedScrollTimer();
-      revealGuidedParamStep(0);
-    }
-  }
-
   function syncGuidedFlowFromPersistedGeo() {
     rebuildGuidedParamKeysFromDom();
     clearGuidedScrollTimer();
@@ -3999,20 +4016,26 @@
       geoSlotState.b.city &&
       Number.isFinite(geoSlotState.b.lat) &&
       Number.isFinite(geoSlotState.b.lng);
-    if (bOk) {
-      guidedFlowUnlocked = true;
+    const mobileGeo = shouldUseMobileGeoEditor();
+
+    if (bOk && (!mobileGeo || !isGeoPlaceSwitchOn('b'))) {
+      unlockGuidedParamFlow(!mobileGeo);
+    } else if (bOk && mobileGeo) {
+      guidedFlowUnlocked = false;
       guidedFlowParamIndex = 0;
-      revealGuidedParamStep(0);
+      guidedParamStepDone = {};
     } else {
       guidedFlowUnlocked = false;
       guidedFlowParamIndex = 0;
-      if (aOk) {
+      guidedParamStepDone = {};
+      if (mobileGeo) {
+        if (!aOk && (mobileGeoAutoOpenSlot === 'a' || shouldAutoOpenMobileGeoSetup('a'))) {
+          mobileGeoAutoOpenSlot = null;
+          tryOpenMobileGeoSetupIfNeeded('a');
+        }
+      } else if (aOk) {
         expandImportantPlaceCard('b');
         setGeoPlaceCardActive('b', true);
-        if (shouldUseMobileGeoEditor() && shouldAutoOpenMobileGeoSetup('b')) {
-          mobileGeoSetupTurnedOnBySheet = true;
-          enterMobileGeoSetup('b');
-        }
       } else if (mobileGeoAutoOpenSlot === 'a' || shouldAutoOpenMobileGeoSetup('a')) {
         mobileGeoAutoOpenSlot = null;
         tryOpenMobileGeoSetupIfNeeded('a');
@@ -4024,9 +4047,11 @@
    * Vezetett lépés: előbb fő érték (index / tól–ig), majd fontosság vagy rugalmasság — utána következő mutató.
    */
   function onGuidedParamRangeChange(e) {
-    if (guidedFlowIgnoreInputs || !guidedFlowUnlocked) return;
+    if (mobileGeoSetupSlot || guidedFlowIgnoreInputs || !guidedFlowUnlocked) return;
     const t = e.target;
     if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
+    if (t.closest('.param-item--geo-place')) return;
+    if (t.id === 'geo-radius-a' || t.id === 'geo-radius-b') return;
     const key = getGuidedParamKeyFromRangeInput(t);
     if (!key || key !== guidedParamKeys[guidedFlowParamIndex]) return;
     if (!guidedParamStepDone[key]) {
@@ -4070,9 +4095,6 @@
     refreshGeoFilterWarning();
     scheduleSearchFromSliders();
     updateImportantPlaceCircles();
-    if (st.city && Number.isFinite(st.lat) && Number.isFinite(st.lng)) {
-      maybeAdvanceGuidedFlowAfterGeo(slot);
-    }
   }
 
   function applyTypedGeoSlot(slot) {
@@ -8596,7 +8618,7 @@
 
     document.documentElement.classList.add('app-started');
     syncMobileMapDockButtons();
-    if (isTouchMobileAppStarted() && isGeoPlaceSwitchOn('a')) {
+    if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a')) {
       mobileGeoAutoOpenSlot = 'a';
     }
 
@@ -8608,6 +8630,9 @@
       }
       if (map) {
         map.resize();
+      }
+      if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && elements.geoActiveA) {
+        openMobileGeoEditorIfNeeded('a');
       }
     }, 500);
   }
@@ -8899,6 +8924,11 @@
     initMap();
     buildImportantPlacesPanel();
     initImportantPlaceElements();
+    if (document.documentElement.classList.contains('app-started') && shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a')) {
+      window.setTimeout(function () {
+        openMobileGeoEditorIfNeeded('a');
+      }, 350);
+    }
     bindParamInfoWraps(document.getElementById('sidebar-main'));
     setupGeoAutocomplete('a');
     setupGeoAutocomplete('b');
