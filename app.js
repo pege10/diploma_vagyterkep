@@ -895,12 +895,12 @@
     return root.classList.contains('is-touch') || isMobileLayoutViewport();
   }
 
-  /** Mobilon: teljes képernyős panel (nincs térkép) — indítás előtt; indulás után mindig térképes nézet. */
+  /** Mobilon: teljes képernyős paraméter panel (térkép rejtve) — nem renderelünk térképi jelölőket. */
   function isMobileMapPanelMode() {
     const root = document.documentElement;
     return (
       isTouchMobileAppStarted() &&
-      !root.classList.contains('app-started') &&
+      !root.classList.contains('mobile-map-view') &&
       !root.classList.contains('map-picking')
     );
   }
@@ -909,18 +909,27 @@
     const btn = elements.mobileMapBackBtn;
     if (!btn) return;
     const root = document.documentElement;
-    const show =
-      isTouchMobileAppStarted() &&
-      root.classList.contains('mobile-map-view') &&
-      !root.classList.contains('mobile-param-panel-open') &&
-      !root.classList.contains('mobile-geo-setup') &&
-      !root.classList.contains('map-picking');
-    if (show) {
-      btn.removeAttribute('hidden');
-      btn.setAttribute('aria-hidden', 'false');
-    } else {
+    if (!isTouchMobileAppStarted() || root.classList.contains('mobile-geo-setup') || root.classList.contains('map-picking')) {
       btn.setAttribute('hidden', '');
       btn.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const inMap = root.classList.contains('mobile-map-view');
+    const glyph = btn.querySelector('.mobile-map-back-btn__glyph');
+    if (inMap) {
+      btn.removeAttribute('hidden');
+      btn.setAttribute('aria-hidden', 'false');
+      btn.title = 'Vissza a paraméterekhez';
+      btn.setAttribute('aria-label', 'Vissza a paraméterekhez');
+      btn.dataset.direction = 'to-panel';
+      if (glyph) glyph.textContent = '‹';
+    } else {
+      btn.removeAttribute('hidden');
+      btn.setAttribute('aria-hidden', 'false');
+      btn.title = 'Térkép megnyitása';
+      btn.setAttribute('aria-label', 'Térkép megnyitása');
+      btn.dataset.direction = 'to-map';
+      if (glyph) glyph.textContent = '›';
     }
   }
 
@@ -1072,7 +1081,12 @@
     if (elements.mobileMapBackBtn) {
       elements.mobileMapBackBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        setMobileMapView(false);
+        const dir = elements.mobileMapBackBtn.dataset.direction;
+        if (dir === 'to-map') {
+          setMobileMapView(true);
+        } else {
+          setMobileFullParamPanel();
+        }
       });
     }
   }
@@ -1175,6 +1189,30 @@
     }
   }
 
+  /** Mobil fontos hely szerkesztés: a térképre koppintás auto-pick (a "Térkép" gomb nem szükséges). */
+  async function enableMobileGeoAutoPick(slot) {
+    if (slot !== 'a' && slot !== 'b') return;
+    const target = slot === 'a' ? 'geoA' : 'geoB';
+    try {
+      await ensureGeoIndexed();
+    } catch (_) {}
+    pickMode = target;
+    bindMapPickInteraction();
+    if (elements.mapContainer) {
+      elements.mapContainer.classList.add('map-picking-cursor');
+    }
+    updatePickButtonActive();
+  }
+
+  function disableMobileGeoAutoPick() {
+    unbindMapPickInteraction();
+    pickMode = null;
+    if (elements.mapContainer) {
+      elements.mapContainer.classList.remove('map-picking-cursor');
+    }
+    updatePickButtonActive();
+  }
+
   function enterMobileGeoSetup(slot) {
     if (!shouldUseMobileGeoEditor() || (slot !== 'a' && slot !== 'b')) return;
     if (mobileGeoSetupSlot === slot) return;
@@ -1217,6 +1255,7 @@
     hideMobileWinnerSheet();
     document.documentElement.classList.remove('mobile-geo-keyboard');
     setMobileMapView(true, { forGeoEditor: true });
+    enableMobileGeoAutoPick(slot);
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
     syncGeoMarkersFromState();
@@ -1249,6 +1288,8 @@
     mobileGeoSetupRestore = null;
     const turnedOnBySheet = mobileGeoSetupTurnedOnBySheet;
     mobileGeoSetupTurnedOnBySheet = false;
+
+    disableMobileGeoAutoPick();
 
     document.documentElement.classList.remove('mobile-geo-setup', 'mobile-geo-keyboard', 'mobile-geo-input-focused');
     document.documentElement.style.removeProperty('--mobile-vv-bottom');
@@ -9120,16 +9161,9 @@
       if (isTouchMobileAppStarted()) {
         const root = document.documentElement;
         if (!root.classList.contains('mobile-map-view')) {
-          root.classList.add('mobile-map-view');
-          root.classList.remove('mobile-param-panel-open');
-          hideMobileWinnerSheet();
-          syncMobileMapBackBtn();
-          syncMobileMapDockButtons();
-          if (map) setTimeout(function () { if (map) map.resize(); }, 120);
-        } else if (root.classList.contains('mobile-param-panel-open')) {
           setMobileMapView(true);
         } else {
-          setMobileMapView(false);
+          setMobileFullParamPanel();
         }
         return;
       }

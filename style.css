@@ -3516,7 +3516,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     display: none !important;
   }
 
-  html.is-touch.mobile-map-view .mobile-map-back-btn:not([hidden]) {
+  html.is-touch.app-started .mobile-map-back-btn:not([hidden]) {
     display: inline-flex;
   }
 
@@ -4175,8 +4175,14 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
 }
 
 /* Kiállítás (/exhibition/): nincs megoldás a térképen — csak sorszám jegy */
-html.exhibition-mode .mobile-winner-sheet,
-html.exhibition-mode .mobile-map-back-btn {
+html.exhibition-mode .mobile-winner-sheet {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* A fő panelből (nem fontos-hely szerkesztésben) ne lehessen térképre váltani */
+html.exhibition-mode.app-started:not(.mobile-geo-setup):not(.map-picking) .mobile-map-back-btn[data-direction="to-map"],
+html.exhibition-mode.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
   display: none !important;
   pointer-events: none !important;
 }
