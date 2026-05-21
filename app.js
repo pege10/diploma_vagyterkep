@@ -689,15 +689,11 @@
   }
 
   /**
-   * Az adott sávra a *legkisebb mértékű* lazítás (legnagyobb flex01 érték a [0..1]
-   * tartományban), amelynél már létezik olyan település, amely (1) áll a geo-szűrőn,
-   * (2) az összes többi aktív sávon átmegy a jelen flex‑szel, és (3) ezt a sávot is teljesíti.
-   * @returns {number} flex01 ∈ [0, 1], vagy 0 ha nincs ilyen jelölt.
+   * Egy településre: legfeljebb mekkora flex01 mellett megy át a sávon (0=laza … 1=szigorú).
+   * @returns {number} flex01 ∈ [0, 1], vagy -1 ha nincs érték
    */
-  function computeMinimalFlexLooseningForBand(targets, problemKey) {
-    const pack = targets[problemKey];
-    if (!pack || pack.mode !== 'band') return 0;
-
+  function computeCityMaxFlex01ForBand(city, pack) {
+    if (!pack || pack.mode !== 'band') return -1;
     let scaleMin = pack.scaleMin;
     let scaleMax = pack.scaleMax;
     if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
@@ -710,40 +706,68 @@
     }
     const lo = Math.min(pack.bandMin, pack.bandMax);
     const hi = Math.max(pack.bandMin, pack.bandMax);
+    const got = bandFilterValueForCity(city, pack);
+    if (got == null) return -1;
+    if (got >= lo && got <= hi) return 1;
+    if (got < lo) {
+      const denom = lo - scaleMin;
+      return denom <= 0 ? 0 : Math.max(0, Math.min(1, (got - scaleMin) / denom));
+    }
+    const denom = scaleMax - hi;
+    return denom <= 0 ? 0 : Math.max(0, Math.min(1, (scaleMax - got) / denom));
+  }
 
-    let bestF = -1;
+  /**
+   * Lazítás cél-flex01: csökkenteni kell (Laza felé), mert 0=laza, 1=szigorú a csúszkán.
+   * @param {Record<string, object>} targets
+   * @param {string} problemKey
+   * @param {number} currentFlex01
+   * @returns {number}
+   */
+  function computeLoosenTargetFlex01ForBand(targets, problemKey, currentFlex01) {
+    const pack = targets[problemKey];
+    if (!pack || pack.mode !== 'band') return 0;
+
+    const flexInt = Math.max(
+      0,
+      Math.min(
+        PARAM_WEIGHT_SLIDER_MAX,
+        Math.round(currentFlex01 * PARAM_WEIGHT_SLIDER_MAX)
+      )
+    );
+    if (flexInt <= 0) return 0;
+
+    let cap = 1;
+    let found = false;
     for (let i = 0; i < citiesData.length; i++) {
       const city = citiesData[i];
       if (!passesGeoFilter(city)) continue;
       if (!cityPassesAllBandFiltersExcept(city, targets, problemKey)) continue;
-      const got = bandFilterValueForCity(city, pack);
-      if (got == null) continue;
-      let maxF;
-      if (got >= lo && got <= hi) {
-        maxF = 1;
-      } else if (got < lo) {
-        const denom = lo - scaleMin;
-        maxF = denom <= 0 ? 0 : Math.max(0, Math.min(1, (got - scaleMin) / denom));
-      } else {
-        const denom = scaleMax - hi;
-        maxF = denom <= 0 ? 0 : Math.max(0, Math.min(1, (scaleMax - got) / denom));
-      }
-      if (maxF > bestF) bestF = maxF;
+      const maxF = computeCityMaxFlex01ForBand(city, pack);
+      if (maxF < 0) continue;
+      found = true;
+      cap = Math.min(cap, maxF);
     }
-    if (bestF < 0) return 0;
-    return bestF;
+
+    if (found) {
+      const capInt = Math.floor(cap * PARAM_WEIGHT_SLIDER_MAX + 1e-6);
+      if (capInt < flexInt) return cap;
+    }
+    return (flexInt - 1) / PARAM_WEIGHT_SLIDER_MAX;
   }
 
-  /** Lazítás cél-flex: számított minimum, vagy legalább egy csúszka-lépéssel lazább. */
+  /** @deprecated Használd computeLoosenTargetFlex01ForBand — régi név kompatibilitásra. */
+  function computeMinimalFlexLooseningForBand(targets, problemKey) {
+    const pack = targets[problemKey];
+    const flex =
+      pack && pack.flex != null && Number.isFinite(pack.flex)
+        ? Math.max(0, Math.min(1, pack.flex))
+        : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
+    return computeLoosenTargetFlex01ForBand(targets, problemKey, flex);
+  }
+
   function resolveBandLoosenTargetFlex(targets, key, flex) {
-    const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
-    if (Number.isFinite(minLooseF) && minLooseF > flex + 1e-4) return minLooseF;
-    const flexInt = Math.max(
-      0,
-      Math.min(PARAM_WEIGHT_SLIDER_MAX, Math.round(flex * PARAM_WEIGHT_SLIDER_MAX))
-    );
-    if (flexInt >= PARAM_WEIGHT_SLIDER_MAX) return 1;
-    return (flexInt + 1) / PARAM_WEIGHT_SLIDER_MAX;
+    return computeLoosenTargetFlex01ForBand(targets, key, flex);
   }
 
   function countBandFilterFails(eligible, pack) {
@@ -779,10 +803,10 @@
       const failCount = countBandFilterFails(eligible, pack);
       if (!passAllBandsZero && failCount === 0) continue;
 
-      let targetFlex = resolveBandLoosenTargetFlex(targets, key, flex);
+      const targetFlex = resolveBandLoosenTargetFlex(targets, key, flex);
       const flexInt = Math.round(flex * PARAM_WEIGHT_SLIDER_MAX);
       const targetInt = Math.floor(targetFlex * PARAM_WEIGHT_SLIDER_MAX + 1e-6);
-      if (targetInt <= flexInt && failCount === 0) continue;
+      if (targetInt >= flexInt && failCount === 0) continue;
 
       bandScores.push({
         key: key,
@@ -790,9 +814,9 @@
         type: 'band',
         failOnly: failCount,
         flex: flex,
-        targetFlex: Math.min(1, targetFlex),
-        score: failCount * (0.35 + flex * 0.65) + targetFlex,
-        atMaxFlex: targetInt <= flexInt,
+        targetFlex: Math.max(0, targetFlex),
+        score: failCount * (0.35 + flex * 0.65) + (flexInt - targetInt),
+        atMaxFlex: flexInt <= 0,
       });
     }
     bandScores.sort(function (a, b) {
@@ -859,16 +883,19 @@
           ? Math.max(0, Math.min(1, pack.flex))
           : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
       if (failOnly > 0) {
-        const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
+        const targetFlex = computeLoosenTargetFlex01ForBand(targets, key, flex);
+        const flexInt = Math.round(flex * PARAM_WEIGHT_SLIDER_MAX);
+        const targetInt = Math.floor(targetFlex * PARAM_WEIGHT_SLIDER_MAX + 1e-6);
+        if (targetInt >= flexInt) continue;
         bandScores.push({
           key: key,
           label: paramLabelForDbKey(key),
           type: 'band',
           failOnly: failOnly,
           flex: flex,
-          // Cél flex (0..1) — a legkevésbé lazább érték, ami már enged át találatot
-          targetFlex: minLooseF,
+          targetFlex: targetFlex,
           score: failOnly * (0.35 + flex * 0.65),
+          atMaxFlex: false,
         });
       }
     }
@@ -877,35 +904,19 @@
       return b.score - a.score;
     });
 
-    /** Több sáv együtt szűr: egyik sem „egyedüli” blokkoló (failOnly=0), de lazítás még számítható. */
-    if (bandScores.length === 0 && passAllBands === 0) {
-      for (const key in targets) {
-        if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
-        const pack = targets[key];
-        if (!pack || pack.mode !== 'band') continue;
-        const flex =
-          pack.flex != null && Number.isFinite(pack.flex)
-            ? Math.max(0, Math.min(1, pack.flex))
-            : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
-        const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
-        if (!Number.isFinite(minLooseF) || minLooseF <= flex + 1e-4) continue;
-        let failCount = 0;
-        for (let k = 0; k < eligible.length; k++) {
-          if (!passesBandFilterForCity(eligible[k], pack)) failCount++;
-        }
-        bandScores.push({
-          key: key,
-          label: paramLabelForDbKey(key),
-          type: 'band',
-          failOnly: failCount,
-          flex: flex,
-          targetFlex: minLooseF,
-          score: failCount * (0.35 + flex * 0.65) + minLooseF,
-        });
-      }
-      bandScores.sort(function (a, b) {
-        return b.score - a.score;
+    if (bandScores.length === 0) {
+      fillBandLoosenScoresFallback(bandScores, targets, eligible, {
+        passAllBandsZero: passAllBands === 0,
       });
+      // #region agent log
+      dbgMobile('H8', 'buildStrictFilterSuggestions', 'fallback-fill', {
+        passAllBands: passAllBands,
+        bandScoreCount: bandScores.length,
+        bandKeys: bandScores.map(function (s) {
+          return s.key;
+        }),
+      });
+      // #endregion
     }
 
     if (passAllBands === 0 && bandScores.length > 0) {
@@ -970,10 +981,10 @@
       const flexEl =
         card && card.querySelector('input[type="range"][data-param-flex-for]');
       if (flexEl) {
+        const beforeInt = parseInt(flexEl.value, 10);
         const targetF = Number.isFinite(sug.targetFlex)
           ? Math.max(0, Math.min(1, sug.targetFlex))
           : 0;
-        // A legszigorúbb (legmagasabb) flex egész‑lépés, ahol már épp van találat.
         const targetInt = Math.max(
           0,
           Math.min(
@@ -981,6 +992,14 @@
             Math.floor(targetF * PARAM_WEIGHT_SLIDER_MAX + 1e-6)
           )
         );
+        // #region agent log
+        dbgMobile('H9', 'applyLoosenSuggestion', 'flex-change', {
+          key: sug.key,
+          before: beforeInt,
+          after: targetInt,
+          atMaxFlex: !!sug.atMaxFlex,
+        });
+        // #endregion
         flexEl.value = String(targetInt);
         flexEl.dispatchEvent(new Event('input', { bubbles: true }));
         flexEl.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1081,9 +1100,20 @@
           );
           const hint = document.createElement('span');
           hint.className = 'strict-params-list__hint';
-          hint.textContent =
-            'Rugalmasság: ' + currentInt + ' → ' + targetInt + ' / ' + PARAM_WEIGHT_SLIDER_MAX;
+          hint.textContent = sug.atMaxFlex
+            ? 'Már max laza (' +
+              PARAM_WEIGHT_SLIDER_MAX +
+              '/' +
+              PARAM_WEIGHT_SLIDER_MAX +
+              ') — szélesítsd a sávot is'
+            : 'Rugalmasság: ' + currentInt + ' → ' + targetInt + ' / ' + PARAM_WEIGHT_SLIDER_MAX;
           row.appendChild(hint);
+        } else if (sug.type === 'band' && sug.atMaxFlex) {
+          const hintMax = document.createElement('span');
+          hintMax.className = 'strict-params-list__hint';
+          hintMax.textContent =
+            'Már max laza — szélesítsd a sávot, vagy kapcsold ki a mutatót';
+          row.appendChild(hintMax);
         }
 
         const btn = document.createElement('button');
