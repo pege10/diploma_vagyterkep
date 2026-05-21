@@ -1100,19 +1100,19 @@
           );
           const hint = document.createElement('span');
           hint.className = 'strict-params-list__hint';
-          hint.textContent = sug.atMaxFlex
-            ? 'Már max laza (' +
-              PARAM_WEIGHT_SLIDER_MAX +
-              '/' +
-              PARAM_WEIGHT_SLIDER_MAX +
-              ') — szélesítsd a sávot is'
-            : 'Rugalmasság: ' + currentInt + ' → ' + targetInt + ' / ' + PARAM_WEIGHT_SLIDER_MAX;
+          hint.textContent =
+            'Rugalmasság (Laza 0 → Szigorú ' +
+            PARAM_WEIGHT_SLIDER_MAX +
+            '): ' +
+            currentInt +
+            ' → ' +
+            targetInt;
           row.appendChild(hint);
         } else if (sug.type === 'band' && sug.atMaxFlex) {
           const hintMax = document.createElement('span');
           hintMax.className = 'strict-params-list__hint';
           hintMax.textContent =
-            'Már max laza — szélesítsd a sávot, vagy kapcsold ki a mutatót';
+            'Már a leglazább (0) — szélesítsd a sávot, vagy kapcsold ki a mutatót';
           row.appendChild(hintMax);
         }
 
