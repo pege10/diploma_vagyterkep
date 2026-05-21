@@ -1004,6 +1004,7 @@
             syncGeoMarkersFromState();
             updateImportantPlaceCircles();
             if (
+              shouldRevealSearchSolutionToUser() &&
               !forGeoEditor &&
               !root.classList.contains('mobile-geo-setup') &&
               lastSearchFeedbackMeta &&
@@ -1312,17 +1313,31 @@
     }
   }
 
-  /** Kiállítás / mobil sorszám: holisticsearch.space/exhibition */
+  /** Kiállítás: holisticsearch.space/exhibition — külön UX, nincs megoldás a térképen. */
   function isExhibitionMode() {
     return /\/exhibition(?:\/|$)/i.test(location.pathname || '');
   }
 
+  /** Kiállításon nem mutatjuk a nyertes települést / térképes megoldást (csak sorszám jegy). */
+  function shouldRevealSearchSolutionToUser() {
+    return !isExhibitionMode();
+  }
+
+  function applyExhibitionModeDocumentClass() {
+    if (isExhibitionMode()) {
+      document.documentElement.classList.add('exhibition-mode');
+    } else {
+      document.documentElement.classList.remove('exhibition-mode');
+    }
+  }
+
   /**
-   * GitHub Pages: / = kereső (mobilon nincs sorszám overlay); /exhibition/ = sorszám jegy keresés után.
+   * GitHub Pages: / = kereső; /exhibition/ = csak sorszám jegy (mobilon is).
    */
   function shouldShowSearchTicketOverlay() {
+    if (isExhibitionMode()) return true;
     if (!document.documentElement.classList.contains('is-touch')) return true;
-    return isExhibitionMode() || /\bsorszam=1\b/i.test(location.search || '');
+    return /\bsorszam=1\b/i.test(location.search || '');
   }
 
   /** Egyezzen a CSS ::-webkit-slider-thumb szélességével / magasságával. */
@@ -4603,6 +4618,13 @@
   function syncWinnerInfoToggleUi() {
     const btn = document.getElementById('winner-info-toggle-btn');
     if (!btn) return;
+    if (!shouldRevealSearchSolutionToUser()) {
+      btn.disabled = true;
+      btn.classList.remove('feedback-panel__edge-tab--on');
+      btn.setAttribute('aria-pressed', 'false');
+      btn.title = 'Kiállítási mód — a megoldás csak a kivetítőn';
+      return;
+    }
     const hasMeta = !!lastSearchFeedbackMeta;
     btn.disabled = !hasMeta;
     const active = hasMeta && rightPanelMode === 'search-details';
@@ -4616,6 +4638,7 @@
   }
 
   function renderWinnerInfoInRightPanel(city, matchPercent, opts) {
+    if (!shouldRevealSearchSolutionToUser()) return;
     const inner = elements.feedbackPanelInner;
     if (!inner || !city) return;
     rightPanelMode = 'winner-info';
@@ -4649,7 +4672,7 @@
   }
 
   function toggleWinnerInfoInRightPanel() {
-    if (!lastSearchFeedbackMeta) return;
+    if (!shouldRevealSearchSolutionToUser() || !lastSearchFeedbackMeta) return;
     if (rightPanelMode === 'search-details') {
       renderWinnerInfoInRightPanel(lastSearchFeedbackMeta.winningCity);
     } else {
@@ -8386,6 +8409,7 @@
   }
 
   async function setHeatmapEnabled(on) {
+    if (isExhibitionMode() && on) return;
     heatmapEnabled = !!on;
     syncHeatmapToggleUi();
     if (heatmapEnabled) {
@@ -8536,6 +8560,29 @@
   }
 
   function showResult(winningCity, matchPercent, ticketId, meta) {
+    removeWinningMarker();
+
+    if (!shouldRevealSearchSolutionToUser()) {
+      let saveFailText = '';
+      if (meta && meta.persistError) {
+        saveFailText = ' Mentés hiba: ' + meta.persistError;
+      } else if (meta && meta.persistFailed) {
+        saveFailText = ' Adatbázis mentés sikertelen.';
+      }
+      if (elements.resultBox) {
+        elements.resultBox.textContent =
+          ticketId != null
+            ? 'Keresés mentve — a sorszámod a jegyen látszik.' + saveFailText
+            : 'Keresés kész — a sorszám a jegyen jelenik meg.' + saveFailText;
+      }
+      lastSearchFeedbackMeta = null;
+      rightPanelMode = null;
+      syncWinnerInfoToggleUi();
+      hideMobileWinnerSheet();
+      hideFeedbackPanel();
+      return;
+    }
+
     const name = cityName(winningCity);
     const percentText = matchPercent != null ? ' – ' + matchPercent + '% egyezés' : '';
     const ticketText = ticketId != null ? ' (#' + ticketId + ' · mentve)' : '';
@@ -8572,8 +8619,6 @@
     const lat = cityLat(winningCity);
 
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-
-    removeWinningMarker();
 
     const shouldFlyMap = meta && meta.flyMapToResult === true;
     if (map && shouldFlyMap) {
@@ -8731,7 +8776,8 @@
   async function performSearch(opts) {
     const showTicket = !!(opts && opts.showTicket);
     const persistToDb = !!(opts && opts.persistToDb);
-    const flyMapToResult = !!(opts && opts.flyMapToResult);
+    const flyMapToResult =
+      shouldRevealSearchSolutionToUser() && !!(opts && opts.flyMapToResult);
     const layoutAnchor = sidebarLayoutAnchorEl;
     sidebarLayoutAnchorEl = null;
     const scroller = getSidebarScrollEl();
@@ -8769,7 +8815,7 @@
 
     if (heatmapEnabled) {
       updateHeatmapFromTargets(targets);
-    } else if (result) {
+    } else if (result && shouldRevealSearchSolutionToUser()) {
       try {
         await setHeatmapEnabled(true);
       } catch (e) {
@@ -8823,7 +8869,11 @@
   async function runMainSearchFromButton() {
     sliderAutoSearchActive = true;
     firstMainSearchClickWithPrompt = false;
-    await performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true });
+    await performSearch({
+      showTicket: true,
+      persistToDb: true,
+      flyMapToResult: shouldRevealSearchSolutionToUser(),
+    });
   }
 
   async function onSearchClick() {
@@ -9004,6 +9054,7 @@
 
   async function init() {
     initElements();
+    applyExhibitionModeDocumentClass();
     initLayoutDocking();
     initHeatmapToggle();
     initWinnerInfoToggle();

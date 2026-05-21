@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <base href="/">
   <title>Holistic Search Engine — kiállítás</title>
-  <!-- Ugyanaz az app, mint a főoldal; /exhibition/ útvonalon mobilon megjelenik a sorszám overlay. -->
+  <!-- Kiállítás: /exhibition/ — nincs megoldás a térképen, csak sorszám jegy. -->
 
-  <link rel="manifest" href="manifest.json">
+  <script>document.documentElement.classList.add('exhibition-mode');</script>
+  <link rel="manifest" href="/exhibition/manifest.json">
   <meta name="theme-color" content="#0a0a0a">
   <meta name="description" content="Holistic Search Engine — kiállítás (sorszám a keresés után)." />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Holistic Search">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=119">
+  <link rel="stylesheet" href="/style.css?v=119">
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
@@ -156,7 +156,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=153"></script>
+  <script src="/app.js?v=154"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

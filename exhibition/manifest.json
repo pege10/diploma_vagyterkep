@@ -1,0 +1,26 @@
+{
+  "name": "Holistic Search Engine — kiállítás",
+  "short_name": "HSE kiállítás",
+  "description": "Kiállítás — sorszám a keresés után, megoldás csak a kivetítőn",
+  "start_url": "/exhibition/",
+  "scope": "/exhibition/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "lang": "hu",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

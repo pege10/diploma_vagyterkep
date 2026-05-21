@@ -4104,3 +4104,19 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   color: var(--ink-soft);
   margin: 0;
 }
+
+/* Kiállítás (/exhibition/): nincs megoldás a térképen — csak sorszám jegy */
+html.exhibition-mode .mobile-winner-sheet,
+html.exhibition-mode .mobile-map-back-btn {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+html.exhibition-mode #winner-info-toggle-btn,
+html.exhibition-mode #heatmap-toggle-btn {
+  display: none !important;
+}
+
+html.exhibition-mode #heatmap-legend.heatmap-legend--visible {
+  display: none !important;
+}
