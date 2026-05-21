@@ -741,12 +741,19 @@
   function buildStrictFilterSuggestions(targets) {
     const geoOn = geoSlotReady('a') || geoSlotReady('b');
     if (geoOn && countGeoEligibleCities() === 0) {
-      return {
+      const out = {
         reason: 'geo',
         message:
           'Egy település sem esik az összes bekapcsolt fontos hely körébe. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrőket.',
         suggestions: [],
       };
+      // #region agent log
+      dbgMobile('H8', 'buildStrictFilterSuggestions', 'no-buttons', {
+        reason: out.reason,
+        suggestionCount: 0,
+      });
+      // #endregion
+      return out;
     }
 
     const eligible = [];
@@ -804,13 +811,52 @@
       return b.score - a.score;
     });
 
+    /** Több sáv együtt szűr: egyik sem „egyedüli” blokkoló (failOnly=0), de lazítás még számítható. */
+    if (bandScores.length === 0 && passAllBands === 0) {
+      for (const key in targets) {
+        if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
+        const pack = targets[key];
+        if (!pack || pack.mode !== 'band') continue;
+        const flex =
+          pack.flex != null && Number.isFinite(pack.flex)
+            ? Math.max(0, Math.min(1, pack.flex))
+            : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
+        const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
+        if (!Number.isFinite(minLooseF) || minLooseF <= flex + 1e-4) continue;
+        let failCount = 0;
+        for (let k = 0; k < eligible.length; k++) {
+          if (!passesBandFilterForCity(eligible[k], pack)) failCount++;
+        }
+        bandScores.push({
+          key: key,
+          label: paramLabelForDbKey(key),
+          type: 'band',
+          failOnly: failCount,
+          flex: flex,
+          targetFlex: minLooseF,
+          score: failCount * (0.35 + flex * 0.65) + minLooseF,
+        });
+      }
+      bandScores.sort(function (a, b) {
+        return b.score - a.score;
+      });
+    }
+
     if (passAllBands === 0 && bandScores.length > 0) {
-      return {
+      const out = {
         reason: 'band',
         message:
           'Túl szigorúak a beállítások: egy település sem felel meg minden sávnak egyszerre. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
         suggestions: bandScores.slice(0, 3),
       };
+      // #region agent log
+      dbgMobile('H8', 'buildStrictFilterSuggestions', 'band-with-buttons', {
+        passAllBands: passAllBands,
+        suggestionCount: out.suggestions.length,
+        usedFallback: bandScores.length > 0,
+      });
+      // #endregion
+      return out;
     }
 
     if (passAllBands > 0) {
@@ -832,12 +878,20 @@
       }
     }
 
-    return {
+    const genericOut = {
       reason: 'generic',
       message:
         'Nincs megfelelő település. A javasolt rugalmasság-csökkentés a legkisebb, amivel már lehet találat.',
       suggestions: bandScores.slice(0, 3),
     };
+    // #region agent log
+    dbgMobile('H8', 'buildStrictFilterSuggestions', genericOut.suggestions.length ? 'generic-with-buttons' : 'no-buttons', {
+      reason: genericOut.reason,
+      suggestionCount: genericOut.suggestions.length,
+      passAllBands: passAllBands,
+    });
+    // #endregion
+    return genericOut;
   }
 
   function applyLoosenSuggestion(sug) {
@@ -915,6 +969,14 @@
 
     listEl.innerHTML = '';
     const sugs = analysis.suggestions || [];
+    const subEl = ov.querySelector('.strict-params-sub');
+    if (subEl) subEl.hidden = sugs.length === 0;
+    // #region agent log
+    dbgMobile('H8', 'openStrictParamsModal', 'render', {
+      reason: analysis.reason,
+      suggestionCount: sugs.length,
+    });
+    // #endregion
     if (sugs.length === 0) {
       const li = document.createElement('li');
       li.className = 'strict-params-list__empty';
