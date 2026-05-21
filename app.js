@@ -42,6 +42,8 @@
 
   /** Első találat csak a „Tökéletes hely keresése” gombbal; utána a csúszkák változására is fut a keresés. */
   let sliderAutoSearchActive = false;
+  /** Szóló nézet: heatmap csak erre az index kulcsra (null = összes aktív mutató). */
+  let soloHeatmapParamKey = null;
   let sliderSearchDebounceTimer = null;
   const SLIDER_SEARCH_DEBOUNCE_MS = 280;
   /**
@@ -101,6 +103,17 @@
     },
     { type: 'section', title: '6. Szubjektív paraméterek' },
   ];
+
+  /**
+   * Ideiglenesen kikapcsolt mutatók (UI + keresés + hőtérkép). Visszakapcsolás: töröld az id-t.
+   */
+  var DISABLED_UI_PARAM_IDS = {
+    diploma_index: true,
+  };
+
+  function isUiParamDisabled(uiParamId) {
+    return !!DISABLED_UI_PARAM_IDS[uiParamId];
+  }
 
   /** @type {Map<string, object>} */
   /** Ékezet-megőrző kulcs → település (pl. „kömlő” ≠ „komló”). */
@@ -202,7 +215,8 @@
     geoRadiusBVal: null,
     geoWarnLine: null,
     paramCategoriesHost: null,
-    paramRandomAllBtn: null,
+    paramClearAllSoloBtn: null,
+    paramToggleAllBtn: null,
     paramRestoreBaselineBtn: null,
     feedbackPanel: null,
     feedbackPanelInner: null,
@@ -221,7 +235,8 @@
     elements.mapPickingBannerText = document.getElementById('map-picking-banner-text');
     elements.mapPickingCancel = document.getElementById('map-picking-cancel');
     elements.paramCategoriesHost = document.getElementById('param-categories-host');
-    elements.paramRandomAllBtn = document.getElementById('param-random-all-btn');
+    elements.paramClearAllSoloBtn = document.getElementById('param-clear-all-solo-btn');
+    elements.paramToggleAllBtn = document.getElementById('param-toggle-all-btn');
     elements.paramRestoreBaselineBtn = document.getElementById('param-restore-baseline-btn');
     elements.feedbackPanel = document.getElementById('feedback-panel');
     elements.feedbackPanelInner = elements.feedbackPanel
@@ -550,6 +565,8 @@
 
   /** Fontosság csúszska: 0…10 egész, a számításban w/10 (0–1) normalizált súlyként. */
   var PARAM_WEIGHT_SLIDER_MAX = 10;
+  /** Sávos (tól–ig) mutatók rugalmasság csúszka alapértéke (0–10 skála). */
+  var PARAM_BAND_FLEX_DEFAULT = 5;
 
   /** Egyezzen a CSS ::-webkit-slider-thumb szélességével / magasságával. */
   var PARAM_RANGE_THUMB_SIZE_PX = 18;
@@ -656,6 +673,23 @@
     return indexKey.replace(/_transport_frequency_index$/i, '_napi_jaratok');
   }
 
+  function isTransportFrequencySzékhelyTier(city, indexKey) {
+    if (!city) return false;
+    if (isBudapestDistrictRow(city)) return true;
+    const mKey = indexKey
+      ? indexKey.replace(/_transport_frequency_index$/i, '_modszer')
+      : null;
+    if (!mKey) return false;
+    const m = String(city[mKey] || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_');
+    if (m === 'szekhelye_maga' || m === 'szekhely_maga') return true;
+    if (m.indexOf('szekhely') !== -1 && m.indexOf('maga') !== -1) return true;
+    if (m === 'budapest_kerulet') return true;
+    return false;
+  }
+
   function districtSeatCompanionPercKey(indexKey) {
     if (typeof indexKey !== 'string' || !/_jarasszekhely_auto_index$/i.test(indexKey)) return null;
     return indexKey.replace(/_jarasszekhely_auto_index$/i, '_jarasszekhely_perc');
@@ -701,6 +735,11 @@
     return indexKey.replace(/_diploma_index$/i, '_diplomasok_aranya');
   }
 
+  function jobsCompanionMunkalehetosegAranyKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_jobs_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_jobs_index$/i, '_munkalehetoseg_arany_nyers');
+  }
+
   /** Nem-törő szóköz: a szám és az egysége közé kerül, így a buborék/felirat nem tördel be
    *  „pont az egységjel előtt" (pl. hegyvidéki ° nem ugrik új sorba). */
   var NBSP = '\u00A0';
@@ -737,31 +776,568 @@
     return formatDurationMinutesForUi(minutes);
   }
 
-  /** Sávos szűrő (A modell): csak ezeknél a UI mutatóknál. */
-  var BAND_FILTER_UI_PARAM_IDS = { budapest_access_index: true };
+  function formatIndexScoreForUi(n) {
+    if (n == null || !Number.isFinite(n)) return '–';
+    return String(Math.round(n));
+  }
+
+  /** Sávos szűrő UI: elfogadható tartomány + rugalmasság. */
+  var BAND_FILTER_UI_PARAM_IDS = {
+    airpollution_index: true,
+    budapest_car_train_index: true,
+    internet_index: true,
+    urban_mobility_index: true,
+    transport_frequency_index: true,
+    district_seat_access_index: true,
+    budapest_access_index: true,
+    cultural_index: true,
+    groceries_index: true,
+    sport_index: true,
+    gastro_index: true,
+    primary_school_proximity_index: true,
+    high_school_proximity_index: true,
+    real_estate_price_grow_5yrs_index: true,
+    real_estate_price_avg5mth_index: true,
+    jobs_index: true,
+  };
+
+  function isBandFilterUiParamId(uiParamId) {
+    return !!BAND_FILTER_UI_PARAM_IDS[uiParamId];
+  }
 
   function isBandFilterParamKey(dbKey) {
     const ent = getUiParamEntryForDbKey(dbKey);
-    return !!(ent && BAND_FILTER_UI_PARAM_IDS[ent.id]);
+    return !!(ent && isBandFilterUiParamId(ent.id));
   }
 
-  function bandFilterCompanionMinuteKey(dbKey) {
-    return budapestAccessCompanionPercKey(dbKey);
+  /**
+   * @returns {{ filterCol: string, formatValue: function, parseValue: function,
+   *             invertScale: boolean, intro: string, bandLabel: string,
+   *             leftHint: string, rightHint: string, defaultMaxDelta: number|null,
+   *             step: number, scorePrefer: string, flexTitle: string } | null}
+   */
+  function getBandFilterConfigForDbKey(dbKey) {
+    const ent = getUiParamEntryForDbKey(dbKey);
+    if (!ent || !isBandFilterUiParamId(ent.id)) return null;
+
+    const flexTitle =
+      'Rugalmasság (0 = nincs korlát, ' + PARAM_WEIGHT_SLIDER_MAX + ' = szigorú sáv)';
+    const minutesLoHi = {
+      invertScale: true,
+      intro:
+        'Elfogadható utazási idő tartomány. Balra a hosszabb, jobbra a rövidebb idő.',
+      bandLabel: 'Elfogadható időtartam',
+      leftHint: 'Legtöbb idő',
+      rightHint: 'Legkevesebb idő',
+      formatValue: formatDurationMinutesForUi,
+      parseValue: parseNumeric,
+      step: 1,
+      defaultMaxDelta: 30,
+      scorePrefer: 'lower',
+      flexTitle: flexTitle,
+    };
+    const indexBand = {
+      invertScale: false,
+      intro:
+        'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+      formatValue: formatIndexScoreForUi,
+      parseValue: parseNumeric,
+      step: 1,
+      defaultMaxDelta: null,
+      scorePrefer: 'higher',
+      flexTitle: flexTitle,
+    };
+
+    let preset = null;
+
+    switch (ent.id) {
+      case 'airpollution_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható légszennyezettségi index (3 km). Szűrés: index pont; magasabb index = erősebb szennyezés.',
+          bandLabel: 'Elfogadható tartomány',
+          leftHint: 'Tisztább',
+          rightHint: 'Szennyezettebb',
+          scorePrefer: 'lower',
+        });
+        break;
+      case 'budapest_access_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható elérés Budapestre. Szűrés: index pont; felirat: utazási idő.',
+          bandLabel: 'Elfogadható elérés',
+          leftHint: 'Rosszabb',
+          rightHint: 'Jobb (0 perc)',
+        });
+        break;
+      case 'budapest_car_train_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható elérés Budapestre (autó + vonat). Szűrés: index; felirat: összidő.',
+          bandLabel: 'Elfogadható idő',
+          leftHint: 'Rosszabb',
+          rightHint: 'Jobb (0 perc)',
+        });
+        break;
+      case 'district_seat_access_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható elérés a járásszékhelyre. Szűrés: index; felirat: utazási idő.',
+          bandLabel: 'Elfogadható elérés',
+          leftHint: 'Rosszabb',
+          rightHint: 'Jobb',
+        });
+        break;
+      case 'internet_index':
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható internet index. Szűrés: pont; felirat: Mbps.',
+          bandLabel: 'Elfogadható sebesség',
+          leftHint: 'Gyengébb',
+          rightHint: 'Erősebb',
+        });
+        break;
+      case 'transport_frequency_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható tömegközlekedési index (0–100). Szűrés: pont; a felirat a pontszinthez tartozó legjobb járatszám (járásszékhely és BP kerület nélkül).',
+          bandLabel: 'Elfogadható tartomány',
+          leftHint: 'Gyengébb',
+          rightHint: 'Erősebb',
+        });
+        break;
+      case 'urban_mobility_index':
+      case 'cultural_index':
+      case 'sport_index':
+        preset = indexBand;
+        break;
+      case 'groceries_index':
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható kisker index. Szűrés: pont; felirat: km és üzletszám.',
+          bandLabel: 'Elfogadható ellátás',
+          leftHint: 'Gyengébb',
+          rightHint: 'Erősebb',
+          scorePrefer: 'higher',
+        });
+        break;
+      case 'gastro_index':
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható gasztronómia index. Szűrés: pont; felirat: helyszám.',
+          bandLabel: 'Elfogadható kínálat',
+          leftHint: 'Kevesebb',
+          rightHint: 'Több',
+        });
+        break;
+      case 'jobs_index':
+        preset = Object.assign({}, indexBand, {
+          intro:
+            'Elfogadható helyi munkalehetőség index (0–100). Szűrés: pont; felirat: munkalehetőség aránya (%).',
+          bandLabel: 'Elfogadható tartomány',
+          leftHint: 'Gyengébb',
+          rightHint: 'Erősebb',
+        });
+        break;
+      case 'primary_school_proximity_index':
+      case 'high_school_proximity_index': {
+        if (!schoolVariantDefForIndexKey(dbKey)) return null;
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható iskolaválaszték index. Szűrés: pont; felirat: távolság (km).',
+          bandLabel: 'Elfogadható közelség',
+          leftHint: 'Távolabb',
+          rightHint: 'Közelebb',
+          scorePrefer: 'higher',
+        });
+        break;
+      }
+      case 'real_estate_price_grow_5yrs_index': {
+        if (
+          !INGATLAN_GROW_VARIANTS.some(function (vd) {
+            return vd.indexMatch.test(dbKey);
+          })
+        ) {
+          return null;
+        }
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható áremelkedés index. Szűrés: pont; felirat: %.',
+          bandLabel: 'Elfogadható emelkedés',
+          leftHint: 'Alacsonyabb',
+          rightHint: 'Magasabb',
+        });
+        break;
+      }
+      case 'real_estate_price_avg5mth_index': {
+        if (
+          !INGATLAN_AVG_VARIANTS.some(function (vd) {
+            return vd.indexMatch.test(dbKey);
+          })
+        ) {
+          return null;
+        }
+        preset = Object.assign({}, indexBand, {
+          intro: 'Elfogadható ingatlanár index. Szűrés: pont; felirat: Ft/m².',
+          bandLabel: 'Elfogadható árszint',
+          leftHint: 'Olcsóbb',
+          rightHint: 'Drágább',
+          scorePrefer: 'lower',
+        });
+        break;
+      }
+      default:
+        return null;
+    }
+
+    if (!preset) return null;
+    return enrichBandFilterConfig(dbKey, preset);
   }
 
-  function computeMinuteColumnRange(colKey) {
+  /** Sáv: szűrés mindig index (dbKey); kiírás kísérő metrika, ha van. */
+  function enrichBandFilterConfig(indexKey, preset) {
+    const out = Object.assign({ filterCol: indexKey }, preset);
+    const info = findCompanionInfoForIndexKey(indexKey);
+    if (info && info.pair) {
+      out.displayPair = info.pair;
+    } else if (info && info.companionKey && info.format) {
+      out.displayCompanionKey = info.companionKey;
+      out.displayFormat = info.format;
+      out.displayParse = info.parse;
+    }
+    return out;
+  }
+
+  /**
+   * Tömegközlekedés: felirat = max. járat/nap az adott index-szinten (nem székhely, nem BP kerület).
+   */
+  function createTransportFrequencyBandDisplayModel(indexKey, cfg) {
+    const jarCol = transportFrequencyCompanionNapiJaratokKey(indexKey);
+    const idxCol = indexKey;
+    if (!jarCol || !citiesData.length) return null;
+    /** @type {Map<number, number>} max járat / kerekített index */
+    const maxByIndex = new Map();
+    const sortedKeys = [];
+    for (let i = 0; i < citiesData.length; i++) {
+      const c = citiesData[i];
+      if (isTransportFrequencySzékhelyTier(c, indexKey)) continue;
+      const ix = parseNumeric(c[idxCol]);
+      const jar = parseNumeric(c[jarCol]);
+      if (ix == null || jar == null) continue;
+      const k = Math.round(ix);
+      const prev = maxByIndex.get(k);
+      if (prev == null || jar > prev) maxByIndex.set(k, jar);
+    }
+    maxByIndex.forEach(function (_v, k) {
+      sortedKeys.push(k);
+    });
+    sortedKeys.sort(function (a, b) {
+      return a - b;
+    });
+    if (!sortedKeys.length) return null;
+
+    function maxForRoundedIndex(rk) {
+      const direct = maxByIndex.get(rk);
+      if (direct != null) return direct;
+      let i0 = -1;
+      let i1 = -1;
+      for (let i = 0; i < sortedKeys.length; i++) {
+        if (sortedKeys[i] <= rk) i0 = i;
+        if (sortedKeys[i] >= rk) {
+          i1 = i;
+          break;
+        }
+      }
+      if (i0 < 0 && i1 < 0) return null;
+      if (i0 < 0) return maxByIndex.get(sortedKeys[i1]);
+      if (i1 < 0) return maxByIndex.get(sortedKeys[i0]);
+      if (i0 === i1) return maxByIndex.get(sortedKeys[i0]);
+      const k0 = sortedKeys[i0];
+      const k1 = sortedKeys[i1];
+      const r0 = maxByIndex.get(k0);
+      const r1 = maxByIndex.get(k1);
+      if (r0 == null) return r1;
+      if (r1 == null) return r0;
+      if (k1 === k0) return r0;
+      const t = (rk - k0) / (k1 - k0);
+      return r0 + (r1 - r0) * t;
+    }
+
+    return {
+      formatAtIndex: function (ix) {
+        const v = parseFloat(ix);
+        if (!Number.isFinite(v)) return '–';
+        const m = maxForRoundedIndex(Math.round(v));
+        if (m == null || !Number.isFinite(m)) return '–';
+        return formatNapiJaratokForUi(m);
+      },
+    };
+  }
+
+  function createBandFilterDisplayModel(indexKey, cfg) {
+    if (!cfg || !indexKey) return null;
+    const ent = getUiParamEntryForDbKey(indexKey);
+    if (ent && ent.id === 'transport_frequency_index') {
+      return createTransportFrequencyBandDisplayModel(indexKey, cfg);
+    }
+    const step = cfg.step != null ? cfg.step : 1;
+    if (cfg.displayPair) {
+      const parseFn = cfg.displayPair.parse || parseNumeric;
+      const mA = createIndexCompanionAverageModel(
+        indexKey,
+        cfg.displayPair.a,
+        step,
+        parseFn
+      );
+      const mB = createIndexCompanionAverageModel(
+        indexKey,
+        cfg.displayPair.b,
+        step,
+        parseFn
+      );
+      if (!mA || !mB) return null;
+      return {
+        formatAtIndex: function (ix) {
+          return cfg.displayPair.formatPair(
+            mA.valueAtSliderValue(ix),
+            mB.valueAtSliderValue(ix)
+          );
+        },
+      };
+    }
+    if (cfg.displayCompanionKey && cfg.displayFormat) {
+      const m = createIndexCompanionAverageModel(
+        indexKey,
+        cfg.displayCompanionKey,
+        step,
+        cfg.displayParse
+      );
+      if (!m) return null;
+      return {
+        formatAtIndex: function (ix) {
+          return cfg.displayFormat(m.valueAtSliderValue(ix));
+        },
+      };
+    }
+    return null;
+  }
+
+  function formatBandFilterUiValue(indexVal, cfg, indexKey, scaleMax, displayModel) {
+    if (indexVal == null || !Number.isFinite(indexVal)) return '–';
+    if (displayModel && displayModel.formatAtIndex) {
+      const t = displayModel.formatAtIndex(indexVal);
+      if (t != null && t !== '') return t;
+    }
+    const fmt = cfg && cfg.formatValue ? cfg.formatValue : formatIndexScoreForUi;
+    return fmt(indexVal);
+  }
+
+  function bandFilterCompanionKey(dbKey) {
+    const cfg = getBandFilterConfigForDbKey(dbKey);
+    return cfg ? cfg.filterCol : null;
+  }
+
+  function computeNumericColumnRange(colKey, parseFn) {
+    const parseValue = parseFn || parseNumeric;
     let min = Infinity;
     let max = -Infinity;
     for (let i = 0; i < citiesData.length; i++) {
-      const v = parseNumeric(citiesData[i][colKey]);
+      const v = parseValue(citiesData[i][colKey]);
       if (v == null) continue;
       if (v < min) min = v;
       if (v > max) max = v;
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
-      return { min: 0, max: 240 };
+      return { min: 0, max: 100 };
     }
-    return { min: Math.max(0, Math.floor(min)), max: Math.ceil(max) };
+    const lo = min >= 0 && min < 10 ? Math.max(0, min) : Math.floor(min);
+    const hi = max >= 0 && max < 10 ? max : Math.ceil(max);
+    return { min: lo, max: Math.max(lo + (parseFn === parseHufAmount ? 1000 : 1), hi) };
+  }
+
+  function snapBandFilterStep(value, scaleMin, scaleMax, step) {
+    const st = step != null && step > 0 ? step : 1;
+    let v = Math.round(value / st) * st;
+    if (v < scaleMin) v = scaleMin;
+    if (v > scaleMax) v = scaleMax;
+    return v;
+  }
+
+  function computeBandFilterDataRange(cfg, indexKey) {
+    if (cfg && cfg.filterCol) {
+      return computeNumericColumnRange(cfg.filterCol, cfg.parseValue);
+    }
+    return { min: 0, max: 100 };
+  }
+
+  /** Percentilis a betöltött településeken (0–1). */
+  function computeColumnPercentiles(colKey, parseFn, pctLo, pctHi, rowExcludeFn) {
+    const parseValue = parseFn || parseNumeric;
+    const vals = [];
+    for (let i = 0; i < citiesData.length; i++) {
+      if (rowExcludeFn && rowExcludeFn(citiesData[i])) continue;
+      const v = parseValue(citiesData[i][colKey]);
+      if (v == null) continue;
+      vals.push(v);
+    }
+    if (!vals.length) return null;
+    vals.sort(function (a, b) {
+      return a - b;
+    });
+    function atPct(p) {
+      const idx = Math.min(
+        vals.length - 1,
+        Math.max(0, Math.floor(p * (vals.length - 1)))
+      );
+      return vals[idx];
+    }
+    return {
+      lo: atPct(pctLo),
+      hi: atPct(pctHi),
+      min: vals[0],
+      max: vals[vals.length - 1],
+    };
+  }
+
+  function roundBandDisplayEndpoint(n, step) {
+    if (n == null || !Number.isFinite(n)) return n;
+    if (n <= 0) return 0;
+    const st = step != null && step > 0 ? step : 1;
+    if (st >= 1) return Math.round(n / st) * st;
+    const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(n))));
+    const r = Math.round(n / mag) * mag;
+    return Math.round(r / st) * st;
+  }
+
+  /**
+   * Skála: index tartomány; szélső felirat = kísérő metrika (mint a régi indexcsúszka).
+   */
+  function bandFilterDisplayEndpoints(cfg, dataMr, indexKey) {
+    const scaleMin = dataMr.min;
+    const scaleMax = dataMr.max;
+    const displayModel = createBandFilterDisplayModel(indexKey, cfg);
+    const labelMin = formatBandFilterUiValue(
+      scaleMin,
+      cfg,
+      indexKey,
+      scaleMax,
+      displayModel
+    );
+    const labelMax = formatBandFilterUiValue(
+      scaleMax,
+      cfg,
+      indexKey,
+      scaleMax,
+      displayModel
+    );
+    return {
+      scaleMin: scaleMin,
+      scaleMax: scaleMax,
+      labelMin: labelMin,
+      labelMax: labelMax,
+      displayModel: displayModel,
+    };
+  }
+
+  function computeMinuteColumnRange(colKey) {
+    const mr = computeNumericColumnRange(colKey, parseNumeric);
+    if (mr.max <= mr.min) return { min: 0, max: 240 };
+    return { min: Math.max(0, Math.floor(mr.min)), max: Math.ceil(mr.max) };
+  }
+
+  function bandFilterDefaultValues(mr, cfg, indexKey) {
+    const step = cfg.step != null ? cfg.step : 1;
+    if (cfg.filterCol && citiesData.length) {
+      const pr = computeColumnPercentiles(
+        cfg.filterCol,
+        cfg.parseValue,
+        0.25,
+        0.75,
+        null
+      );
+      if (pr && pr.lo != null && pr.hi != null && Math.abs(pr.hi - pr.lo) >= step) {
+        const vmin = cfg.invertScale ? pr.hi : pr.lo;
+        const vmax = cfg.invertScale ? pr.lo : pr.hi;
+        return {
+          valueMin: snapBandFilterStep(vmin, mr.min, mr.max, step),
+          valueMax: snapBandFilterStep(vmax, mr.min, mr.max, step),
+        };
+      }
+    }
+    const span = mr.max - mr.min;
+    const delta =
+      cfg.defaultMaxDelta != null
+        ? Math.min(cfg.defaultMaxDelta, span)
+        : Math.max(step, span * 0.35);
+    if (cfg.invertScale) {
+      const hi = Math.min(mr.max, mr.min + delta);
+      const lo = Math.max(mr.min, mr.max - delta);
+      return {
+        valueMin: snapBandFilterStep(lo, mr.min, mr.max, step),
+        valueMax: snapBandFilterStep(hi, mr.min, mr.max, step),
+      };
+    }
+    const midLo = mr.min + span * 0.3;
+    const midHi = mr.min + span * 0.7;
+    return {
+      valueMin: snapBandFilterStep(midLo, mr.min, mr.max, step),
+      valueMax: snapBandFilterStep(midHi, mr.min, mr.max, step),
+    };
+  }
+
+  function bandValuesNeedFriendlyReset(bandMin, bandMax, mr) {
+    if (bandMin == null || bandMax == null) return true;
+    if (bandMin === bandMax) return true;
+    const span = mr.max - mr.min;
+    if (!Number.isFinite(span) || span <= 0) return true;
+    if (Math.abs(bandMax - bandMin) < span * 0.08) return true;
+    return false;
+  }
+
+  function applyBandFilterEnableDefaults(card, force) {
+    if (!card || card.getAttribute('data-param-band-filter') !== '1') return;
+    const key = getActiveParamKeyFromCard(card);
+    if (!key) return;
+    const cfg = getBandFilterConfigForDbKey(key);
+    if (!cfg) return;
+    ensureBandFilterCardReady(card);
+    const dataMr = computeBandFilterDataRange(cfg, key);
+    const minEl = card.querySelector('[data-param-band-min-for]');
+    const maxEl = card.querySelector('[data-param-band-max-for]');
+    if (!minEl || !maxEl) return;
+    const bandMin = parseNumeric(minEl.value);
+    const bandMax = parseNumeric(maxEl.value);
+    if (!force && !bandValuesNeedFriendlyReset(bandMin, bandMax, dataMr)) {
+      refreshBandDualRangeUi(card);
+      return;
+    }
+    const dv = bandFilterDefaultValues(dataMr, cfg, key);
+    minEl.value = String(dv.valueMin);
+    maxEl.value = String(dv.valueMax);
+    const flexEl = card.querySelector('input[type="range"][data-param-flex-for]');
+    if (flexEl) {
+      flexEl.value = String(PARAM_BAND_FLEX_DEFAULT);
+      flexEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    refreshBandDualRangeUi(card);
+  }
+
+  function refreshBandDualRangeUi(card) {
+    const key = getActiveParamKeyFromCard(card);
+    if (!key) return;
+    const cfg = getBandFilterConfigForDbKey(key);
+    if (!cfg) return;
+    const dataMr = computeBandFilterDataRange(cfg, key);
+    const disp = bandFilterDisplayEndpoints(cfg, dataMr, key);
+    const bandBlock = card._bandBlock || card.querySelector('.param-band-slider-block');
+    if (!bandBlock) return;
+    const wrap = bandBlock.querySelector('.dual-range-wrap');
+    if (wrap) {
+      wrap.setAttribute('data-scale-min', String(disp.scaleMin));
+      wrap.setAttribute('data-scale-max', String(disp.scaleMax));
+    }
+    const ends = bandBlock.querySelectorAll('.param-range-end');
+    if (ends[0] && disp.labelMin) ends[0].textContent = disp.labelMin;
+    if (ends[1] && disp.labelMax) ends[1].textContent = disp.labelMax;
+    if (wrap && wrap._dualRangeRepaint) wrap._dualRangeRepaint();
   }
 
   /**
@@ -782,12 +1358,19 @@
     };
   }
 
+  function bandFilterValueForCity(city, pack) {
+    if (!pack || pack.mode !== 'band') return null;
+    const col = pack.companionKey;
+    if (!col) return null;
+    const parseValue = pack.parseValue || parseNumeric;
+    return parseValue(city[col]);
+  }
+
+  /** Hiányzó érték: ezt a mutatót ennél a településnél nem vesszük figyelembe (nem szűr ki). */
   function passesBandFilterForCity(city, pack) {
     if (!pack || pack.mode !== 'band') return true;
-    const col = pack.companionKey;
-    if (!col) return true;
-    const got = parseNumeric(city[col]);
-    if (got == null) return false;
+    const got = bandFilterValueForCity(city, pack);
+    if (got == null) return true;
     const flex =
       pack.flex != null && Number.isFinite(pack.flex)
         ? Math.max(0, Math.min(1, pack.flex))
@@ -795,7 +1378,10 @@
     let scaleMin = pack.scaleMin;
     let scaleMax = pack.scaleMax;
     if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
-      const mr = computeMinuteColumnRange(col);
+      const cfg = getBandFilterConfigForDbKey(pack.indexKey || '');
+      const mr = cfg
+        ? computeBandFilterDataRange(cfg, pack.indexKey)
+        : computeNumericColumnRange(col, parseValue);
       scaleMin = mr.min;
       scaleMax = mr.max;
     }
@@ -809,8 +1395,172 @@
     return got >= b.effMin && got <= b.effMax;
   }
 
+  /** Sáv + rugalmasság: kisebb = jobb; flex növelése szűkebb effektív sávot és erősebb középpont-torzítást. */
+  function computeBandFilterFitScore(city, pack) {
+    if (!pack || pack.mode !== 'band') return null;
+    const got = bandFilterValueForCity(city, pack);
+    if (got == null) return null;
+
+    const flex =
+      pack.flex != null && Number.isFinite(pack.flex)
+        ? Math.max(0, Math.min(1, pack.flex))
+        : 1;
+    let scaleMin = pack.scaleMin;
+    let scaleMax = pack.scaleMax;
+    if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
+      const cfg = getBandFilterConfigForDbKey(pack.indexKey || '');
+      const mr = cfg
+        ? computeBandFilterDataRange(cfg, pack.indexKey)
+        : computeNumericColumnRange(col, parseValue);
+      scaleMin = mr.min;
+      scaleMax = mr.max;
+    }
+    const b = effectiveBandMinuteBounds(
+      pack.bandMin,
+      pack.bandMax,
+      flex,
+      scaleMin,
+      scaleMax
+    );
+    const lo = Math.min(pack.bandMin, pack.bandMax);
+    const hi = Math.max(pack.bandMin, pack.bandMax);
+    const mid = (lo + hi) / 2;
+    const span = Math.max(1, hi - lo, scaleMax - scaleMin);
+
+    let outside = 0;
+    if (got < b.effMin) outside = b.effMin - got;
+    else if (got > b.effMax) outside = got - b.effMax;
+
+    const centerDist = Math.abs(got - mid);
+    const preferHigh = pack.scorePrefer === 'higher';
+    const indexRank = preferHigh ? -got : got;
+    const strictPart = (outside / span) * (5 + flex * 95) + (centerDist / span) * flex * 40;
+    const looseWeight = 1 - flex;
+    return indexRank * (0.15 + looseWeight * 0.85) + strictPart;
+  }
+
+  var DEFAULT_WEIGHT_SLIDER_UI = {
+    weightLabel: 'Fontosság a keresésben',
+    weightLeftHint: 'Nem számít',
+    weightRightHint: 'Maximális',
+  };
+
+  /**
+   * Nem sávos (index + fontosság) mutatók: alcím, értékcsúszka cím + szélső feliratok.
+   * @returns {{ intro?: string, valueLabel?: string, leftHint?: string, rightHint?: string,
+   *             weightLabel?: string, weightLeftHint?: string, weightRightHint?: string } | null}
+   */
+  function getValueSliderUiConfig(uiParamId) {
+    if (!uiParamId || isUiParamDisabled(uiParamId)) return null;
+    const base = Object.assign({}, DEFAULT_WEIGHT_SLIDER_UI);
+    switch (uiParamId) {
+      case 'forest_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt erdőlefedettségi index (3 km). Szűrés: index; a szélső értékek: átlagos erdőarány (%).',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Kevesebb erdő',
+          rightHint: 'Több erdő',
+        });
+      case 'water_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt vízfelület-index (3 km). Szűrés: index; a szélső értékek: átlagos vízarány (%).',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Kevesebb víz',
+          rightHint: 'Több víz',
+        });
+      case 'terrain_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt hegyvidéki karakter index (3 km). Szűrés: index; a szélső értékek: átlagos lejtés (°).',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Laposabb',
+          rightHint: 'Hegyesebb',
+        });
+      case 'senior_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt arány a 65 év felettieknek. Szűrés: index; a szélső értékek: népességarány (%).',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Fiatalabb',
+          rightHint: 'Idősebb',
+        });
+      case 'sleeping_city_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt alvóváros index – mennyire kiszolgált a település a környező nagyvárosok felől.',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Alacsonyabb',
+          rightHint: 'Magasabb',
+        });
+      case 'turism_index':
+        return Object.assign(base, {
+          intro: 'Kívánt turizmus index (0–100).',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Alacsonyabb',
+          rightHint: 'Magasabb',
+        });
+      case 'primary_school_proximity_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt iskolaválaszték index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Távolabb',
+          rightHint: 'Közelebb',
+        });
+      case 'high_school_proximity_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt gimnázium-elérhetőség index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Távolabb',
+          rightHint: 'Közelebb',
+        });
+      case 'real_estate_price_grow_5yrs_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt áremelkedés index (5 év). Szűrés: index; felirat: %. Válaszd ki az ingatlan típusát.',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Alacsonyabb',
+          rightHint: 'Magasabb',
+        });
+      case 'real_estate_price_avg5mth_index':
+        return Object.assign(base, {
+          intro:
+            'Kívánt ingatlanár-szint index. Szűrés: index; felirat: Ft/m². Válaszd ki az ingatlan típusát.',
+          valueLabel: 'Kívánt index',
+          leftHint: 'Olcsóbb',
+          rightHint: 'Drágább',
+        });
+      default:
+        return null;
+    }
+  }
+
+  function appendParamValueIntro(parent, intro) {
+    if (!parent || !intro) return;
+    const p = document.createElement('p');
+    p.className = 'param-band-intro';
+    p.textContent = intro;
+    parent.appendChild(p);
+  }
+
+  function createParamSliderLabel(text) {
+    const span = document.createElement('span');
+    span.className = 'param-band-slider-label';
+    span.textContent = text;
+    return span;
+  }
+
+  function mountWeightSliderUi(weightWrap, wStack, sliderUi) {
+    const cfg = sliderUi || DEFAULT_WEIGHT_SLIDER_UI;
+    weightWrap.insertBefore(createParamSliderLabel(cfg.weightLabel), wStack);
+    appendParamRangeHints(wStack, cfg.weightLeftHint, cfg.weightRightHint);
+  }
+
   function appendParamRangeHints(stack, leftHint, rightHint) {
-    if (!stack) return;
+    if (!stack || !leftHint || !rightHint) return;
     stack.classList.add('param-slider-stack--with-hints');
     const hints = document.createElement('div');
     hints.className = 'param-range-hints param-range-hints--below';
@@ -853,11 +1603,21 @@
 
     const endLeft = document.createElement('span');
     endLeft.className = 'param-range-end param-range-end--min';
-    endLeft.textContent = invertScale ? formatValue(scaleMax) : formatValue(scaleMin);
+    endLeft.textContent =
+      opts.endpointMinText != null
+        ? opts.endpointMinText
+        : invertScale
+          ? formatValue(scaleMax)
+          : formatValue(scaleMin);
 
     const endRight = document.createElement('span');
     endRight.className = 'param-range-end param-range-end--max';
-    endRight.textContent = invertScale ? formatValue(scaleMin) : formatValue(scaleMax);
+    endRight.textContent =
+      opts.endpointMaxText != null
+        ? opts.endpointMaxText
+        : invertScale
+          ? formatValue(scaleMin)
+          : formatValue(scaleMax);
 
     const wrap = document.createElement('div');
     wrap.className = 'slider-wrap param-range-thumb-wrap dual-range-wrap';
@@ -1209,6 +1969,31 @@
     if (uiParamId === 'primary_school_proximity_index') return SCHOOL_PRIMARY_VARIANTS;
     if (uiParamId === 'high_school_proximity_index') return SCHOOL_GYMNASIUM_VARIANTS;
     return [];
+  }
+
+  /** SCHOOL_PROXIMITY_INDEX_* oszlop → UI mutató azonosító (nem egyezik a prefix-szabállyal). */
+  function schoolUiParamIdForIndexKey(dbKey) {
+    if (!dbKey) return null;
+    for (let i = 0; i < SCHOOL_PRIMARY_VARIANTS.length; i++) {
+      if (SCHOOL_PRIMARY_VARIANTS[i].indexKey === dbKey) {
+        return 'primary_school_proximity_index';
+      }
+    }
+    for (let i = 0; i < SCHOOL_GYMNASIUM_VARIANTS.length; i++) {
+      if (SCHOOL_GYMNASIUM_VARIANTS[i].indexKey === dbKey) {
+        return 'high_school_proximity_index';
+      }
+    }
+    return null;
+  }
+
+  function schoolVariantDefForIndexKey(dbKey) {
+    if (!dbKey) return null;
+    const defs = SCHOOL_PRIMARY_VARIANTS.concat(SCHOOL_GYMNASIUM_VARIANTS);
+    for (let i = 0; i < defs.length; i++) {
+      if (defs[i].indexKey === dbKey) return defs[i];
+    }
+    return null;
   }
 
   function schoolIndexKeyPresent(indexKey, sampleRow) {
@@ -2207,7 +2992,13 @@
     if (!host) return;
     host.querySelectorAll('input[type="range"][data-param-key]').forEach(function (el) {
       const k = el.getAttribute('data-param-key');
-      if (k) guidedParamKeys.push(k);
+      if (k && guidedParamKeys.indexOf(k) === -1) guidedParamKeys.push(k);
+    });
+    host.querySelectorAll('.param-item[data-param-band-filter="1"]').forEach(function (card) {
+      const minEl = card.querySelector('[data-param-band-min-for]');
+      if (!minEl) return;
+      const k = minEl.getAttribute('data-param-band-min-for');
+      if (k && guidedParamKeys.indexOf(k) === -1) guidedParamKeys.push(k);
     });
   }
 
@@ -2247,6 +3038,97 @@
     sw.setAttribute('aria-checked', nowOn ? 'true' : 'false');
     card.setAttribute('data-param-active', nowOn ? '1' : '0');
     card.classList.toggle('param-item--inactive', !nowOn);
+    if (nowOn && card.getAttribute('data-param-band-filter') === '1') {
+      applyBandFilterEnableDefaults(card, true);
+    }
+    syncHeaderAllParamsToggleBtnUi();
+  }
+
+  function getParamItemCards() {
+    if (!elements.paramCategoriesHost) return [];
+    return Array.from(elements.paramCategoriesHost.querySelectorAll('.param-item'));
+  }
+
+  function areAllParamCardsActive() {
+    const cards = getParamItemCards();
+    if (!cards.length) return false;
+    for (let i = 0; i < cards.length; i++) {
+      if (cards[i].getAttribute('data-param-active') !== '1') return false;
+    }
+    return true;
+  }
+
+  function setAllParamCardsActive(on) {
+    const cards = getParamItemCards();
+    const nowOn = !!on;
+    for (let i = 0; i < cards.length; i++) {
+      setParamCardSwitchOn(cards[i], nowOn);
+      if (nowOn && cards[i].getAttribute('data-param-band-filter') === '1') {
+        applyBandFilterEnableDefaults(cards[i], true);
+      }
+    }
+    if (!nowOn) setParamSoloKey(null);
+    syncHeaderAllParamsToggleBtnUi();
+    syncHeaderClearAllSoloBtnUi();
+    syncHeatmapWithActiveParams();
+    if (sliderAutoSearchActive) scheduleSearchFromSliders();
+  }
+
+  /** Aktív sávos kártya: dual range + rejtett értékek (összes bekapcsoláskor is). */
+  function ensureBandFilterCardReady(card) {
+    if (!card || card.getAttribute('data-param-band-filter') !== '1') return;
+    const key = getActiveParamKeyFromCard(card);
+    if (!key) return;
+    const cfg = getBandFilterConfigForDbKey(key);
+    if (!cfg) return;
+    const bandBlock = card._bandBlock || card.querySelector('.param-band-slider-block');
+    if (!bandBlock) return;
+    const hasDual = bandBlock.querySelector('.dual-range-wrap');
+    if (!hasDual) {
+      const titleEl = card.querySelector('.param-item__title');
+      const labelText = titleEl && titleEl.textContent ? titleEl.textContent.trim() : '';
+      mountBandDualRangeOnBlock(bandBlock, key, 0, labelText, cfg, function () {
+        if (sliderAutoSearchActive) scheduleSearchFromSliders();
+      });
+    }
+  }
+
+  function toggleAllParamCardsActive() {
+    setAllParamCardsActive(!areAllParamCardsActive());
+  }
+
+  function syncHeaderClearAllSoloBtnUi() {
+    const btn = elements.paramClearAllSoloBtn;
+    if (!btn) return;
+    const hasSolo = !!soloHeatmapParamKey;
+    btn.classList.toggle('sidebar-header__cluster-btn--on', hasSolo);
+    btn.setAttribute('aria-pressed', hasSolo ? 'true' : 'false');
+    btn.disabled = !hasSolo;
+    btn.title = hasSolo
+      ? 'Összes szóló kikapcsolása'
+      : 'Nincs bekapcsolt szóló nézet';
+  }
+
+  function syncHeaderAllParamsToggleBtnUi() {
+    const btn = elements.paramToggleAllBtn;
+    if (!btn) return;
+    const allOn = areAllParamCardsActive();
+    btn.classList.toggle('sidebar-header__cluster-btn--on', allOn);
+    btn.setAttribute('aria-pressed', allOn ? 'true' : 'false');
+    const ico = btn.querySelector('.sidebar-header__cluster-ico');
+    if (ico) {
+      ico.textContent = allOn ? 'toggle_on' : 'toggle_off';
+    }
+    btn.title = allOn
+      ? 'Összes mutató kikapcsolása'
+      : 'Összes mutató bekapcsolása';
+  }
+
+  function onHeaderClearAllSoloClick() {
+    if (!soloHeatmapParamKey) return;
+    setParamSoloKey(null);
+    refreshHeatmapFromCurrentSliders();
+    syncHeaderClearAllSoloBtnUi();
   }
 
   function setGeoPlaceCardActive(slot, on) {
@@ -2572,12 +3454,28 @@
         k.indexOf('NEM_NORMALIZALT') === -1
       );
     }
+    if (uiParamId === 'primary_school_proximity_index') {
+      const defs = schoolVariantDefsForUiParam(uiParamId);
+      for (let si = 0; si < defs.length; si++) {
+        if (defs[si].indexKey === dbKey) return true;
+      }
+      return false;
+    }
+    if (uiParamId === 'high_school_proximity_index') {
+      const defs = schoolVariantDefsForUiParam(uiParamId);
+      for (let si = 0; si < defs.length; si++) {
+        if (defs[si].indexKey === dbKey) return true;
+      }
+      return false;
+    }
 
     const pref = uiParamIdToKeyPrefixUpper(uiParamId);
     return k.startsWith(pref);
   }
 
   function getUiParamEntryForDbKey(dbKey) {
+    const schoolUiId = schoolUiParamIdForIndexKey(dbKey);
+    if (schoolUiId) return getUiParamEntryById(schoolUiId);
     for (let i = 0; i < PARAMETER_UI_ENTRIES.length; i++) {
       const e = PARAMETER_UI_ENTRIES[i];
       if (e.type !== 'param') continue;
@@ -2655,6 +3553,7 @@
         pendingSection = e.title;
         continue;
       }
+      if (isUiParamDisabled(e.id)) continue;
       if (e.id === 'primary_school_proximity_index' || e.id === 'high_school_proximity_index') {
         const schoolMatches = schoolKeysMatchingUiParam(e.id, keys);
         schoolMatches.sort(function (a, b) {
@@ -2736,6 +3635,7 @@
     for (let ei = 0; ei < PARAMETER_UI_ENTRIES.length; ei++) {
       const e = PARAMETER_UI_ENTRIES[ei];
       if (e.type !== 'param') continue;
+      if (isUiParamDisabled(e.id)) continue;
       const matches = allKeys.filter(function (kk) {
         return keySet.has(kk) && keyMatchesParamUiId(kk, e.id);
       });
@@ -2939,8 +3839,37 @@
       if (!pack) continue;
 
       if (pack.mode === 'band') {
-        const col = pack.companionKey;
-        const gotMin = col ? parseNumeric(winningCity[col]) : null;
+        const filterCol = pack.companionKey || key;
+        const parseValue = pack.parseValue || parseNumeric;
+        const bandCfg = getBandFilterConfigForDbKey(key);
+        const displayModel = bandCfg
+          ? createBandFilterDisplayModel(key, bandCfg)
+          : null;
+        const fmtUi = function (v) {
+          return formatBandFilterUiValue(
+            v,
+            bandCfg,
+            key,
+            pack.scaleMax,
+            displayModel
+          );
+        };
+        const gotIndex = filterCol ? parseValue(winningCity[filterCol]) : null;
+        const dispInfo = findCompanionInfoForIndexKey(key);
+        let gotText = '–';
+        if (dispInfo && dispInfo.pair) {
+          const parseFn = dispInfo.pair.parse || parseNumeric;
+          gotText = dispInfo.pair.formatPair(
+            parseFn(winningCity[dispInfo.pair.a]),
+            parseFn(winningCity[dispInfo.pair.b])
+          );
+        } else if (dispInfo && dispInfo.companionKey && dispInfo.format) {
+          const parseFn = dispInfo.parse || parseNumeric;
+          const dv = parseFn(winningCity[dispInfo.companionKey]);
+          gotText = dv != null ? dispInfo.format(dv) : '–';
+        } else if (gotIndex != null) {
+          gotText = fmtUi(gotIndex);
+        }
         const flex =
           pack.flex != null && Number.isFinite(pack.flex)
             ? Math.max(0, Math.min(1, pack.flex))
@@ -2953,17 +3882,16 @@
           pack.scaleMax
         );
         const inBand =
-          gotMin != null && gotMin >= eff.effMin && gotMin <= eff.effMax;
+          gotIndex != null && gotIndex >= eff.effMin && gotIndex <= eff.effMax;
+        const diffText =
+          gotIndex == null ? 'nincs adat' : inBand ? 'a sávban' : 'kívül';
         rows.push({
           key: key,
           isBand: true,
-          wantText:
-            formatDurationMinutesForUi(pack.bandMin) +
-            ' – ' +
-            formatDurationMinutesForUi(pack.bandMax),
-          got: gotMin,
-          gotText: gotMin != null ? formatDurationMinutesForUi(gotMin) : '–',
-          diffText: inBand ? 'a sávban' : 'kívül',
+          wantText: fmtUi(pack.bandMin) + ' – ' + fmtUi(pack.bandMax),
+          got: gotIndex,
+          gotText: gotText,
+          diffText: diffText,
           weight: flex,
           wdiff: 0,
         });
@@ -3393,7 +4321,11 @@
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
     headRow.appendChild(toggle);
-    headRow.appendChild(createParameterInfoWrapForKey(uiParamId));
+    appendParamHeadSoloAndInfo(
+      headRow,
+      uiParamId,
+      variantMap[defaultVariantId].indexKey
+    );
     headRow.appendChild(activeSwitch);
 
     activeSwitch.addEventListener('click', function (e) {
@@ -3415,6 +4347,7 @@
           wrap.classList.add('param-item--collapsed');
           toggle.setAttribute('aria-expanded', 'false');
         }
+        if (!nowOn) clearSoloIfMatchesParamKey(getActiveParamKeyFromCard(wrap));
       });
       if (turningOn && wasCollapsed) startParamExpandScrollStabilize(wrap, headRow);
       if (sliderAutoSearchActive) sidebarLayoutAnchorEl = headRow;
@@ -3431,6 +4364,11 @@
     const itemBody = document.createElement('div');
     itemBody.id = bodyId;
     itemBody.className = 'param-item__body';
+
+    const variantSliderUi = getValueSliderUiConfig(uiParamId);
+    if (variantSliderUi && variantSliderUi.intro) {
+      appendParamValueIntro(itemBody, variantSliderUi.intro);
+    }
 
     const input = document.createElement('input');
     input.type = 'range';
@@ -3522,6 +4460,7 @@
         bub.style.transform = 'translateX(-50%)';
       }
       slInput.dispatchEvent(new Event('input', { bubbles: true }));
+      updateParamSoloButtonKey(card, key);
     }
 
     const labelByVariantId = {};
@@ -3594,12 +4533,15 @@
     wInput.step = '1';
     wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
     const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
-    const wLabel = document.createElement('span');
-    wLabel.className = 'param-weight-label';
-    wLabel.textContent = 'Fontosság · a |Δ| szorzója (0–' + PARAM_WEIGHT_SLIDER_MAX + ', csak egész)';
     weightWrap.appendChild(wStack);
-    weightWrap.appendChild(wLabel);
+    mountWeightSliderUi(weightWrap, wStack, variantSliderUi);
 
+    if (variantSliderUi && variantSliderUi.valueLabel) {
+      itemBody.insertBefore(createParamSliderLabel(variantSliderUi.valueLabel), stack);
+    }
+    if (variantSliderUi) {
+      appendParamRangeHints(stack, variantSliderUi.leftHint, variantSliderUi.rightHint);
+    }
     itemBody.insertBefore(segmentWrap, stack);
     itemBody.appendChild(weightWrap);
 
@@ -3626,19 +4568,110 @@
     return wrap;
   }
 
+  function appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, flexTitle) {
+    const weightWrap = document.createElement('div');
+    weightWrap.className = 'param-item__weight';
+
+    const flexLabel = document.createElement('span');
+    flexLabel.className = 'param-band-slider-label';
+    flexLabel.textContent = 'Rugalmasság';
+
+    const flexInput = document.createElement('input');
+    flexInput.type = 'range';
+    flexInput.className = 'slider param-weight-slider';
+    flexInput.id = 'param-flex-' + sliderIdNum;
+    flexInput.setAttribute('data-param-flex-for', key);
+    flexInput.setAttribute('aria-label', 'Rugalmasság: ' + labelText);
+    flexInput.title = flexTitle;
+    flexInput.min = '0';
+    flexInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
+    flexInput.step = '1';
+    flexInput.value = String(PARAM_BAND_FLEX_DEFAULT);
+
+    const flexStack = buildParamRangeRowWithExtrema(flexInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
+    appendParamRangeHints(flexStack, 'Laza', 'Szigorú');
+
+    weightWrap.appendChild(flexLabel);
+    weightWrap.appendChild(flexStack);
+    itemBody.appendChild(weightWrap);
+    bindParamRangeTrackSeek(flexInput);
+    function onBandFlexChange() {
+      if (!citiesData.length) return;
+      if (heatmapEnabled) {
+        refreshHeatmapFromCurrentSliders();
+      }
+      if (sliderAutoSearchActive) {
+        scheduleSearchFromSliders();
+      }
+    }
+    flexInput.addEventListener('input', onBandFlexChange);
+    flexInput.addEventListener('change', onBandFlexChange);
+    return flexInput;
+  }
+
+  function mountBandDualRangeOnBlock(
+    bandBlock,
+    indexKey,
+    sliderIdNum,
+    labelText,
+    cfg,
+    onChange
+  ) {
+    const dataMr = computeBandFilterDataRange(cfg, indexKey);
+    const disp = bandFilterDisplayEndpoints(cfg, dataMr, indexKey);
+    const dv = bandFilterDefaultValues(dataMr, cfg, indexKey);
+    const displayModel = disp.displayModel;
+    const fmtUi = function (v) {
+      return formatBandFilterUiValue(v, cfg, indexKey, disp.scaleMax, displayModel);
+    };
+    const dual = buildDualRangeSliderStack({
+      scaleMin: disp.scaleMin,
+      scaleMax: disp.scaleMax,
+      endpointMinText: disp.labelMin,
+      endpointMaxText: disp.labelMax,
+      step: cfg.step,
+      valueMin: dv.valueMin,
+      valueMax: dv.valueMax,
+      invertScale: cfg.invertScale,
+      formatValue: fmtUi,
+      leftHint: cfg.leftHint,
+      rightHint: cfg.rightHint,
+      minAttrs: {
+        id: 'param-band-min-' + sliderIdNum + '-' + indexKey,
+        'data-param-band-min-for': indexKey,
+        'data-param-key': indexKey,
+        'aria-label': labelText + ' — alsó határ',
+      },
+      maxAttrs: {
+        id: 'param-band-max-' + sliderIdNum + '-' + indexKey,
+        'data-param-band-max-for': indexKey,
+        'aria-label': labelText + ' — felső határ',
+      },
+      onChange: onChange,
+    });
+    const sliderLabel = bandBlock.querySelector('.param-band-slider-label');
+    bandBlock.innerHTML = '';
+    if (sliderLabel) bandBlock.appendChild(sliderLabel);
+    else {
+      const bandLabel = document.createElement('span');
+      bandLabel.className = 'param-band-slider-label';
+      bandLabel.textContent = cfg.bandLabel;
+      bandBlock.appendChild(bandLabel);
+    }
+    bandBlock.appendChild(dual.stack);
+    return dual;
+  }
+
   /**
-   * Budapest autós elérhetőség: perc-sáv (min–max) + rugalmasság (0–10, A modell).
+   * Sávos szűrő kártya: elfogadható tartomány (dual range) + rugalmasság.
    */
   function createBandFilterParamCard(key, sliderIdNum) {
-    const minuteCol = bandFilterCompanionMinuteKey(key);
-    if (!minuteCol) return createParamItemCard(key, sliderIdNum);
+    const cfg = getBandFilterConfigForDbKey(key);
+    if (!cfg || !cfg.filterCol) return createParamItemCard(key, sliderIdNum);
 
     paramCategoryUid++;
     const bodyId = 'param-item-body-' + paramCategoryUid;
     const labelText = paramLabelForDbKey(key);
-    const mr = computeMinuteColumnRange(minuteCol);
-    const step = 1;
-    const defaultMax = Math.min(mr.max, Math.max(mr.min + 1, 30));
 
     const wrap = document.createElement('div');
     wrap.className = 'control-group param-item param-item--band-filter';
@@ -3677,7 +4710,7 @@
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
     headRow.appendChild(toggle);
-    headRow.appendChild(createParameterInfoWrapForKey(key));
+    appendParamHeadSoloAndInfo(headRow, key, key);
     headRow.appendChild(activeSwitch);
 
     activeSwitch.addEventListener('click', function (e) {
@@ -3699,6 +4732,8 @@
           wrap.classList.add('param-item--collapsed');
           toggle.setAttribute('aria-expanded', 'false');
         }
+        if (!nowOn) clearSoloIfMatchesParamKey(key);
+        if (nowOn) applyBandFilterEnableDefaults(wrap, true);
       });
       if (turningOn && wasCollapsed) {
         startParamExpandScrollStabilize(wrap, headRow);
@@ -3715,74 +4750,23 @@
 
     const bandIntro = document.createElement('p');
     bandIntro.className = 'param-band-intro';
-    bandIntro.textContent =
-      'Elfogadható autós utazási idő Budapestre. Balra a hosszabb, jobbra a rövidebb (0 perc) utazás.';
+    bandIntro.textContent = cfg.intro;
     itemBody.appendChild(bandIntro);
-
-    const bandLabel = document.createElement('span');
-    bandLabel.className = 'param-band-slider-label';
-    bandLabel.textContent = 'Elfogadható időtartam';
-
-    const dual = buildDualRangeSliderStack({
-      scaleMin: mr.min,
-      scaleMax: mr.max,
-      step: step,
-      valueMin: mr.min,
-      valueMax: defaultMax,
-      invertScale: true,
-      formatValue: formatDurationMinutesForUi,
-      leftHint: 'Legtöbb idő',
-      rightHint: 'Legkevesebb idő',
-      minAttrs: {
-        id: 'param-band-min-' + sliderIdNum,
-        'data-param-band-min-for': key,
-        'data-param-key': key,
-        'aria-label': labelText + ' — alsó határ (perc)',
-      },
-      maxAttrs: {
-        id: 'param-band-max-' + sliderIdNum,
-        'data-param-band-max-for': key,
-        'aria-label': labelText + ' — felső határ (perc)',
-      },
-      onChange: function () {
-        if (sliderAutoSearchActive) scheduleSearchFromSliders();
-      },
-    });
 
     const bandBlock = document.createElement('div');
     bandBlock.className = 'param-band-slider-block';
+    const bandLabel = document.createElement('span');
+    bandLabel.className = 'param-band-slider-label';
+    bandLabel.textContent = cfg.bandLabel;
     bandBlock.appendChild(bandLabel);
-    bandBlock.appendChild(dual.stack);
     itemBody.appendChild(bandBlock);
 
-    const weightWrap = document.createElement('div');
-    weightWrap.className = 'param-item__weight';
+    const onBandChange = function () {
+      if (sliderAutoSearchActive) scheduleSearchFromSliders();
+    };
+    mountBandDualRangeOnBlock(bandBlock, key, sliderIdNum, labelText, cfg, onBandChange);
 
-    const flexLabel = document.createElement('span');
-    flexLabel.className = 'param-band-slider-label';
-    flexLabel.textContent = 'Rugalmasság';
-
-    const flexInput = document.createElement('input');
-    flexInput.type = 'range';
-    flexInput.className = 'slider param-weight-slider';
-    flexInput.id = 'param-flex-' + sliderIdNum;
-    flexInput.setAttribute('data-param-flex-for', key);
-    flexInput.setAttribute('aria-label', 'Rugalmasság: ' + labelText);
-    flexInput.title =
-      'Rugalmasság (0 = nincs perc-korlát, ' +
-      PARAM_WEIGHT_SLIDER_MAX +
-      ' = szigorú sáv)';
-    flexInput.min = '0';
-    flexInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
-    flexInput.step = '1';
-    flexInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
-
-    const flexStack = buildParamRangeRowWithExtrema(flexInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
-    appendParamRangeHints(flexStack, 'Laza', 'Szigorú');
-
-    weightWrap.appendChild(flexLabel);
-    weightWrap.appendChild(flexStack);
-    itemBody.appendChild(weightWrap);
+    appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, cfg.flexTitle);
 
     wrap.appendChild(headRow);
     wrap.appendChild(itemBody);
@@ -3794,8 +4778,255 @@
       });
     });
 
-    bindParamRangeTrackSeek(flexInput);
+    return wrap;
+  }
 
+  /**
+   * Sávos szűrő + típusváltó (iskola, ingatlan).
+   */
+  function createBandFilterVariantParamCard(uiParamId, matchingKeys, sliderIdNum) {
+    const ent = getUiParamEntryById(uiParamId);
+    if (!ent) return null;
+
+    const isSchool =
+      uiParamId === 'primary_school_proximity_index' ||
+      uiParamId === 'high_school_proximity_index';
+
+    let variantMap = {};
+    let labelDefs = [];
+    let segmentOrder = INGATLAN_SEGMENT_ORDER;
+    let segmentIndexMap = INGATLAN_SEGMENT_INDEX;
+    let segmentCols = 3;
+    let itemExtraClass = 'param-item--ingatlan-variant param-item--band-filter';
+    let segmentAriaLabel = 'Ingatlan típus: telek, lakás, ház';
+    let defaultVariantId = 'haz';
+
+    if (isSchool) {
+      variantMap = buildSchoolVariantMap(uiParamId);
+      labelDefs = schoolVariantDefsForUiParam(uiParamId);
+      segmentOrder = SCHOOL_SEGMENT_ORDER;
+      segmentIndexMap = SCHOOL_SEGMENT_INDEX;
+      segmentCols = 2;
+      itemExtraClass = 'param-item--school-variant param-item--band-filter';
+      segmentAriaLabel = 'Iskola típus: állami, alternatív';
+      defaultVariantId = variantMap.allami ? 'allami' : 'alternativ';
+    } else {
+      if (!matchingKeys || !matchingKeys.length) return null;
+      const isGrow = uiParamId === 'real_estate_price_grow_5yrs_index';
+      const variantDefs = isGrow ? INGATLAN_GROW_VARIANTS : INGATLAN_AVG_VARIANTS;
+      labelDefs = variantDefs;
+      for (let vi = 0; vi < variantDefs.length; vi++) {
+        const vd = variantDefs[vi];
+        const indexKey = findIngatlanIndexKeyForVariant(matchingKeys, vd.indexMatch);
+        if (!indexKey) continue;
+        const companionKey = ingatlanCompanionColumnKey(indexKey, vd.companionSuffix);
+        if (!companionKey) continue;
+        variantMap[vd.id] = { indexKey: indexKey, companionKey: companionKey };
+      }
+      defaultVariantId = variantMap.haz ? 'haz' : variantMap.lakas ? 'lakas' : 'telek';
+    }
+
+    if (!variantMap[defaultVariantId]) {
+      const firstId = segmentOrder.find(function (id) {
+        return !!variantMap[id];
+      });
+      if (!firstId) return null;
+      defaultVariantId = firstId;
+    }
+
+    paramCategoryUid++;
+    const bodyId = 'param-item-body-' + paramCategoryUid;
+    const labelText = ent.megnevezes;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'control-group param-item ' + itemExtraClass;
+    wrap.setAttribute('data-param-active', '0');
+    wrap.setAttribute('data-param-band-filter', '1');
+    wrap.classList.add('param-item--inactive');
+    wrap.classList.add('param-item--collapsed');
+    wrap._ingVariantMap = variantMap;
+    wrap._ingActiveVariant = defaultVariantId;
+
+    const activeSwitch = document.createElement('button');
+    activeSwitch.type = 'button';
+    activeSwitch.className = 'param-item__ios-switch';
+    activeSwitch.setAttribute('role', 'switch');
+    activeSwitch.setAttribute('aria-checked', 'false');
+    activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
+    activeSwitch.title = 'Beleszámít a keresésbe';
+
+    const headRow = document.createElement('div');
+    headRow.className = 'param-item__head-row';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'param-item__toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', bodyId);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'param-item__chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▼';
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'param-item__title';
+    titleEl.textContent = labelText;
+    titleEl.title = uiParamId;
+
+    toggle.appendChild(chevron);
+    toggle.appendChild(titleEl);
+    headRow.appendChild(toggle);
+    appendParamHeadSoloAndInfo(
+      headRow,
+      uiParamId,
+      variantMap[defaultVariantId].indexKey
+    );
+    headRow.appendChild(activeSwitch);
+
+    activeSwitch.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const wasCollapsed = wrap.classList.contains('param-item--collapsed');
+      const turningOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+        activeSwitch.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+        wrap.setAttribute('data-param-active', nowOn ? '1' : '0');
+        wrap.classList.toggle('param-item--inactive', !nowOn);
+        if (nowOn) {
+          if (wrap.classList.contains('param-item--collapsed')) {
+            wrap.classList.remove('param-item--collapsed');
+            toggle.setAttribute('aria-expanded', 'true');
+          }
+        } else if (!wrap.classList.contains('param-item--collapsed')) {
+          wrap.classList.add('param-item--collapsed');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+        if (!nowOn) clearSoloIfMatchesParamKey(getActiveParamKeyFromCard(wrap));
+        if (nowOn) applyBandFilterEnableDefaults(wrap, true);
+      });
+      if (turningOn && wasCollapsed) startParamExpandScrollStabilize(wrap, headRow);
+      if (sliderAutoSearchActive) sidebarLayoutAnchorEl = headRow;
+      scheduleSearchFromSliders();
+    });
+
+    toggle.addEventListener('click', function () {
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
+        toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      });
+    });
+
+    const itemBody = document.createElement('div');
+    itemBody.id = bodyId;
+    itemBody.className = 'param-item__body';
+
+    const labelByVariantId = {};
+    for (let li = 0; li < labelDefs.length; li++) {
+      labelByVariantId[labelDefs[li].id] = labelDefs[li].label;
+    }
+
+    const segmentWrap = document.createElement('div');
+    segmentWrap.className = 'param-variant-segment';
+    segmentWrap.setAttribute('role', 'group');
+    segmentWrap.setAttribute('aria-label', segmentAriaLabel);
+
+    const segTrack = document.createElement('div');
+    segTrack.className =
+      'param-variant-segment__track' +
+      (segmentCols === 2 ? ' param-variant-segment__track--cols-2' : '');
+    const segThumb = document.createElement('span');
+    segThumb.className = 'param-variant-segment__thumb';
+    segThumb.setAttribute('aria-hidden', 'true');
+    segTrack.appendChild(segThumb);
+
+    const bandIntro = document.createElement('p');
+    bandIntro.className = 'param-band-intro';
+    const bandBlock = document.createElement('div');
+    bandBlock.className = 'param-band-slider-block';
+    wrap._bandBlock = bandBlock;
+    wrap._bandIntro = bandIntro;
+
+    function applyVariantBand(card, variantId, segmentBtns, segTrackEl, segIdxMap) {
+      const vm = card._ingVariantMap[variantId];
+      if (!vm) return;
+      const indexKey = vm.indexKey;
+      const cfg = getBandFilterConfigForDbKey(indexKey);
+      if (!cfg) return;
+
+      card._ingActiveVariant = variantId;
+      const segIdx = segIdxMap[variantId];
+      if (segTrackEl != null && Number.isFinite(segIdx)) {
+        segTrackEl.style.setProperty('--seg-idx', String(segIdx));
+      }
+      Object.keys(segmentBtns).forEach(function (id) {
+        const btn = segmentBtns[id];
+        if (!btn) return;
+        const on = id === variantId;
+        btn.classList.toggle('param-variant-segment__btn--active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+
+      if (card._bandIntro) card._bandIntro.textContent = cfg.intro;
+
+      const flexEl = card.querySelector('input[data-param-flex-for]');
+      if (flexEl) flexEl.setAttribute('data-param-flex-for', indexKey);
+
+      mountBandDualRangeOnBlock(
+        card._bandBlock,
+        indexKey,
+        sliderIdNum,
+        labelText,
+        cfg,
+        function () {
+          if (sliderAutoSearchActive) scheduleSearchFromSliders();
+        }
+      );
+      updateParamSoloButtonKey(card, indexKey);
+    }
+
+    const segmentBtns = {};
+    for (let si = 0; si < segmentOrder.length; si++) {
+      const segId = segmentOrder[si];
+      const segBtn = document.createElement('button');
+      segBtn.type = 'button';
+      segBtn.className = 'param-variant-segment__btn';
+      segBtn.setAttribute('data-variant-id', segId);
+      segBtn.textContent = labelByVariantId[segId] || segId;
+      segBtn.setAttribute('aria-pressed', 'false');
+      if (!variantMap[segId]) {
+        segBtn.disabled = true;
+        segBtn.classList.add('param-variant-segment__btn--unavailable');
+      }
+      segmentBtns[segId] = segBtn;
+      segTrack.appendChild(segBtn);
+      segBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (segBtn.disabled) return;
+        applyVariantBand(wrap, segId, segmentBtns, segTrack, segmentIndexMap);
+        if (sliderAutoSearchActive) scheduleSearchFromSliders();
+      });
+    }
+    segmentWrap.appendChild(segTrack);
+    itemBody.appendChild(segmentWrap);
+    itemBody.appendChild(bandIntro);
+    itemBody.appendChild(bandBlock);
+
+    const firstCfg = getBandFilterConfigForDbKey(variantMap[defaultVariantId].indexKey);
+    appendBandFilterFlexBlock(
+      itemBody,
+      variantMap[defaultVariantId].indexKey,
+      sliderIdNum,
+      labelText,
+      firstCfg ? firstCfg.flexTitle : ''
+    );
+
+    applyVariantBand(wrap, defaultVariantId, segmentBtns, segTrack, segmentIndexMap);
+
+    wrap.appendChild(headRow);
+    wrap.appendChild(itemBody);
     return wrap;
   }
 
@@ -3848,7 +5079,7 @@
     toggle.appendChild(titleEl);
 
     headRow.appendChild(toggle);
-    headRow.appendChild(createParameterInfoWrapForKey(key));
+    appendParamHeadSoloAndInfo(headRow, key, key);
     headRow.appendChild(activeSwitch);
 
     activeSwitch.addEventListener('click', function (e) {
@@ -3870,6 +5101,7 @@
           wrap.classList.add('param-item--collapsed');
           toggle.setAttribute('aria-expanded', 'false');
         }
+        if (!nowOn) clearSoloIfMatchesParamKey(key);
       });
       if (turningOn && wasCollapsed) {
         startParamExpandScrollStabilize(wrap, headRow);
@@ -3884,6 +5116,12 @@
     itemBody.id = bodyId;
     itemBody.className = 'param-item__body';
 
+    const uiParamEnt = getUiParamEntryForDbKey(key);
+    const sliderUi = uiParamEnt ? getValueSliderUiConfig(uiParamEnt.id) : null;
+    if (sliderUi && sliderUi.intro) {
+      appendParamValueIntro(itemBody, sliderUi.intro);
+    }
+
     const input = document.createElement('input');
     input.type = 'range';
     input.className = 'slider';
@@ -3896,7 +5134,6 @@
     input.step = String(step);
     input.value = String(mid);
 
-    const uiParamEnt = getUiParamEntryForDbKey(key);
     let indexCompanionModel = null;
     /** @type {null | function(number|null): string} */
     let indexCompanionFormat = null;
@@ -3989,7 +5226,13 @@
     } else {
       valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
     }
+    if (sliderUi && sliderUi.valueLabel) {
+      itemBody.appendChild(createParamSliderLabel(sliderUi.valueLabel));
+    }
     itemBody.appendChild(valueStack);
+    if (sliderUi) {
+      appendParamRangeHints(valueStack, sliderUi.leftHint, sliderUi.rightHint);
+    }
 
     const weightWrap = document.createElement('div');
     weightWrap.className = 'param-item__weight';
@@ -4010,14 +5253,8 @@
     wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
 
     const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
-
-    const wLabel = document.createElement('span');
-    wLabel.className = 'param-weight-label';
-    wLabel.textContent =
-      'Fontosság · a |Δ| szorzója (0–' + PARAM_WEIGHT_SLIDER_MAX + ', csak egész)';
-
     weightWrap.appendChild(wStack);
-    weightWrap.appendChild(wLabel);
+    mountWeightSliderUi(weightWrap, wStack, sliderUi);
     itemBody.appendChild(weightWrap);
 
     wrap.appendChild(headRow);
@@ -4398,6 +5635,7 @@
 
   function buildParamSliders() {
     clearGuidedScrollTimer();
+    soloHeatmapParamKey = null;
     const root = elements.paramCategoriesHost;
     if (!root) return;
     root.innerHTML = '';
@@ -4424,7 +5662,9 @@
         continue;
       }
       if (item.type === 'variant_segment' && groupBody) {
-        const card = createVariantSegmentParamCard(item.uiParamId, item.keys, sliderIndex, item.preset);
+        const card = isBandFilterUiParamId(item.uiParamId)
+          ? createBandFilterVariantParamCard(item.uiParamId, item.keys, sliderIndex)
+          : createVariantSegmentParamCard(item.uiParamId, item.keys, sliderIndex, item.preset);
         if (card) groupBody.appendChild(card);
         sliderIndex++;
       } else if (item.type === 'slider' && groupBody) {
@@ -4439,6 +5679,8 @@
     rebuildGuidedParamKeysFromDom();
     guidedFlowUnlocked = false;
     guidedFlowParamIndex = 0;
+    syncHeaderAllParamsToggleBtnUi();
+    syncHeaderClearAllSoloBtnUi();
   }
 
   function collectSliderTargets() {
@@ -4451,25 +5693,24 @@
     );
     bandCards.forEach(function (card) {
       if (card.getAttribute('data-param-active') === '0') return;
+      const key = getActiveParamKeyFromCard(card);
+      if (!key) return;
       const minEl = card.querySelector('[data-param-band-min-for]');
       const maxEl = card.querySelector('[data-param-band-max-for]');
       const flexEl = card.querySelector('input[type="range"][data-param-flex-for]');
       if (!minEl || !maxEl) return;
-      const key = minEl.getAttribute('data-param-band-min-for');
-      if (!key) return;
       const bandMin = parseNumeric(minEl.value);
       const bandMax = parseNumeric(maxEl.value);
       if (bandMin == null || bandMax == null) return;
-      const dualWrap = card.querySelector('.dual-range-wrap');
+      const cfg = getBandFilterConfigForDbKey(key);
       let scaleMin = 0;
       let scaleMax = 240;
-      if (dualWrap) {
-        const sm = parseFloat(dualWrap.getAttribute('data-scale-min'));
-        const sx = parseFloat(dualWrap.getAttribute('data-scale-max'));
-        if (Number.isFinite(sm)) scaleMin = sm;
-        if (Number.isFinite(sx)) scaleMax = sx;
+      if (cfg && cfg.filterCol) {
+        const cfgScale = computeBandFilterDataRange(cfg, key);
+        scaleMin = cfgScale.min;
+        scaleMax = cfgScale.max;
       }
-      let flex = 1;
+      let flex = PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
       if (flexEl) {
         const fw = parseFloat(flexEl.value);
         if (Number.isFinite(fw)) {
@@ -4480,12 +5721,16 @@
       }
       targets[key] = {
         mode: 'band',
+        indexKey: key,
         bandMin: bandMin,
         bandMax: bandMax,
         flex: flex,
         scaleMin: scaleMin,
         scaleMax: scaleMax,
-        companionKey: bandFilterCompanionMinuteKey(key),
+        companionKey: cfg ? cfg.filterCol : bandFilterCompanionKey(key),
+        parseValue: cfg ? cfg.parseValue : parseNumeric,
+        formatValue: cfg ? cfg.formatValue : formatDurationMinutesForUi,
+        scorePrefer: cfg ? cfg.scorePrefer : 'lower',
       };
     });
 
@@ -4516,8 +5761,8 @@
   }
 
   function cityPassesActiveBandFilters(city, targets) {
-    for (let i = 0; i < indexParamKeys.length; i++) {
-      const key = indexParamKeys[i];
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
       const pack = targets[key];
       if (!pack || pack.mode !== 'band') continue;
       if (!passesBandFilterForCity(city, pack)) return false;
@@ -4528,8 +5773,8 @@
   function computeWeightedIndexDiffSum(city, targets) {
     let sum = 0;
     let used = 0;
-    for (let j = 0; j < indexParamKeys.length; j++) {
-      const key = indexParamKeys[j];
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
       const pack = targets[key];
       if (!pack || pack.mode === 'band') continue;
       if (pack.value == null) continue;
@@ -4546,7 +5791,7 @@
     return { sum: sum, used: used };
   }
 
-  /** Keresési összpont: _index eltérések; ha csak sáv aktív, a perc érték (kisebb jobb). */
+  /** Keresési összpont: _index eltérések; sáv-only: rugalmasság + sáv illeszkedés. */
   function computeCitySearchScore(city, targets) {
     const scored = computeWeightedIndexDiffSum(city, targets);
     if (scored.used > 0) {
@@ -4554,15 +5799,13 @@
     }
     let bandSum = 0;
     let bandUsed = 0;
-    for (let j = 0; j < indexParamKeys.length; j++) {
-      const key = indexParamKeys[j];
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
       const pack = targets[key];
       if (!pack || pack.mode !== 'band') continue;
-      const col = pack.companionKey;
-      if (!col) continue;
-      const got = parseNumeric(city[col]);
-      if (got == null) continue;
-      bandSum += got;
+      const fit = computeBandFilterFitScore(city, pack);
+      if (fit == null || !Number.isFinite(fit)) continue;
+      bandSum += fit;
       bandUsed++;
     }
     if (bandUsed > 0) {
@@ -4904,6 +6147,134 @@
 
   function infoDbKeyForGeoSlot(slot) {
     return slot === 'a' ? 'geo_important_a' : 'geo_important_b';
+  }
+
+  function getActiveParamKeyFromCard(card) {
+    if (!card) return null;
+    const minEl = card.querySelector('[data-param-band-min-for]');
+    if (minEl) {
+      const bk = minEl.getAttribute('data-param-band-min-for');
+      if (bk) return bk;
+    }
+    if (card._ingVariantMap && card._ingActiveVariant) {
+      const vm = card._ingVariantMap[card._ingActiveVariant];
+      if (vm && vm.indexKey) return vm.indexKey;
+    }
+    const sl = card.querySelector('input[type="range"][data-param-key]');
+    if (sl) {
+      const sk = sl.getAttribute('data-param-key');
+      if (sk) return sk;
+    }
+    return null;
+  }
+
+  function clearAllParamSoloButtons() {
+    document.querySelectorAll('.param-solo-btn[aria-pressed="true"]').forEach(function (btn) {
+      btn.classList.remove('param-solo-btn--on');
+      btn.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  function setParamSoloKey(key) {
+    soloHeatmapParamKey = key || null;
+    clearAllParamSoloButtons();
+    if (key) {
+      document.querySelectorAll('.param-solo-btn[data-param-solo-for]').forEach(function (btn) {
+        if (btn.getAttribute('data-param-solo-for') !== key) return;
+        btn.classList.add('param-solo-btn--on');
+        btn.setAttribute('aria-pressed', 'true');
+      });
+    }
+    syncHeaderClearAllSoloBtnUi();
+  }
+
+  function clearSoloIfMatchesParamKey(key) {
+    if (!key || soloHeatmapParamKey !== key) return;
+    setParamSoloKey(null);
+  }
+
+  function updateParamSoloButtonKey(card, paramKey) {
+    const btn = card ? card.querySelector('.param-solo-btn') : null;
+    if (!btn || !paramKey) return;
+    const wasOn = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('data-param-solo-for', paramKey);
+    if (wasOn) {
+      soloHeatmapParamKey = paramKey;
+      refreshHeatmapFromCurrentSliders();
+    }
+  }
+
+  function applySoloFilterToTargets(targets) {
+    if (!soloHeatmapParamKey || !targets) return targets;
+    const pack = targets[soloHeatmapParamKey];
+    if (!pack) return targets;
+    const out = {};
+    out[soloHeatmapParamKey] = pack;
+    return out;
+  }
+
+  /** Nincs aktív mutató → hőtérkép ki + state törlés; egyébként frissítés ha be van kapcsolva. */
+  function syncHeatmapWithActiveParams() {
+    const targets = collectSliderTargets();
+    if (Object.keys(targets).length === 0) {
+      clearHeatmapFeatureStates();
+      if (heatmapEnabled) {
+        setHeatmapEnabled(false);
+      }
+      return;
+    }
+    if (heatmapEnabled && citiesData.length) {
+      updateHeatmapFromTargets(targets);
+    }
+  }
+
+  function refreshHeatmapFromCurrentSliders() {
+    syncHeatmapWithActiveParams();
+  }
+
+  function onParamSoloButtonClick(btn) {
+    if (!sliderAutoSearchActive) {
+      btn.title = 'Előbb futtasd a „Tökéletes hely keresése” funkciót.';
+      return;
+    }
+    const card = btn.closest('.param-item');
+    const key = getActiveParamKeyFromCard(card);
+    if (!key) return;
+    if (card && card.getAttribute('data-param-active') !== '1') return;
+
+    const wasOn = btn.getAttribute('aria-pressed') === 'true';
+    if (wasOn) {
+      setParamSoloKey(null);
+    } else {
+      setParamSoloKey(key);
+    }
+    refreshHeatmapFromCurrentSliders();
+  }
+
+  function createParamSoloButtonWrap(paramKey) {
+    const wrap = document.createElement('div');
+    wrap.className = 'param-solo-wrap param-solo-wrap--head';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'param-solo-btn param-solo-btn--head';
+    btn.setAttribute('data-param-solo-for', paramKey || '');
+    btn.setAttribute('aria-label', 'Szóló nézet: csak ez a mutató a térképen');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.title =
+      'Szóló: csak ennek a mutatónak az eredményei a térképen (előbb keresés)';
+    btn.textContent = 'S';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      onParamSoloButtonClick(btn);
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
+  function appendParamHeadSoloAndInfo(headRow, infoKey, paramKey) {
+    headRow.appendChild(createParamSoloButtonWrap(paramKey));
+    headRow.appendChild(createParameterInfoWrapForKey(infoKey));
   }
 
   function createParameterInfoWrapForKey(infoKey) {
@@ -5400,8 +6771,8 @@
 
   function computeMaxPossibleDiff(targets) {
     let s = 0;
-    for (let i = 0; i < indexParamKeys.length; i++) {
-      const k = indexParamKeys[i];
+    for (const k in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, k)) continue;
       const pack = targets[k];
       if (!pack || pack.mode === 'band' || pack.value == null) continue;
       const r = sliderRanges[k];
@@ -5419,7 +6790,8 @@
    * Összegzi a w·|user − city| súlyozott eltéréseket (_index); sávos mutatók csak szűrnek (A modell).
    */
   function findBestMatch(targets) {
-    if (!citiesData.length || indexParamKeys.length === 0) return null;
+    if (!citiesData.length) return null;
+    if (!targets || Object.keys(targets).length === 0) return null;
 
     let best = null;
     let minSum = Infinity;
@@ -5552,6 +6924,12 @@
     if (id === 'senior_index') {
       return { companionKey: seniorCompanionArany65Key(key), format: formatForestRatioForUi };
     }
+    if (id === 'jobs_index') {
+      return {
+        companionKey: jobsCompanionMunkalehetosegAranyKey(key),
+        format: formatForestRatioForUi,
+      };
+    }
     if (id === 'diploma_index') {
       return { companionKey: diplomaCompanionAranyaKey(key), format: formatForestRatioForUi };
     }
@@ -5578,40 +6956,60 @@
    * @param {object} city
    * @returns {Array<{ label: string, value: string }>}
    */
+  /** Aktív paraméterkártyák index kulcsai (csúszka és sávos tól–ig egyaránt). */
+  function collectActiveParamKeysFromDom() {
+    const out = [];
+    const seen = new Set();
+    const host = elements.paramCategoriesHost;
+    if (!host) return out;
+    host.querySelectorAll('.param-item[data-param-active="1"]').forEach(function (card) {
+      const key = getActiveParamKeyFromCard(card);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push({ key: key, card: card });
+    });
+    return out;
+  }
+
+  function formatCityInfoValueForParamKey(city, key) {
+    const info = findCompanionInfoForIndexKey(key);
+    if (info && info.pair) {
+      const parseFn = info.pair.parse || parseNumeric;
+      const a = parseFn(city[info.pair.a]);
+      const b = parseFn(city[info.pair.b]);
+      return info.pair.formatPair(a, b);
+    }
+    if (info && info.companionKey && info.format) {
+      const parseFn = info.parse || parseNumeric;
+      const v = parseFn(city[info.companionKey]);
+      return info.format(v);
+    }
+    const bandCfg = getBandFilterConfigForDbKey(key);
+    if (bandCfg && bandCfg.formatValue) {
+      const parseFn = bandCfg.parseValue || parseNumeric;
+      const col = bandCfg.filterCol;
+      const v = col ? parseFn(city[col]) : parseFn(city[key]);
+      return bandCfg.formatValue(v);
+    }
+    const v = parseNumeric(city[key]);
+    return v == null ? '–' : String(Math.round(v));
+  }
+
   function buildCityInfoRows(city) {
     const rows = [];
     if (!city || !elements.paramCategoriesHost) return rows;
-    const sliders = elements.paramCategoriesHost.querySelectorAll(
-      'input[type="range"][data-param-key]'
-    );
-    for (let i = 0; i < sliders.length; i++) {
-      const sl = sliders[i];
-      const key = sl.getAttribute('data-param-key');
-      if (!key) continue;
-      const card = sl.closest('.param-item');
-      if (!card || card.getAttribute('data-param-active') !== '1') continue;
+    const active = collectActiveParamKeysFromDom();
+    for (let i = 0; i < active.length; i++) {
+      const key = active[i].key;
+      const card = active[i].card;
       const titleEl = card ? card.querySelector('.param-item__title') : null;
       const label = titleEl && titleEl.textContent
         ? titleEl.textContent.trim()
         : paramLabelForDbKey(key);
-
-      let valueText = '–';
-      const info = findCompanionInfoForIndexKey(key);
-      if (info && info.pair) {
-        const parseFn = info.pair.parse || parseNumeric;
-        const a = parseFn(city[info.pair.a]);
-        const b = parseFn(city[info.pair.b]);
-        valueText = info.pair.formatPair(a, b);
-      } else if (info && info.companionKey && info.format) {
-        const parseFn = info.parse || parseNumeric;
-        const v = parseFn(city[info.companionKey]);
-        valueText = info.format(v);
-      } else {
-        const v = parseNumeric(city[key]);
-        valueText = v == null ? '–' : String(Math.round(v));
-      }
-
-      rows.push({ label: label, value: valueText });
+      rows.push({
+        label: label,
+        value: formatCityInfoValueForParamKey(city, key),
+      });
     }
     return rows;
   }
@@ -5888,6 +7286,23 @@
     if (!citiesData.length || indexParamKeys.length === 0) return;
     if (!geoIndexed || geoIndexed.length === 0) return;
 
+    if (!targets || Object.keys(targets).length === 0) {
+      clearHeatmapFeatureStates();
+      return;
+    }
+
+    targets = applySoloFilterToTargets(targets);
+    if (Object.keys(targets).length === 0) {
+      clearHeatmapFeatureStates();
+      if (cityInfoSelectedFeatureId) closeCityInfoPopup();
+      return;
+    }
+    if (soloHeatmapParamKey && Object.keys(targets).length === 0) {
+      clearHeatmapFeatureStates();
+      if (cityInfoSelectedFeatureId) closeCityInfoPopup();
+      return;
+    }
+
     const clearOldStates = function () {
       if (lastHeatmapPaintedIds) {
         lastHeatmapPaintedIds.forEach(function (id) {
@@ -6019,6 +7434,7 @@
       }
     } else {
       setHeatmapLayerVisibility(false);
+      clearHeatmapFeatureStates();
       closeCityInfoPopup();
     }
   }
@@ -6348,18 +7764,34 @@
       closeTicketOverlayOnly();
     }
 
+    if (!citiesData.length) {
+      elements.resultBox.textContent = 'Előbb töltsd be az all_parameters adatokat.';
+      return;
+    }
+
     const targets = collectSliderTargets();
-    const result = findBestMatch(targets);
     const paramCount = Object.keys(targets).length;
 
-    if (result) {
+    if (paramCount === 0) {
+      elements.resultBox.textContent =
+        'Nincs aktív keresési mutató. Kapcsolj be legalább egyet a bal oldali panelen, és állítsd be a sávot vagy csúszkát.';
+      removeWinningMarker();
+      lastSearchFeedbackMeta = null;
+      hideFeedbackPanel();
+      syncHeatmapWithActiveParams();
+      return;
+    }
+
+    const result = findBestMatch(targets);
+
+    if (heatmapEnabled) {
+      updateHeatmapFromTargets(targets);
+    } else if (result) {
       try {
         await setHeatmapEnabled(true);
       } catch (e) {
         console.warn('Hőtérkép bekapcsolás keresés után:', e);
       }
-    } else if (heatmapEnabled) {
-      updateHeatmapFromTargets(targets);
     }
 
     if (result) {
@@ -6395,13 +7827,11 @@
         anchorY = layoutAnchor.getBoundingClientRect().top;
       }
       let msg =
-        'Nincs találat. Töltsd be az adatokat, vagy ellenőrizd a csúszkákat és a kapcsolatot.';
-      if (citiesData.length && indexParamKeys.length) {
-        const geoOn = geoSlotReady('a') || geoSlotReady('b');
-        if (geoOn && countGeoEligibleCities() === 0) {
-          msg =
-            'Nincs település, amely minden bekapcsolt fontos hely körön belül esik. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrő(k)et.';
-        }
+        'Nincs olyan település, amely minden bekapcsolt mutatónak egyszerre megfelel. Lazítsd a rugalmasságot (Laza), szélesítsd a sávokat, vagy kapcsolj ki pár mutatót.';
+      const geoOn = geoSlotReady('a') || geoSlotReady('b');
+      if (geoOn && countGeoEligibleCities() === 0) {
+        msg =
+          'Nincs település, amely minden bekapcsolt fontos hely körön belül esik. Növeld a sugarakat, válassz más központokat, vagy kapcsold ki a szűrő(k)et.';
       }
       elements.resultBox.textContent = msg;
       removeWinningMarker();
@@ -6599,6 +8029,10 @@
     elements.searchBtn.addEventListener('click', onSearchClick);
 
     if (elements.paramCategoriesHost) {
+      elements.paramCategoriesHost.addEventListener('click', function (e) {
+        if (!e.target.closest('.param-item__ios-switch')) return;
+        queueMicrotask(syncHeatmapWithActiveParams);
+      });
       elements.paramCategoriesHost.addEventListener('input', function (e) {
         const t = e.target;
         if (!isParamSliderSearchInput(t)) return;
@@ -6612,12 +8046,20 @@
       });
     }
 
-    if (elements.paramRandomAllBtn) {
-      elements.paramRandomAllBtn.addEventListener('click', function () {
-        if (elements.paramCategoriesHost) {
-          randomizeSlidersInElement(elements.paramCategoriesHost);
-        }
+    if (elements.paramClearAllSoloBtn) {
+      elements.paramClearAllSoloBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        onHeaderClearAllSoloClick();
       });
+      syncHeaderClearAllSoloBtnUi();
+    }
+
+    if (elements.paramToggleAllBtn) {
+      elements.paramToggleAllBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        toggleAllParamCardsActive();
+      });
+      syncHeaderAllParamsToggleBtnUi();
     }
 
     if (elements.paramRestoreBaselineBtn) {

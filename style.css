@@ -253,6 +253,38 @@ body {
   line-height: 1;
 }
 
+.sidebar-header__cluster-btn--letter {
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sidebar-header__cluster-letter {
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sidebar-header__cluster-btn--on {
+  background: var(--hdr-cluster-fg);
+  color: var(--hdr-cluster-surface);
+}
+
+.sidebar-header__cluster-btn--on:hover {
+  background: var(--hdr-cluster-fg);
+  color: var(--hdr-cluster-surface);
+}
+
+.sidebar-header__cluster-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sidebar-header__cluster-btn:disabled:hover {
+  background: var(--hdr-cluster-surface);
+  color: var(--hdr-cluster-fg);
+}
+
 .sidebar-scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -475,7 +507,8 @@ body {
   pointer-events: auto;
 }
 
-.param-info-wrap--head {
+.param-info-wrap--head,
+.param-solo-wrap--head {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -486,15 +519,46 @@ body {
 }
 
 /* Ugyanaz a magasság és stílus, mint a .param-item__ios-switch — „i” nem dőlt: nem csúszik le optikailag */
-.param-info-btn--head {
+.param-info-btn--head,
+.param-solo-btn--head {
   width: 18px;
   height: 18px;
   font-size: 0.58rem;
   font-style: normal;
   font-family: inherit;
+  font-weight: 700;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  color: #000;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.param-item__head-row .param-info-wrap--head {
+.param-solo-btn--head:hover,
+.param-solo-btn--head:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  outline: none;
+}
+
+.param-solo-btn--head.param-solo-btn--on,
+.param-solo-btn--head[aria-pressed='true'] {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.param-item__head-row .param-info-wrap--head,
+.param-item__head-row .param-solo-wrap--head {
   margin-left: 2px;
   margin-right: 2px;
 }

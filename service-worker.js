@@ -4,13 +4,13 @@
    Supabase / térkép csempék: mindig hálózat.
    ========================================================== */
 
-const CACHE_NAME = 'darts-cache-v32';
+const CACHE_NAME = 'darts-cache-v35';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=115',
-  '/app.js?v=120',
+  '/style.css?v=117',
+  '/app.js?v=142',
   '/manifest.json',
 ];
 
