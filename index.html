@@ -91,6 +91,16 @@
     </div>
   </div>
 
+  <!-- Mobilon: fontos hely beállítás — alsó panel a térkép fölött -->
+  <div id="mobile-geo-sheet" class="mobile-geo-sheet" hidden aria-hidden="true">
+    <div id="mobile-geo-sheet-body" class="mobile-geo-sheet__body"></div>
+    <div id="mobile-geo-sheet-warn-host" class="mobile-geo-sheet__warn-host"></div>
+    <div class="mobile-geo-sheet__actions">
+      <button type="button" id="mobile-geo-sheet-cancel" class="mobile-geo-sheet__btn mobile-geo-sheet__btn--ghost">Mégse</button>
+      <button type="button" id="mobile-geo-sheet-ok" class="mobile-geo-sheet__btn mobile-geo-sheet__btn--primary">OK</button>
+    </div>
+  </div>
+
   <div id="map-picking-banner" class="map-picking-banner" hidden role="status">
     <p id="map-picking-banner-text" class="map-picking-banner-text"></p>
     <button type="button" id="map-picking-cancel" class="map-picking-cancel">Mégse</button>
@@ -145,7 +155,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=145"></script>
+  <script src="app.js?v=146"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

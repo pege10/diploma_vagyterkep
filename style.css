@@ -3431,6 +3431,121 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     display: none !important;
   }
 
+  /* Fontos hely beállítás: térkép + alsó panel (1. / 2. hely) */
+  .mobile-geo-sheet {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 140;
+    flex-direction: column;
+    max-height: min(58vh, 520px);
+    background: var(--paper);
+    border-top: 2px solid var(--ink);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.14);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html.is-touch.mobile-geo-setup .mobile-geo-sheet {
+    display: flex !important;
+  }
+
+  html.is-touch.mobile-geo-setup.map-picking .mobile-geo-sheet {
+    display: flex !important;
+    pointer-events: auto;
+  }
+
+  .mobile-geo-sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px 14px 4px;
+  }
+
+  .mobile-geo-sheet__warn-host {
+    flex: 0 0 auto;
+    padding: 0 14px 4px;
+    min-height: 0;
+  }
+
+  .mobile-geo-sheet__warn-host .ref-line {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+
+  .mobile-geo-sheet__actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px 12px;
+    border-top: 1px solid var(--line-strong);
+    background: var(--paper);
+  }
+
+  .mobile-geo-sheet__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 12px 14px;
+    border-radius: 4px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: var(--font-app);
+  }
+
+  .mobile-geo-sheet__btn--ghost {
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    color: var(--ink);
+  }
+
+  .mobile-geo-sheet__btn--primary {
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .mobile-geo-sheet__btn--ghost:hover,
+  .mobile-geo-sheet__btn--ghost:focus-visible {
+    border-color: var(--ink);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .mobile-geo-sheet__btn--primary:hover,
+  .mobile-geo-sheet__btn--primary:focus-visible {
+    background: #fff;
+    color: var(--ink);
+  }
+
+  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item--geo-place {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item--geo-place .param-item__body {
+    display: block !important;
+  }
+
+  html.is-touch.mobile-geo-setup .mobile-geo-sheet__body .param-item__toggle .param-item__chevron {
+    display: none;
+  }
+
+  html.is-touch.mobile-geo-setup #map-container.map-container {
+    bottom: min(58vh, 520px);
+  }
+
+  html.is-touch.mobile-geo-setup.map-picking #map-container.map-container {
+    bottom: min(58vh, 520px);
+  }
+
   /* Térképes pontválasztás (fontos hely): térkép elő, panel eltűnik, alsó szalag */
   html.is-touch.app-started.map-picking #map-container.map-container {
     opacity: 1 !important;

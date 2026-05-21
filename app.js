@@ -140,6 +140,13 @@
   let pickMode = null;
 
   /** Fontos hely — kör középpont (Alkalmaz / térkép után). */
+  /** @type {'a'|'b'|null} */
+  let mobileGeoSetupSlot = null;
+  let mobileGeoSetupRestore = null;
+  let mobileGeoSetupTurnedOnBySheet = false;
+  /** Indítás után automatikus 1. fontos hely panel (adatbetöltés után nyílik). */
+  let mobileGeoAutoOpenSlot = null;
+
   let geoSlotState = {
     a: { city: null, lat: NaN, lng: NaN },
     b: { city: null, lat: NaN, lng: NaN },
@@ -232,6 +239,11 @@
     strictParamsList: null,
     strictParamsCloseBtn: null,
     sidebarDock: null,
+    mobileGeoSheet: null,
+    mobileGeoSheetBody: null,
+    mobileGeoSheetWarnHost: null,
+    mobileGeoSheetOk: null,
+    mobileGeoSheetCancel: null,
   };
 
   function initElements() {
@@ -261,6 +273,11 @@
     elements.strictParamsList = document.getElementById('strict-params-list');
     elements.strictParamsCloseBtn = document.getElementById('strict-params-close');
     elements.sidebarDock = document.getElementById('sidebar-dock');
+    elements.mobileGeoSheet = document.getElementById('mobile-geo-sheet');
+    elements.mobileGeoSheetBody = document.getElementById('mobile-geo-sheet-body');
+    elements.mobileGeoSheetWarnHost = document.getElementById('mobile-geo-sheet-warn-host');
+    elements.mobileGeoSheetOk = document.getElementById('mobile-geo-sheet-ok');
+    elements.mobileGeoSheetCancel = document.getElementById('mobile-geo-sheet-cancel');
   }
 
   function initImportantPlaceElements() {
@@ -890,9 +907,15 @@
 
   function syncMobileMapDockButtons() {
     if (!isTouchMobileAppStarted()) return;
+    const inGeoSetup = document.documentElement.classList.contains('mobile-geo-setup');
     const inMap = document.documentElement.classList.contains('mobile-map-view');
     const openBtn = document.getElementById('sidebar-expand-btn');
     const closeBtn = document.getElementById('sidebar-collapse-btn');
+    if (inGeoSetup) {
+      if (openBtn) openBtn.setAttribute('aria-hidden', 'true');
+      if (closeBtn) closeBtn.setAttribute('aria-hidden', 'true');
+      return;
+    }
     if (openBtn) {
       openBtn.setAttribute('aria-hidden', inMap ? 'false' : 'true');
       openBtn.title = 'Paraméterek megnyitása';
@@ -902,6 +925,139 @@
       closeBtn.setAttribute('aria-hidden', inMap ? 'true' : 'false');
       closeBtn.title = 'Térkép megnyitása';
       closeBtn.setAttribute('aria-label', 'Térkép megnyitása');
+    }
+  }
+
+  function getGeoPlaceCardEl(slot) {
+    const sw = slot === 'a' ? elements.geoActiveA : elements.geoActiveB;
+    return sw ? sw.closest('.param-item--geo-place') : null;
+  }
+
+  function isGeoPlaceSwitchOn(slot) {
+    const sw = slot === 'a' ? elements.geoActiveA : elements.geoActiveB;
+    return !!(sw && sw.getAttribute('aria-checked') === 'true');
+  }
+
+  function shouldAutoOpenMobileGeoSetup(slot) {
+    if (!isTouchMobileAppStarted()) return false;
+    if (!isGeoPlaceSwitchOn(slot)) return false;
+    return !geoSlotReady(slot);
+  }
+
+  function tryOpenMobileGeoSetupIfNeeded(slot) {
+    if (!shouldAutoOpenMobileGeoSetup(slot)) return;
+    if (mobileGeoSetupSlot === slot) return;
+    enterMobileGeoSetup(slot);
+  }
+
+  function showMobileGeoSheetEl(show) {
+    const sheet = elements.mobileGeoSheet;
+    if (!sheet) return;
+    if (show) {
+      sheet.removeAttribute('hidden');
+      sheet.setAttribute('aria-hidden', 'false');
+    } else {
+      sheet.setAttribute('hidden', '');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function enterMobileGeoSetup(slot) {
+    if (!isTouchMobileAppStarted() || (slot !== 'a' && slot !== 'b')) return;
+    if (mobileGeoSetupSlot === slot) return;
+    if (mobileGeoSetupSlot) exitMobileGeoSetup(true);
+
+    const card = getGeoPlaceCardEl(slot);
+    const bodyHost = elements.mobileGeoSheetBody;
+    if (!card || !bodyHost) return;
+
+    card.classList.remove('param-item--collapsed');
+    const toggle = card.querySelector('.param-item__toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', 'true');
+
+    const warn = elements.geoWarnLine;
+    mobileGeoSetupRestore = {
+      cardParent: card.parentNode,
+      cardNext: card.nextSibling,
+      warnParent: warn ? warn.parentNode : null,
+      warnNext: warn ? warn.nextSibling : null,
+    };
+
+    bodyHost.appendChild(card);
+    if (warn && elements.mobileGeoSheetWarnHost) {
+      elements.mobileGeoSheetWarnHost.appendChild(warn);
+    }
+
+    mobileGeoSetupSlot = slot;
+    document.documentElement.classList.add('mobile-geo-setup');
+    document.documentElement.setAttribute('data-geo-setup-slot', slot);
+    showMobileGeoSheetEl(true);
+    setMobileMapView(true);
+    refreshGeoFilterWarning();
+    updateImportantPlaceCircles();
+    syncGeoMarkersFromState();
+  }
+
+  function exitMobileGeoSetup(apply) {
+    const slot = mobileGeoSetupSlot;
+    const restore = mobileGeoSetupRestore;
+    const card = slot ? getGeoPlaceCardEl(slot) : null;
+    const warn = elements.geoWarnLine;
+
+    if (card && restore && restore.cardParent) {
+      if (restore.cardNext) restore.cardParent.insertBefore(card, restore.cardNext);
+      else restore.cardParent.appendChild(card);
+    }
+    if (warn && restore && restore.warnParent) {
+      if (restore.warnNext) restore.warnParent.insertBefore(warn, restore.warnNext);
+      else restore.warnParent.appendChild(warn);
+    }
+
+    mobileGeoSetupSlot = null;
+    mobileGeoSetupRestore = null;
+    const turnedOnBySheet = mobileGeoSetupTurnedOnBySheet;
+    mobileGeoSetupTurnedOnBySheet = false;
+
+    document.documentElement.classList.remove('mobile-geo-setup');
+    document.documentElement.removeAttribute('data-geo-setup-slot');
+    showMobileGeoSheetEl(false);
+
+    if (!apply && turnedOnBySheet && slot) {
+      setGeoPlaceCardActive(slot, false);
+    }
+
+    setMobileMapView(false);
+    syncMobileMapDockButtons();
+    refreshGeoFilterWarning();
+    updateImportantPlaceCircles();
+  }
+
+  function onMobileGeoSheetOk() {
+    const slot = mobileGeoSetupSlot;
+    exitMobileGeoSetup(true);
+    if (slot === 'a' && geoSlotReady('a')) {
+      maybeAdvanceGuidedFlowAfterGeo('a');
+    } else if (slot === 'b' && geoSlotReady('b')) {
+      maybeAdvanceGuidedFlowAfterGeo('b');
+    }
+  }
+
+  function onMobileGeoSheetCancel() {
+    exitMobileGeoSetup(false);
+  }
+
+  function initMobileGeoSheet() {
+    if (elements.mobileGeoSheetOk) {
+      elements.mobileGeoSheetOk.addEventListener('click', function (e) {
+        e.stopPropagation();
+        onMobileGeoSheetOk();
+      });
+    }
+    if (elements.mobileGeoSheetCancel) {
+      elements.mobileGeoSheetCancel.addEventListener('click', function (e) {
+        e.stopPropagation();
+        onMobileGeoSheetCancel();
+      });
     }
   }
 
@@ -3557,6 +3713,10 @@
     if (slot === 'a') {
       expandImportantPlaceCard('b');
       setGeoPlaceCardActive('b', true);
+      if (isTouchMobileAppStarted()) {
+        mobileGeoSetupTurnedOnBySheet = true;
+        enterMobileGeoSetup('b');
+      }
       return;
     }
     if (slot === 'b') {
@@ -3591,6 +3751,13 @@
       if (aOk) {
         expandImportantPlaceCard('b');
         setGeoPlaceCardActive('b', true);
+        if (isTouchMobileAppStarted() && shouldAutoOpenMobileGeoSetup('b')) {
+          mobileGeoSetupTurnedOnBySheet = true;
+          enterMobileGeoSetup('b');
+        }
+      } else if (mobileGeoAutoOpenSlot === 'a' || shouldAutoOpenMobileGeoSetup('a')) {
+        mobileGeoAutoOpenSlot = null;
+        tryOpenMobileGeoSetupIfNeeded('a');
       }
     }
   }
@@ -5951,9 +6118,18 @@
       if (sliderAutoSearchActive) {
         sidebarLayoutAnchorEl = headRow;
       }
+      const nowOn = activeSwitch.getAttribute('aria-checked') === 'true';
       refreshGeoFilterWarning();
       scheduleSearchFromSliders();
       updateImportantPlaceCircles();
+      if (isTouchMobileAppStarted()) {
+        if (nowOn) {
+          mobileGeoSetupTurnedOnBySheet = turningOn;
+          enterMobileGeoSetup(slot);
+        } else if (mobileGeoSetupSlot === slot) {
+          exitMobileGeoSetup(false);
+        }
+      }
     });
 
     if (slot === 'b') {
@@ -7057,6 +7233,11 @@
     if (elements.mapPickingBanner) elements.mapPickingBanner.hidden = true;
     updatePickButtonActive();
     if (map) map.resize();
+    if (mobileGeoSetupSlot) {
+      setMobileMapView(true);
+      showMobileGeoSheetEl(true);
+      syncMobileMapDockButtons();
+    }
   }
 
   function onMapPickClick(e) {
@@ -8141,6 +8322,9 @@
 
     document.documentElement.classList.add('app-started');
     syncMobileMapDockButtons();
+    if (isTouchMobileAppStarted() && isGeoPlaceSwitchOn('a')) {
+      mobileGeoAutoOpenSlot = 'a';
+    }
 
     elements.startOverlay.classList.add('start-overlay--hidden');
 
@@ -8434,6 +8618,7 @@
     initWinnerInfoToggle();
     initFirstSearchHintModal();
     initStrictParamsModal();
+    initMobileGeoSheet();
     syncMobileMapDockButtons();
     initParamInfoTooltips();
     initMap();
@@ -8551,6 +8736,11 @@
       ) {
         e.preventDefault();
         closeStrictParamsModal();
+        return;
+      }
+      if (e.key === 'Escape' && mobileGeoSetupSlot) {
+        e.preventDefault();
+        onMobileGeoSheetCancel();
       }
     });
 
