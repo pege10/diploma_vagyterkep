@@ -721,12 +721,372 @@
     return t + NBSP + '°';
   }
 
-  function formatMinutesForUi(minutes) {
+  /** Egész percek → „12 perc”, „1 óra 5 perc” (perc indexek buborékja / szélső érték). */
+  function formatDurationMinutesForUi(minutes) {
     if (minutes == null || !Number.isFinite(minutes)) return '–';
-    const x = Math.round(minutes * 10) / 10;
-    const s = String(x);
-    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
-    return t + NBSP + 'perc';
+    const total = Math.round(minutes);
+    if (total < 0) return '–';
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (h <= 0) return String(m) + NBSP + 'perc';
+    if (m === 0) return String(h) + NBSP + 'óra';
+    return String(h) + NBSP + 'óra' + NBSP + String(m) + NBSP + 'perc';
+  }
+
+  function formatMinutesForUi(minutes) {
+    return formatDurationMinutesForUi(minutes);
+  }
+
+  /** Sávos szűrő (A modell): csak ezeknél a UI mutatóknál. */
+  var BAND_FILTER_UI_PARAM_IDS = { budapest_access_index: true };
+
+  function isBandFilterParamKey(dbKey) {
+    const ent = getUiParamEntryForDbKey(dbKey);
+    return !!(ent && BAND_FILTER_UI_PARAM_IDS[ent.id]);
+  }
+
+  function bandFilterCompanionMinuteKey(dbKey) {
+    return budapestAccessCompanionPercKey(dbKey);
+  }
+
+  function computeMinuteColumnRange(colKey) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < citiesData.length; i++) {
+      const v = parseNumeric(citiesData[i][colKey]);
+      if (v == null) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return { min: 0, max: 240 };
+    }
+    return { min: Math.max(0, Math.floor(min)), max: Math.ceil(max) };
+  }
+
+  /**
+   * Rugalmasság 0–1: effektív [min,max] perc.
+   * 0 (laza) = teljes skála → gyakorlatilag nincs perc-korlát; 1 (szigorú) = pontos sáv.
+   */
+  function effectiveBandMinuteBounds(bandMin, bandMax, flex01, scaleMin, scaleMax) {
+    const lo = Math.min(bandMin, bandMax);
+    const hi = Math.max(bandMin, bandMax);
+    const f = Math.max(0, Math.min(1, flex01));
+    const sMin = Number.isFinite(scaleMin) ? scaleMin : 0;
+    const sMax = Number.isFinite(scaleMax) ? scaleMax : Math.max(hi, 240);
+    if (f <= 0) return { effMin: sMin, effMax: sMax };
+    if (f >= 1) return { effMin: lo, effMax: hi };
+    return {
+      effMin: sMin + (lo - sMin) * f,
+      effMax: sMax + (hi - sMax) * f,
+    };
+  }
+
+  function passesBandFilterForCity(city, pack) {
+    if (!pack || pack.mode !== 'band') return true;
+    const col = pack.companionKey;
+    if (!col) return true;
+    const got = parseNumeric(city[col]);
+    if (got == null) return false;
+    const flex =
+      pack.flex != null && Number.isFinite(pack.flex)
+        ? Math.max(0, Math.min(1, pack.flex))
+        : 1;
+    let scaleMin = pack.scaleMin;
+    let scaleMax = pack.scaleMax;
+    if (!Number.isFinite(scaleMin) || !Number.isFinite(scaleMax)) {
+      const mr = computeMinuteColumnRange(col);
+      scaleMin = mr.min;
+      scaleMax = mr.max;
+    }
+    const b = effectiveBandMinuteBounds(
+      pack.bandMin,
+      pack.bandMax,
+      flex,
+      scaleMin,
+      scaleMax
+    );
+    return got >= b.effMin && got <= b.effMax;
+  }
+
+  function appendParamRangeHints(stack, leftHint, rightHint) {
+    if (!stack) return;
+    stack.classList.add('param-slider-stack--with-hints');
+    const hints = document.createElement('div');
+    hints.className = 'param-range-hints param-range-hints--below';
+    const hLeft = document.createElement('span');
+    hLeft.className = 'param-range-hint param-range-hint--min';
+    hLeft.textContent = leftHint;
+    const hRight = document.createElement('span');
+    hRight.className = 'param-range-hint param-range-hint--max';
+    hRight.textContent = rightHint;
+    hints.appendChild(hLeft);
+    hints.appendChild(hRight);
+    stack.appendChild(hints);
+  }
+
+  /**
+   * Egy sáv, két húzható pont (custom thumb). invertScale: bal = nagyobb perc, jobb = 0 perc.
+   * @returns {{ stack: HTMLElement, minInput: HTMLInputElement, maxInput: HTMLInputElement }}
+   */
+  function buildDualRangeSliderStack(opts) {
+    const scaleMin = opts.scaleMin;
+    const scaleMax = opts.scaleMax;
+    const step = opts.step != null ? opts.step : 1;
+    const invertScale = !!opts.invertScale;
+    let valueLo = opts.valueMin != null ? opts.valueMin : scaleMin;
+    let valueHi = opts.valueMax != null ? opts.valueMax : scaleMax;
+    if (valueLo > valueHi) {
+      const t = valueLo;
+      valueLo = valueHi;
+      valueHi = t;
+    }
+    const formatValue = opts.formatValue || formatDurationMinutesForUi;
+    const onChange = opts.onChange;
+    const span = scaleMax - scaleMin;
+
+    const stack = document.createElement('div');
+    stack.className = 'param-slider-stack param-slider-stack--dual-range';
+
+    const row = document.createElement('div');
+    row.className = 'param-range-row param-range-row--dual';
+
+    const endLeft = document.createElement('span');
+    endLeft.className = 'param-range-end param-range-end--min';
+    endLeft.textContent = invertScale ? formatValue(scaleMax) : formatValue(scaleMin);
+
+    const endRight = document.createElement('span');
+    endRight.className = 'param-range-end param-range-end--max';
+    endRight.textContent = invertScale ? formatValue(scaleMin) : formatValue(scaleMax);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'slider-wrap param-range-thumb-wrap dual-range-wrap';
+    wrap.setAttribute('role', 'group');
+    wrap.setAttribute('data-scale-min', String(scaleMin));
+    wrap.setAttribute('data-scale-max', String(scaleMax));
+
+    const track = document.createElement('div');
+    track.className = 'dual-range-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'dual-range-fill';
+
+    const bubbleLo = document.createElement('div');
+    bubbleLo.className =
+      'slider-bubble param-range-value-bubble dual-range-bubble dual-range-bubble--lo';
+    bubbleLo.setAttribute('aria-hidden', 'true');
+
+    const bubbleHi = document.createElement('div');
+    bubbleHi.className =
+      'slider-bubble param-range-value-bubble dual-range-bubble dual-range-bubble--hi';
+    bubbleHi.setAttribute('aria-hidden', 'true');
+
+    const thumbHi = document.createElement('button');
+    thumbHi.type = 'button';
+    thumbHi.className = 'dual-range-thumb dual-range-thumb--hi';
+    thumbHi.setAttribute('aria-label', 'Felső határ');
+
+    const thumbLo = document.createElement('button');
+    thumbLo.type = 'button';
+    thumbLo.className = 'dual-range-thumb dual-range-thumb--lo';
+    thumbLo.setAttribute('aria-label', 'Alsó határ');
+
+    const minInput = document.createElement('input');
+    minInput.type = 'hidden';
+    minInput.className = 'dual-range-value-input';
+    minInput.value = String(valueLo);
+    if (opts.minAttrs) {
+      Object.keys(opts.minAttrs).forEach(function (ak) {
+        minInput.setAttribute(ak, opts.minAttrs[ak]);
+      });
+    }
+
+    const maxInput = document.createElement('input');
+    maxInput.type = 'hidden';
+    maxInput.className = 'dual-range-value-input';
+    maxInput.value = String(valueHi);
+    if (opts.maxAttrs) {
+      Object.keys(opts.maxAttrs).forEach(function (ak) {
+        maxInput.setAttribute(ak, opts.maxAttrs[ak]);
+      });
+    }
+
+    wrap.appendChild(track);
+    wrap.appendChild(fill);
+    wrap.appendChild(bubbleLo);
+    wrap.appendChild(bubbleHi);
+    wrap.appendChild(thumbHi);
+    wrap.appendChild(thumbLo);
+    wrap.appendChild(minInput);
+    wrap.appendChild(maxInput);
+
+    row.appendChild(endLeft);
+    row.appendChild(wrap);
+    row.appendChild(endRight);
+    stack.appendChild(row);
+
+    if (opts.leftHint != null || opts.rightHint != null) {
+      appendParamRangeHints(stack, opts.leftHint || '', opts.rightHint || '');
+    }
+
+    function valueToPct(v) {
+      if (!Number.isFinite(span) || span <= 0) return 0;
+      const t = invertScale ? (scaleMax - v) / span : (v - scaleMin) / span;
+      return Math.max(0, Math.min(100, t * 100));
+    }
+
+    function pctToValue(pct) {
+      const t = Math.max(0, Math.min(100, pct)) / 100;
+      const raw = invertScale
+        ? scaleMax - t * span
+        : scaleMin + t * span;
+      return snapToStep(raw, scaleMin, scaleMax, step);
+    }
+
+    function thumbLeftPx(pct) {
+      const t = Math.max(0, Math.min(100, pct)) / 100;
+      const rect = wrap.getBoundingClientRect();
+      const thumb = PARAM_RANGE_THUMB_SIZE_PX;
+      const width = rect.width;
+      if (width <= thumb) return width / 2;
+      return thumb / 2 + t * (width - thumb);
+    }
+
+    function pctFromClientX(clientX) {
+      const rect = wrap.getBoundingClientRect();
+      const thumb = PARAM_RANGE_THUMB_SIZE_PX;
+      const width = rect.width;
+      if (width <= thumb) return 0;
+      let tClick;
+      if (width <= thumb) {
+        tClick = (clientX - rect.left) / width;
+      } else {
+        tClick = (clientX - rect.left - thumb / 2) / (width - thumb);
+      }
+      return Math.max(0, Math.min(100, tClick)) * 100;
+    }
+
+    function readValues() {
+      let lo = parseFloat(minInput.value);
+      let hi = parseFloat(maxInput.value);
+      if (!Number.isFinite(lo)) lo = scaleMin;
+      if (!Number.isFinite(hi)) hi = scaleMax;
+      if (lo > hi) {
+        const t = lo;
+        lo = hi;
+        hi = t;
+        minInput.value = String(lo);
+        maxInput.value = String(hi);
+      }
+      return { lo: lo, hi: hi };
+    }
+
+    function paint() {
+      const vals = readValues();
+      const pctHi = valueToPct(vals.hi);
+      const pctLo = valueToPct(vals.lo);
+      const leftPct = Math.min(pctHi, pctLo);
+      const rightPct = Math.max(pctHi, pctLo);
+
+      const xHi = thumbLeftPx(pctHi);
+      const xLo = thumbLeftPx(pctLo);
+      thumbHi.style.left = xHi + 'px';
+      thumbLo.style.left = xLo + 'px';
+
+      const xFillL = Math.min(xHi, xLo);
+      const xFillR = Math.max(xHi, xLo);
+      fill.style.left = xFillL + 'px';
+      fill.style.width = Math.max(2, xFillR - xFillL) + 'px';
+
+      bubbleLo.style.left = xLo + 'px';
+      bubbleLo.style.transform = 'translateX(-50%)';
+      bubbleLo.textContent = formatValue(vals.lo);
+      bubbleHi.style.left = xHi + 'px';
+      bubbleHi.style.transform = 'translateX(-50%)';
+      bubbleHi.textContent = formatValue(vals.hi);
+
+      minInput.setAttribute('aria-valuetext', formatValue(vals.lo));
+      maxInput.setAttribute('aria-valuetext', formatValue(vals.hi));
+    }
+
+    function emitChange() {
+      paint();
+      if (onChange) onChange();
+    }
+
+    function setValue(which, v) {
+      const vals = readValues();
+      if (which === 'lo') {
+        minInput.value = String(Math.min(v, vals.hi));
+      } else {
+        maxInput.value = String(Math.max(v, vals.lo));
+      }
+      emitChange();
+    }
+
+    /** Húzás közben az aktív pont buborékja és gombja legyen felül. */
+    function setActiveDualThumb(which) {
+      const loFront = which === 'lo';
+      bubbleLo.style.zIndex = loFront ? '12' : '6';
+      bubbleHi.style.zIndex = loFront ? '6' : '12';
+      thumbLo.style.zIndex = loFront ? '8' : '5';
+      thumbHi.style.zIndex = loFront ? '5' : '8';
+      bubbleLo.classList.toggle('dual-range-bubble--front', loFront);
+      bubbleHi.classList.toggle('dual-range-bubble--front', !loFront);
+      thumbLo.classList.toggle('dual-range-thumb--front', loFront);
+      thumbHi.classList.toggle('dual-range-thumb--front', !loFront);
+    }
+
+    function startDrag(which, startEvent) {
+      startEvent.preventDefault();
+      setActiveDualThumb(which);
+      const move = function (ev) {
+        const clientX = ev.clientX != null ? ev.clientX : 0;
+        setValue(which, pctToValue(pctFromClientX(clientX)));
+      };
+      const end = function () {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', end);
+        document.removeEventListener('pointercancel', end);
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', end);
+      document.addEventListener('pointercancel', end);
+      move(startEvent);
+    }
+
+    thumbLo.addEventListener('pointerdown', function (e) {
+      startDrag('lo', e);
+    });
+    thumbHi.addEventListener('pointerdown', function (e) {
+      startDrag('hi', e);
+    });
+
+    track.addEventListener('pointerdown', function (e) {
+      if (e.target !== track && e.target !== fill) return;
+      const v = pctToValue(pctFromClientX(e.clientX));
+      const vals = readValues();
+      const dLo = Math.abs(v - vals.lo);
+      const dHi = Math.abs(v - vals.hi);
+      startDrag(dLo <= dHi ? 'lo' : 'hi', e);
+    });
+
+    window.addEventListener(
+      'scroll',
+      function () {
+        paint();
+      },
+      true
+    );
+    window.addEventListener('resize', function () {
+      paint();
+    });
+
+    wrap._dualRangeRepaint = emitChange;
+
+    requestAnimationFrame(emitChange);
+
+    return { stack: stack, minInput: minInput, maxInput: maxInput, wrap: wrap };
   }
 
   function formatMbpsForUi(mbps) {
@@ -2576,7 +2936,41 @@
     for (let i = 0; i < indexParamKeys.length; i++) {
       const key = indexParamKeys[i];
       const pack = targets[key];
-      if (!pack || pack.value == null) continue;
+      if (!pack) continue;
+
+      if (pack.mode === 'band') {
+        const col = pack.companionKey;
+        const gotMin = col ? parseNumeric(winningCity[col]) : null;
+        const flex =
+          pack.flex != null && Number.isFinite(pack.flex)
+            ? Math.max(0, Math.min(1, pack.flex))
+            : 1;
+        const eff = effectiveBandMinuteBounds(
+          pack.bandMin,
+          pack.bandMax,
+          flex,
+          pack.scaleMin,
+          pack.scaleMax
+        );
+        const inBand =
+          gotMin != null && gotMin >= eff.effMin && gotMin <= eff.effMax;
+        rows.push({
+          key: key,
+          isBand: true,
+          wantText:
+            formatDurationMinutesForUi(pack.bandMin) +
+            ' – ' +
+            formatDurationMinutesForUi(pack.bandMax),
+          got: gotMin,
+          gotText: gotMin != null ? formatDurationMinutesForUi(gotMin) : '–',
+          diffText: inBand ? 'a sávban' : 'kívül',
+          weight: flex,
+          wdiff: 0,
+        });
+        continue;
+      }
+
+      if (pack.value == null) continue;
       const want = pack.value;
       const weight =
         pack.weight != null && Number.isFinite(pack.weight)
@@ -2588,6 +2982,7 @@
       if (wdiff != null) sumDisplayed += wdiff;
       rows.push({
         key: key,
+        isBand: false,
         want: want,
         got: got,
         diff: diff,
@@ -2618,15 +3013,25 @@
 
       const td1 = document.createElement('td');
       td1.className = 'feedback-table__num';
-      td1.textContent = String(Math.round(row.want * 1000) / 1000);
+      td1.textContent = row.isBand
+        ? row.wantText
+        : String(Math.round(row.want * 1000) / 1000);
 
       const td2 = document.createElement('td');
       td2.className = 'feedback-table__num';
-      td2.textContent = row.got != null ? String(Math.round(row.got * 1000) / 1000) : '–';
+      td2.textContent = row.isBand
+        ? row.gotText
+        : row.got != null
+          ? String(Math.round(row.got * 1000) / 1000)
+          : '–';
 
       const td3 = document.createElement('td');
       td3.className = 'feedback-table__num';
-      td3.textContent = row.diff != null ? String(Math.round(row.diff * 1000) / 1000) : '–';
+      td3.textContent = row.isBand
+        ? row.diffText
+        : row.diff != null
+          ? String(Math.round(row.diff * 1000) / 1000)
+          : '–';
 
       const td4 = document.createElement('td');
       td4.className = 'feedback-table__num';
@@ -2637,7 +3042,11 @@
 
       const td5 = document.createElement('td');
       td5.className = 'feedback-table__num';
-      td5.textContent = row.wdiff != null ? String(Math.round(row.wdiff * 1000) / 1000) : '–';
+      td5.textContent = row.isBand
+        ? '–'
+        : row.wdiff != null
+          ? String(Math.round(row.wdiff * 1000) / 1000)
+          : '–';
 
       tr.appendChild(td0);
       tr.appendChild(td1);
@@ -2728,6 +3137,15 @@
     scopeEl.querySelectorAll('input[type="range"][data-param-weight-for]').forEach(function (el) {
       el.setAttribute('data-baseline-weight', String(el.value));
     });
+    scopeEl.querySelectorAll('[data-param-band-min-for]').forEach(function (el) {
+      el.setAttribute('data-baseline-band-min', String(el.value));
+    });
+    scopeEl.querySelectorAll('[data-param-band-max-for]').forEach(function (el) {
+      el.setAttribute('data-baseline-band-max', String(el.value));
+    });
+    scopeEl.querySelectorAll('input[type="range"][data-param-flex-for]').forEach(function (el) {
+      el.setAttribute('data-baseline-flex', String(el.value));
+    });
   }
 
   function restoreParamSlidersFromBaseline(scopeEl) {
@@ -2746,6 +3164,27 @@
         el.value = b;
         el.dispatchEvent(new Event('input', { bubbles: true }));
       });
+      scopeEl.querySelectorAll('[data-param-band-min-for]').forEach(function (el) {
+        const b = el.getAttribute('data-baseline-band-min');
+        if (b == null || b === '') return;
+        el.value = b;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      scopeEl.querySelectorAll('[data-param-band-max-for]').forEach(function (el) {
+        const b = el.getAttribute('data-baseline-band-max');
+        if (b == null || b === '') return;
+        el.value = b;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      scopeEl.querySelectorAll('.dual-range-wrap').forEach(function (wrap) {
+        if (typeof wrap._dualRangeRepaint === 'function') wrap._dualRangeRepaint();
+      });
+      scopeEl.querySelectorAll('input[type="range"][data-param-flex-for]').forEach(function (el) {
+        const b = el.getAttribute('data-baseline-flex');
+        if (b == null || b === '') return;
+        el.value = b;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
     } finally {
       guidedFlowIgnoreInputs = false;
     }
@@ -2759,6 +3198,7 @@
       sliders.forEach(function (el) {
         const card = el.closest('.param-item');
         if (card && card.getAttribute('data-param-active') === '0') return;
+        if (card && card.getAttribute('data-param-band-filter') === '1') return;
         const min = parseFloat(el.min);
         const max = parseFloat(el.max);
         const step = parseFloat(el.step);
@@ -2768,6 +3208,30 @@
         const v = snapToStep(raw, min, max, st);
         el.value = String(v);
         el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      scopeEl.querySelectorAll('.param-item[data-param-band-filter="1"]').forEach(function (card) {
+        if (card.getAttribute('data-param-active') === '0') return;
+        const minEl = card.querySelector('[data-param-band-min-for]');
+        const maxEl = card.querySelector('[data-param-band-max-for]');
+        const dualWrap = card.querySelector('.dual-range-wrap');
+        if (!minEl || !maxEl) return;
+        const lo = dualWrap
+          ? parseFloat(dualWrap.getAttribute('data-scale-min'))
+          : parseFloat(minEl.min);
+        const hi = dualWrap
+          ? parseFloat(dualWrap.getAttribute('data-scale-max'))
+          : parseFloat(maxEl.max);
+        if (!Number.isFinite(lo) || !Number.isFinite(hi)) return;
+        const span = hi - lo;
+        if (span <= 0) return;
+        const bandW = span * (0.15 + Math.random() * 0.35);
+        const start = lo + Math.random() * (span - bandW);
+        const a = snapToStep(start, lo, hi, 1);
+        const b = snapToStep(start + bandW, lo, hi, 1);
+        minEl.value = String(Math.min(a, b));
+        maxEl.value = String(Math.max(a, b));
+        minEl.dispatchEvent(new Event('input', { bubbles: true }));
+        maxEl.dispatchEvent(new Event('input', { bubbles: true }));
       });
     } finally {
       guidedFlowIgnoreInputs = false;
@@ -3158,6 +3622,179 @@
     wrap.appendChild(headRow);
     wrap.appendChild(itemBody);
     wrap._ingWeightInput = wInput;
+
+    return wrap;
+  }
+
+  /**
+   * Budapest autós elérhetőség: perc-sáv (min–max) + rugalmasság (0–10, A modell).
+   */
+  function createBandFilterParamCard(key, sliderIdNum) {
+    const minuteCol = bandFilterCompanionMinuteKey(key);
+    if (!minuteCol) return createParamItemCard(key, sliderIdNum);
+
+    paramCategoryUid++;
+    const bodyId = 'param-item-body-' + paramCategoryUid;
+    const labelText = paramLabelForDbKey(key);
+    const mr = computeMinuteColumnRange(minuteCol);
+    const step = 1;
+    const defaultMax = Math.min(mr.max, Math.max(mr.min + 1, 30));
+
+    const wrap = document.createElement('div');
+    wrap.className = 'control-group param-item param-item--band-filter';
+    wrap.setAttribute('data-param-active', '0');
+    wrap.setAttribute('data-param-band-filter', '1');
+    wrap.classList.add('param-item--inactive');
+    wrap.classList.add('param-item--collapsed');
+
+    const activeSwitch = document.createElement('button');
+    activeSwitch.type = 'button';
+    activeSwitch.className = 'param-item__ios-switch';
+    activeSwitch.setAttribute('role', 'switch');
+    activeSwitch.setAttribute('aria-checked', 'false');
+    activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
+    activeSwitch.title = 'Beleszámít a keresésbe';
+
+    const headRow = document.createElement('div');
+    headRow.className = 'param-item__head-row';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'param-item__toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', bodyId);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'param-item__chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▼';
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'param-item__title';
+    titleEl.textContent = labelText;
+    titleEl.title = key;
+
+    toggle.appendChild(chevron);
+    toggle.appendChild(titleEl);
+    headRow.appendChild(toggle);
+    headRow.appendChild(createParameterInfoWrapForKey(key));
+    headRow.appendChild(activeSwitch);
+
+    activeSwitch.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const wasCollapsed = wrap.classList.contains('param-item--collapsed');
+      const turningOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowOn = activeSwitch.getAttribute('aria-checked') !== 'true';
+        activeSwitch.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+        wrap.setAttribute('data-param-active', nowOn ? '1' : '0');
+        wrap.classList.toggle('param-item--inactive', !nowOn);
+        if (nowOn) {
+          if (wrap.classList.contains('param-item--collapsed')) {
+            wrap.classList.remove('param-item--collapsed');
+            toggle.setAttribute('aria-expanded', 'true');
+          }
+        } else if (!wrap.classList.contains('param-item--collapsed')) {
+          wrap.classList.add('param-item--collapsed');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+      if (turningOn && wasCollapsed) {
+        startParamExpandScrollStabilize(wrap, headRow);
+      }
+      if (sliderAutoSearchActive) {
+        sidebarLayoutAnchorEl = headRow;
+      }
+      scheduleSearchFromSliders();
+    });
+
+    const itemBody = document.createElement('div');
+    itemBody.id = bodyId;
+    itemBody.className = 'param-item__body';
+
+    const bandIntro = document.createElement('p');
+    bandIntro.className = 'param-band-intro';
+    bandIntro.textContent =
+      'Elfogadható autós utazási idő Budapestre. Balra a hosszabb, jobbra a rövidebb (0 perc) utazás.';
+    itemBody.appendChild(bandIntro);
+
+    const bandLabel = document.createElement('span');
+    bandLabel.className = 'param-band-slider-label';
+    bandLabel.textContent = 'Elfogadható időtartam';
+
+    const dual = buildDualRangeSliderStack({
+      scaleMin: mr.min,
+      scaleMax: mr.max,
+      step: step,
+      valueMin: mr.min,
+      valueMax: defaultMax,
+      invertScale: true,
+      formatValue: formatDurationMinutesForUi,
+      leftHint: 'Legtöbb idő',
+      rightHint: 'Legkevesebb idő',
+      minAttrs: {
+        id: 'param-band-min-' + sliderIdNum,
+        'data-param-band-min-for': key,
+        'data-param-key': key,
+        'aria-label': labelText + ' — alsó határ (perc)',
+      },
+      maxAttrs: {
+        id: 'param-band-max-' + sliderIdNum,
+        'data-param-band-max-for': key,
+        'aria-label': labelText + ' — felső határ (perc)',
+      },
+      onChange: function () {
+        if (sliderAutoSearchActive) scheduleSearchFromSliders();
+      },
+    });
+
+    const bandBlock = document.createElement('div');
+    bandBlock.className = 'param-band-slider-block';
+    bandBlock.appendChild(bandLabel);
+    bandBlock.appendChild(dual.stack);
+    itemBody.appendChild(bandBlock);
+
+    const weightWrap = document.createElement('div');
+    weightWrap.className = 'param-item__weight';
+
+    const flexLabel = document.createElement('span');
+    flexLabel.className = 'param-band-slider-label';
+    flexLabel.textContent = 'Rugalmasság';
+
+    const flexInput = document.createElement('input');
+    flexInput.type = 'range';
+    flexInput.className = 'slider param-weight-slider';
+    flexInput.id = 'param-flex-' + sliderIdNum;
+    flexInput.setAttribute('data-param-flex-for', key);
+    flexInput.setAttribute('aria-label', 'Rugalmasság: ' + labelText);
+    flexInput.title =
+      'Rugalmasság (0 = nincs perc-korlát, ' +
+      PARAM_WEIGHT_SLIDER_MAX +
+      ' = szigorú sáv)';
+    flexInput.min = '0';
+    flexInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
+    flexInput.step = '1';
+    flexInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
+
+    const flexStack = buildParamRangeRowWithExtrema(flexInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
+    appendParamRangeHints(flexStack, 'Laza', 'Szigorú');
+
+    weightWrap.appendChild(flexLabel);
+    weightWrap.appendChild(flexStack);
+    itemBody.appendChild(weightWrap);
+
+    wrap.appendChild(headRow);
+    wrap.appendChild(itemBody);
+
+    toggle.addEventListener('click', function () {
+      preserveSidebarScrollAnchor(headRow, function () {
+        const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
+        toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      });
+    });
+
+    bindParamRangeTrackSeek(flexInput);
 
     return wrap;
   }
@@ -3791,7 +4428,9 @@
         if (card) groupBody.appendChild(card);
         sliderIndex++;
       } else if (item.type === 'slider' && groupBody) {
-        const card = createParamItemCard(item.key, sliderIndex);
+        const card = isBandFilterParamKey(item.key)
+          ? createBandFilterParamCard(item.key, sliderIndex)
+          : createParamItemCard(item.key, sliderIndex);
         if (card) groupBody.appendChild(card);
         sliderIndex++;
       }
@@ -3803,14 +4442,59 @@
   }
 
   function collectSliderTargets() {
-    /** @type {Record<string, { value: number, weight: number }>} */
+    /** @type {Record<string, { value?: number, weight?: number, mode?: string, bandMin?: number, bandMax?: number, flex?: number, companionKey?: string }>} */
     const targets = {};
     if (!elements.paramCategoriesHost) return targets;
+
+    const bandCards = elements.paramCategoriesHost.querySelectorAll(
+      '.param-item[data-param-band-filter="1"]'
+    );
+    bandCards.forEach(function (card) {
+      if (card.getAttribute('data-param-active') === '0') return;
+      const minEl = card.querySelector('[data-param-band-min-for]');
+      const maxEl = card.querySelector('[data-param-band-max-for]');
+      const flexEl = card.querySelector('input[type="range"][data-param-flex-for]');
+      if (!minEl || !maxEl) return;
+      const key = minEl.getAttribute('data-param-band-min-for');
+      if (!key) return;
+      const bandMin = parseNumeric(minEl.value);
+      const bandMax = parseNumeric(maxEl.value);
+      if (bandMin == null || bandMax == null) return;
+      const dualWrap = card.querySelector('.dual-range-wrap');
+      let scaleMin = 0;
+      let scaleMax = 240;
+      if (dualWrap) {
+        const sm = parseFloat(dualWrap.getAttribute('data-scale-min'));
+        const sx = parseFloat(dualWrap.getAttribute('data-scale-max'));
+        if (Number.isFinite(sm)) scaleMin = sm;
+        if (Number.isFinite(sx)) scaleMax = sx;
+      }
+      let flex = 1;
+      if (flexEl) {
+        const fw = parseFloat(flexEl.value);
+        if (Number.isFinite(fw)) {
+          flex =
+            Math.max(0, Math.min(PARAM_WEIGHT_SLIDER_MAX, Math.round(fw))) /
+            PARAM_WEIGHT_SLIDER_MAX;
+        }
+      }
+      targets[key] = {
+        mode: 'band',
+        bandMin: bandMin,
+        bandMax: bandMax,
+        flex: flex,
+        scaleMin: scaleMin,
+        scaleMax: scaleMax,
+        companionKey: bandFilterCompanionMinuteKey(key),
+      };
+    });
+
     const sliders = elements.paramCategoriesHost.querySelectorAll('input[type="range"][data-param-key]');
     sliders.forEach(function (el) {
       const key = el.getAttribute('data-param-key');
-      if (!key) return;
+      if (!key || targets[key]) return;
       const card = el.closest('.param-item');
+      if (card && card.getAttribute('data-param-band-filter') === '1') return;
       if (card && card.getAttribute('data-param-active') === '0') return;
       const n = parseNumeric(el.value);
       if (n == null) return;
@@ -3829,6 +4513,62 @@
       targets[key] = { value: n, weight: w };
     });
     return targets;
+  }
+
+  function cityPassesActiveBandFilters(city, targets) {
+    for (let i = 0; i < indexParamKeys.length; i++) {
+      const key = indexParamKeys[i];
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      if (!passesBandFilterForCity(city, pack)) return false;
+    }
+    return true;
+  }
+
+  function computeWeightedIndexDiffSum(city, targets) {
+    let sum = 0;
+    let used = 0;
+    for (let j = 0; j < indexParamKeys.length; j++) {
+      const key = indexParamKeys[j];
+      const pack = targets[key];
+      if (!pack || pack.mode === 'band') continue;
+      if (pack.value == null) continue;
+      const want = pack.value;
+      const w =
+        pack.weight != null && Number.isFinite(pack.weight)
+          ? Math.max(0, Math.min(1, pack.weight))
+          : 1;
+      const got = parseNumeric(city[key]);
+      if (got == null) continue;
+      sum += Math.abs(want - got) * w;
+      used++;
+    }
+    return { sum: sum, used: used };
+  }
+
+  /** Keresési összpont: _index eltérések; ha csak sáv aktív, a perc érték (kisebb jobb). */
+  function computeCitySearchScore(city, targets) {
+    const scored = computeWeightedIndexDiffSum(city, targets);
+    if (scored.used > 0) {
+      return { sum: scored.sum, used: scored.used };
+    }
+    let bandSum = 0;
+    let bandUsed = 0;
+    for (let j = 0; j < indexParamKeys.length; j++) {
+      const key = indexParamKeys[j];
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      const col = pack.companionKey;
+      if (!col) continue;
+      const got = parseNumeric(city[col]);
+      if (got == null) continue;
+      bandSum += got;
+      bandUsed++;
+    }
+    if (bandUsed > 0) {
+      return { sum: bandSum, used: bandUsed };
+    }
+    return { sum: Infinity, used: 0 };
   }
 
   function normalizeParameterInfoTableKey(k) {
@@ -4663,7 +5403,7 @@
     for (let i = 0; i < indexParamKeys.length; i++) {
       const k = indexParamKeys[i];
       const pack = targets[k];
-      if (!pack || pack.value == null) continue;
+      if (!pack || pack.mode === 'band' || pack.value == null) continue;
       const r = sliderRanges[k];
       if (!r) continue;
       const w =
@@ -4676,7 +5416,7 @@
   }
 
   /**
-   * Összegzi a w·|user − city| súlyozott eltéréseket minden _index mezőre (ahol mindkét érték szám).
+   * Összegzi a w·|user − city| súlyozott eltéréseket (_index); sávos mutatók csak szűrnek (A modell).
    */
   function findBestMatch(targets) {
     if (!citiesData.length || indexParamKeys.length === 0) return null;
@@ -4687,25 +5427,11 @@
     for (let i = 0; i < citiesData.length; i++) {
       const city = citiesData[i];
       if (!passesGeoFilter(city)) continue;
-      let sum = 0;
-      let used = 0;
-      for (let j = 0; j < indexParamKeys.length; j++) {
-        const key = indexParamKeys[j];
-        const pack = targets[key];
-        if (!pack || pack.value == null) continue;
-        const want = pack.value;
-        const w =
-          pack.weight != null && Number.isFinite(pack.weight)
-            ? Math.max(0, Math.min(1, pack.weight))
-            : 1;
-        const got = parseNumeric(city[key]);
-        if (got == null) continue;
-        sum += Math.abs(want - got) * w;
-        used++;
-      }
-      if (used === 0) continue;
-      if (sum < minSum) {
-        minSum = sum;
+      if (!cityPassesActiveBandFilters(city, targets)) continue;
+      const scored = computeCitySearchScore(city, targets);
+      if (scored.used === 0) continue;
+      if (scored.sum < minSum) {
+        minSum = scored.sum;
         best = city;
       }
     }
@@ -5188,24 +5914,11 @@
         item.centerLat
       );
       if (!city) continue;
+      if (!cityPassesActiveBandFilters(city, targets)) continue;
 
-      let sum = 0;
-      let used = 0;
-      for (let j = 0; j < indexParamKeys.length; j++) {
-        const key = indexParamKeys[j];
-        const pack = targets[key];
-        if (!pack || pack.value == null) continue;
-        const w =
-          pack.weight != null && Number.isFinite(pack.weight)
-            ? Math.max(0, Math.min(1, pack.weight))
-            : 1;
-        const got = parseNumeric(city[key]);
-        if (got == null) continue;
-        sum += Math.abs(pack.value - got) * w;
-        used++;
-      }
-      if (used === 0) continue;
-      featureSums.push({ id: featureId, sum: sum });
+      const scored = computeCitySearchScore(city, targets);
+      if (scored.used === 0) continue;
+      featureSums.push({ id: featureId, sum: scored.sum });
     }
 
     if (featureSums.length === 0) {
@@ -5711,6 +6424,19 @@
     await performSearch({ showTicket: true, persistToDb: true, flyMapToResult: true });
   }
 
+  /** Csúszka-változás indítson keresést (első gomb után): index, súly, sáv, rugalmasság. */
+  function isParamSliderSearchInput(el) {
+    if (!el || el.nodeName !== 'INPUT') return false;
+    if (el.getAttribute('data-param-flex-for')) return el.type === 'range';
+    if (el.getAttribute('data-param-band-min-for') || el.getAttribute('data-param-band-max-for')) {
+      return true;
+    }
+    if (el.getAttribute('data-param-key') || el.getAttribute('data-param-weight-for')) {
+      return el.type === 'range';
+    }
+    return false;
+  }
+
   function scheduleSearchFromSliders() {
     if (!sliderAutoSearchActive) return;
     if (sliderSearchDebounceTimer != null) {
@@ -5875,15 +6601,13 @@
     if (elements.paramCategoriesHost) {
       elements.paramCategoriesHost.addEventListener('input', function (e) {
         const t = e.target;
-        if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
-        if (!t.getAttribute('data-param-key') && !t.getAttribute('data-param-weight-for')) return;
+        if (!isParamSliderSearchInput(t)) return;
         scheduleSearchFromSliders();
       });
       elements.paramCategoriesHost.addEventListener('change', function (e) {
         onGuidedParamRangeChange(e);
         const t = e.target;
-        if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
-        if (!t.getAttribute('data-param-key') && !t.getAttribute('data-param-weight-for')) return;
+        if (!isParamSliderSearchInput(t)) return;
         scheduleSearchFromSliders();
       });
     }

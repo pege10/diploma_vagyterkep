@@ -1827,6 +1827,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-range-thumb-wrap {
   padding-top: 28px;
   position: relative;
+  /* Megegyezik a param-item range input track / thumb geometriájával (24px magas input, 5px sáv). */
+  --param-range-track-top: calc(28px + 9.5px);
+  --param-range-track-height: 5px;
+  --param-range-thumb-top: calc(28px + 3px);
 }
 
 .param-slider-stack--forest,
@@ -1880,6 +1884,166 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: #111111;
+}
+
+/* Magyarázó feliratok a sor ALATT — a 0 / max szélső értékek magassága változatlan marad. */
+.param-slider-stack--with-hints {
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.param-range-hints--below {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0 20px;
+  box-sizing: border-box;
+  height: 14px;
+  pointer-events: none;
+}
+
+.param-range-hints--below .param-range-hint--min {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: none;
+  text-align: left;
+}
+
+.param-range-hints--below .param-range-hint--max {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  text-align: right;
+}
+
+.param-range-hint {
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+/* Egy sáv, két húzható pont (Budapest perc-sáv) */
+.param-item--band-filter .param-item__body {
+  overflow: visible;
+}
+
+.param-range-row--dual .dual-range-wrap {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.dual-range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--param-range-track-top);
+  height: var(--param-range-track-height);
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.dual-range-fill {
+  position: absolute;
+  top: var(--param-range-track-top);
+  height: var(--param-range-track-height);
+  min-width: 2px;
+  background: var(--ink);
+  border-radius: 3px;
+  z-index: 2;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.dual-range-thumb {
+  position: absolute;
+  top: var(--param-range-thumb-top);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  transform: translateX(-50%);
+  cursor: grab;
+  z-index: 5;
+  touch-action: none;
+  box-sizing: border-box;
+}
+
+.dual-range-thumb:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.dual-range-thumb:active {
+  cursor: grabbing;
+  z-index: 7;
+}
+
+.dual-range-thumb:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.dual-range-bubble--lo,
+.dual-range-bubble--hi {
+  z-index: 6;
+  font-size: 0.68rem;
+}
+
+.dual-range-bubble--front {
+  z-index: 12;
+}
+
+.dual-range-thumb--front {
+  z-index: 8;
+}
+
+.dual-range-value-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.param-band-intro {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.param-band-slider-block {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+.param-slider-stack--dual-range {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.param-band-slider-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
 
 .param-weight-label {
