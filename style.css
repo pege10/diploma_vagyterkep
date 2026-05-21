@@ -936,6 +936,14 @@ html.map-picking #map-container.map-container {
   html.is-touch.map-picking #map-container.map-container {
     opacity: 1 !important;
     pointer-events: auto !important;
+    z-index: 120 !important;
+    visibility: visible !important;
+    touch-action: manipulation;
+  }
+
+  html.is-touch.map-picking #map-container.map-container .maplibregl-canvas {
+    pointer-events: auto !important;
+    touch-action: manipulation;
   }
 }
 
@@ -3247,13 +3255,28 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   html.is-touch.app-started.map-picking #map-container.map-container {
     opacity: 1 !important;
     pointer-events: auto !important;
+    z-index: 120 !important;
+    visibility: visible !important;
   }
 
   html.is-touch.app-started.map-picking .sidebar-dock {
+    display: none !important;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transform: translateY(12px);
+  }
+
+  html.is-touch.app-started.map-picking #feedback-panel,
+  html.is-touch.app-started.map-picking #heatmap-legend,
+  html.is-touch.app-started.map-picking #first-search-hint-overlay {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  html.is-touch.app-started.map-picking .map-picking-banner {
+    display: flex !important;
+    pointer-events: auto;
   }
 
   html.is-touch.app-started .sidebar-dock {

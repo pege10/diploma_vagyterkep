@@ -146,6 +146,9 @@
   };
   /** @type {((e: maplibregl.MapMouseEvent) => void) | null} */
   let mapClickHandler = null;
+  /** @type {((e: TouchEvent) => void) | null} */
+  let mapTouchPickHandler = null;
+  let mapPickTouchDedupeUntil = 0;
 
   /** Vezetett kitöltés: 2. fontos hely → mutatók a DOM sorrendjében */
   let guidedParamKeys = [];
@@ -567,6 +570,29 @@
   var PARAM_WEIGHT_SLIDER_MAX = 10;
   /** Sávos (tól–ig) mutatók rugalmasság csúszka alapértéke (0–10 skála). */
   var PARAM_BAND_FLEX_DEFAULT = 5;
+
+  /** Mobilon panel-only UI: térkép rejtve, kivéve térképes pontválasztás. */
+  function isMobileMapPanelMode() {
+    const root = document.documentElement;
+    return (
+      root.classList.contains('is-touch') &&
+      root.classList.contains('app-started') &&
+      !root.classList.contains('map-picking')
+    );
+  }
+
+  /** Kiállítás / mobil sorszám: holisticsearch.space/exhibition */
+  function isExhibitionMode() {
+    return /\/exhibition(?:\/|$)/i.test(location.pathname || '');
+  }
+
+  /**
+   * GitHub Pages: / = kereső (mobilon nincs sorszám overlay); /exhibition/ = sorszám jegy keresés után.
+   */
+  function shouldShowSearchTicketOverlay() {
+    if (!document.documentElement.classList.contains('is-touch')) return true;
+    return isExhibitionMode() || /\bsorszam=1\b/i.test(location.search || '');
+  }
 
   /** Egyezzen a CSS ::-webkit-slider-thumb szélességével / magasságával. */
   var PARAM_RANGE_THUMB_SIZE_PX = 18;
@@ -2834,7 +2860,7 @@
 
   /** Pin + felirat: csak ha a slot kapcsolója BE van és van beállított hely. */
   function syncGeoMarkersFromState() {
-    if (!map) return;
+    if (!map || isMobileMapPanelMode()) return;
     ['a', 'b'].forEach(function (slot) {
       if (geoSlotReady(slot)) {
         const st = geoSlotState[slot];
@@ -2853,7 +2879,7 @@
    * Kikapcsoláskor a beállítás megmarad a panelben, de a térképről eltűnik.
    */
   function updateImportantPlaceCircles() {
-    if (!map) return;
+    if (!map || isMobileMapPanelMode()) return;
     ensureImportantPlaceLayers();
     if (!map.getSource('important-place-a')) return;
     ['a', 'b'].forEach(function (slot) {
@@ -5417,12 +5443,15 @@
         li.addEventListener('mousedown', function (e) {
           e.preventDefault();
         });
-        li.addEventListener('pointerdown', function (e) {
+        li.addEventListener('click', function (e) {
           e.preventDefault();
+          e.stopPropagation();
           applyGeoSlotFromCity(slot, city, null);
           list.hidden = true;
           syncGeoSuggestOverflow();
-          inp.blur();
+          window.setTimeout(function () {
+            inp.blur();
+          }, 0);
         });
         list.appendChild(li);
       });
@@ -6627,6 +6656,7 @@
 
   function setGeoSlotMarker(slot, lng, lat, settlementName) {
     removeGeoSlotMarker(slot);
+    if (isMobileMapPanelMode()) return;
     if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
     const pinMarker = new maplibregl.Marker({ color: '#0a0a0a', scale: 1 })
       .setLngLat([lng, lat])
@@ -6652,11 +6682,51 @@
     }
   }
 
-  function endPick() {
+  function unbindMapPickInteraction() {
     if (map && mapClickHandler) {
       map.off('click', mapClickHandler);
       mapClickHandler = null;
     }
+    if (elements.mapContainer && mapTouchPickHandler) {
+      elements.mapContainer.removeEventListener('touchend', mapTouchPickHandler);
+      mapTouchPickHandler = null;
+    }
+  }
+
+  function bindMapPickInteraction() {
+    unbindMapPickInteraction();
+    if (!map) return;
+
+    mapClickHandler = function (ev) {
+      if (Date.now() < mapPickTouchDedupeUntil) return;
+      onMapPickClick(ev);
+    };
+    map.on('click', mapClickHandler);
+
+    if (!elements.mapContainer) return;
+    mapTouchPickHandler = function (ev) {
+      if (!pickMode || !map) return;
+      const canvas = map.getCanvas && map.getCanvas();
+      if (!canvas) return;
+      const touches = ev.changedTouches;
+      if (!touches || !touches.length) return;
+      const rect = canvas.getBoundingClientRect();
+      const t = touches[0];
+      const x = t.clientX - rect.left;
+      const y = t.clientY - rect.top;
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
+      const lngLat = map.unproject([x, y]);
+      mapPickTouchDedupeUntil = Date.now() + 450;
+      onMapPickClick({ lngLat: lngLat, originalEvent: ev });
+      ev.preventDefault();
+    };
+    elements.mapContainer.addEventListener('touchend', mapTouchPickHandler, {
+      passive: false,
+    });
+  }
+
+  function endPick() {
+    unbindMapPickInteraction();
     pickMode = null;
     document.documentElement.classList.remove('map-picking');
     if (elements.mapContainer) elements.mapContainer.classList.remove('map-picking-cursor');
@@ -6720,6 +6790,9 @@
     }
     if (pickMode) endPick();
 
+    if (elements.geoCityInputA) elements.geoCityInputA.blur();
+    if (elements.geoCityInputB) elements.geoCityInputB.blur();
+
     if (elements.mapPickingBanner) {
       elements.mapPickingBanner.hidden = false;
       if (elements.mapPickingBannerText)
@@ -6727,7 +6800,16 @@
     }
     document.documentElement.classList.add('map-picking');
     if (elements.mapContainer) elements.mapContainer.classList.add('map-picking-cursor');
-    if (map) setTimeout(function () { map.resize(); }, 60);
+    window.scrollTo(0, 0);
+    if (map) {
+      map.resize();
+      setTimeout(function () {
+        if (map) map.resize();
+      }, 80);
+      setTimeout(function () {
+        if (map) map.resize();
+      }, 280);
+    }
 
     try {
       await ensureGeoIndexed();
@@ -6761,11 +6843,9 @@
       elements.mapPickingBannerText.textContent = bannerMsg[target];
     }
     updatePickButtonActive();
-
-    mapClickHandler = function (ev) {
-      onMapPickClick(ev);
-    };
-    map.on('click', mapClickHandler);
+    bindMapPickInteraction();
+    updateImportantPlaceCircles();
+    syncGeoMarkersFromState();
     if (map) map.resize();
   }
 
@@ -7817,7 +7897,7 @@
         persistFailed: persistToDb && ticketId == null,
         persistError: persistError,
       });
-      if (showTicket) showTicketOverlay(ticketId);
+      if (showTicket && shouldShowSearchTicketOverlay()) showTicketOverlay(ticketId);
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
         applySidebarScrollAnchorAfterLayout(layoutAnchor, scroller, anchorY);
       }
