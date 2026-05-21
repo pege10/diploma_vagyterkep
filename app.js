@@ -1409,6 +1409,10 @@
   }
 
   function disableMobileGeoAutoPick() {
+    if (document.documentElement.classList.contains('map-picking')) {
+      endPick();
+      return;
+    }
     unbindMapPickInteraction();
     pickMode = null;
     if (elements.mapContainer) {
