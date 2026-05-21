@@ -613,10 +613,43 @@
     }
   }
 
+  // #region agent log
+  function dbgMobile(hypothesisId, location, message, data) {
+    fetch('http://127.0.0.1:7598/ingest/f36e7d0f-bedf-4fb0-b013-2bbc8de09021', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '05bb3e' },
+      body: JSON.stringify({
+        sessionId: '05bb3e',
+        hypothesisId: hypothesisId,
+        location: location,
+        message: message,
+        data: data || {},
+        timestamp: Date.now(),
+      }),
+    }).catch(function () {});
+  }
+
+  function dbgMobileLayoutState(caller) {
+    const root = document.documentElement;
+    dbgMobile('H2', caller, 'layout', {
+      mobileMapView: root.classList.contains('mobile-map-view'),
+      paramPanelOpen: root.classList.contains('mobile-param-panel-open'),
+      geoSetup: root.classList.contains('mobile-geo-setup'),
+      mapPicking: root.classList.contains('map-picking'),
+    });
+  }
+  // #endregion
+
   /** Mobilon paraméter-szerkesztés: teljes panel (ne alsó 1/3 térképes lap). */
   function ensureMobileFullParamPanelForEditing() {
     if (!isTouchMobileAppStarted()) return;
+    // #region agent log
+    dbgMobile('H2', 'ensureMobileFullParamPanelForEditing', 'before', {});
+    // #endregion
     setMobileFullParamPanel();
+    // #region agent log
+    dbgMobileLayoutState('ensureMobileFullParamPanelForEditing:after');
+    // #endregion
   }
 
   function closeStrictParamsModal() {
@@ -809,6 +842,9 @@
 
   function applyLoosenSuggestion(sug) {
     if (!sug) return;
+    // #region agent log
+    dbgMobileLayoutState('applyLoosenSuggestion:entry');
+    // #endregion
     if (sug.type === 'band' && sug.key) {
       const card = findParamCardByDbKey(sug.key);
       const flexEl =
@@ -841,6 +877,15 @@
       }
     }
     closeStrictParamsModal();
+    // #region agent log
+    dbgMobileLayoutState('applyLoosenSuggestion:afterCloseModal');
+    // #endregion
+    if (isTouchMobileAppStarted()) {
+      // #region agent log
+      dbgMobile('H1', 'applyLoosenSuggestion', 'mobile-skip-search', { type: sug.type });
+      // #endregion
+      return;
+    }
     sliderAutoSearchActive = true;
     performSearch({
       showTicket: true,
@@ -1124,6 +1169,9 @@
   function setMobileMapView(on, opts) {
     if (!isTouchMobileAppStarted()) return;
     const forGeoEditor = !!(opts && opts.forGeoEditor);
+    // #region agent log
+    dbgMobile('H1', 'setMobileMapView', 'call', { on: on, forGeoEditor: forGeoEditor });
+    // #endregion
     const root = document.documentElement;
     root.classList.add('mobile-map-view');
     if (on) {
@@ -1266,18 +1314,19 @@
       });
     }
     if (pickBtn) {
+      function onPickMapBtn(e) {
+        e.stopPropagation();
+        openEditor(pickBtn);
+        startPick(slot === 'a' ? 'geoA' : 'geoB');
+      }
       pickBtn.addEventListener(
         'touchstart',
         function (e) {
           e.stopPropagation();
-          openEditor(pickBtn);
         },
         { capture: true, passive: true }
       );
-      pickBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        openEditor(pickBtn);
-      });
+      pickBtn.addEventListener('click', onPickMapBtn);
     }
     if (rInput) {
       rInput.addEventListener('touchstart', function () {
@@ -1305,6 +1354,9 @@
   async function enableMobileGeoAutoPick(slot) {
     if (slot !== 'a' && slot !== 'b') return;
     const target = slot === 'a' ? 'geoA' : 'geoB';
+    // #region agent log
+    dbgMobile('H4', 'enableMobileGeoAutoPick', 'call', { slot: slot });
+    // #endregion
     const line = elements.geoWarnLine;
     try {
       await ensureGeoIndexed();
@@ -1392,7 +1444,7 @@
     hideMobileWinnerSheet();
     document.documentElement.classList.remove('mobile-geo-keyboard');
     setMobileMapView(true, { forGeoEditor: true });
-    enableMobileGeoAutoPick(slot);
+    disableMobileGeoAutoPick();
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
     syncGeoMarkersFromState();
@@ -6715,17 +6767,6 @@
     });
     inp.addEventListener('blur', function () {
       hideListSoon();
-      if (shouldUseMobileGeoEditor() && mobileGeoSetupSlot) {
-        const slot = mobileGeoSetupSlot;
-        window.setTimeout(function () {
-          if (
-            mobileGeoSetupSlot === slot &&
-            !document.activeElement?.matches?.('.geo-city-input')
-          ) {
-            enableMobileGeoAutoPick(slot);
-          }
-        }, 280);
-      }
     });
     document.addEventListener('click', function (e) {
       if (!acWrap.contains(/** @type {Node} */ (e.target))) {
@@ -9300,7 +9341,12 @@
         persistError: persistError,
       });
       if (showTicket && shouldShowSearchTicketOverlay()) showTicketOverlay(ticketId);
-      if (flyMapToResult && isTouchMobileAppStarted()) setMobileMapView(true);
+      if (flyMapToResult && isTouchMobileAppStarted()) {
+        // #region agent log
+        dbgMobile('H1', 'performSearch:success', 'setMobileMapView', { flyMapToResult: true });
+        // #endregion
+        setMobileMapView(true);
+      }
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
         applySidebarScrollAnchorAfterLayout(layoutAnchor, scroller, anchorY);
       }
@@ -9320,7 +9366,9 @@
   }
 
   async function runMainSearchFromButton() {
-    sliderAutoSearchActive = true;
+    if (!isTouchMobileAppStarted()) {
+      sliderAutoSearchActive = true;
+    }
     firstMainSearchClickWithPrompt = false;
     // Az első „Tökéletes hely keresése” kattintás után már semmilyen vezetett auto-úsztatás
     // / scroll-stabilizáció nem fut — a felhasználó szabadon mozog a panelen.
@@ -9360,6 +9408,14 @@
   }
 
   function scheduleSearchFromSliders() {
+    if (isTouchMobileAppStarted()) {
+      // #region agent log
+      dbgMobile('H5', 'scheduleSearchFromSliders', 'mobile-blocked', {
+        sliderAutoSearchActive: sliderAutoSearchActive,
+      });
+      // #endregion
+      return;
+    }
     if (!sliderAutoSearchActive) return;
     if (sliderSearchDebounceTimer != null) {
       clearTimeout(sliderSearchDebounceTimer);
