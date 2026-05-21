@@ -3462,8 +3462,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     box-shadow: none !important;
   }
 
-  html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
+  html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand,
+  html.is-touch.app-started.mobile-geo-setup .sidebar-dock__collapse-pill--expand {
     display: none !important;
+    pointer-events: none !important;
   }
 
   /* Térképes mód: paraméterek alsó ~1/3 panelben */
@@ -3501,7 +3503,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     visibility: visible !important;
   }
 
-  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open) .sidebar-dock__collapse-pill--expand {
+  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open):not(.mobile-geo-setup) .sidebar-dock__collapse-pill--expand {
     display: inline-flex !important;
     position: fixed;
     z-index: 200;
@@ -3631,6 +3633,30 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     pointer-events: auto;
   }
 
+  /* A → B átmenet jelzése: rövid villanó felirat a sheet tetején. */
+  .mobile-geo-sheet__badge {
+    flex: 0 0 auto;
+    margin: 8px 12px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+  .mobile-geo-sheet__badge--show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   .mobile-geo-sheet__body input,
   .mobile-geo-sheet__body button,
   .mobile-geo-sheet__card-host input,
@@ -3705,12 +3731,15 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     border-top: 1px solid var(--line-strong);
     background: var(--paper);
     position: relative;
-    z-index: 2;
+    z-index: 5;
     pointer-events: auto;
+    isolation: isolate;
   }
 
   .mobile-geo-sheet__actions .mobile-geo-sheet__btn {
-    pointer-events: auto;
+    position: relative;
+    z-index: 6;
+    pointer-events: auto !important;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }

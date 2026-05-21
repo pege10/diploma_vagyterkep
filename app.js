@@ -1433,13 +1433,20 @@
   function onMobileGeoSheetOk() {
     const slot = mobileGeoSetupSlot;
     exitMobileGeoSetup(true);
-    // 1. fontos hely után: ha 2. még nincs beállítva, automatikusan nyissuk meg azt is.
+    // 1. fontos hely Apply után automatikusan nyissuk meg a 2. szerkesztőjét is,
+    // ha még nincs beállítva. A felhasználó észrevehesse, hogy átvált a fontos hely,
+    // ezért rövid feliratos villanást is mutatunk a sheet tetején.
     if (slot === 'a' && geoSlotReady('a') && !geoSlotReady('b')) {
       if (!isGeoPlaceSwitchOn('b')) {
         setGeoPlaceCardActive('b', true);
         mobileGeoSetupTurnedOnBySheet = true;
       }
-      enterMobileGeoSetup('b');
+      // Az aktuális touch‑esemény fusson le tisztán, csak utána nyissuk meg B‑t —
+      // különben iOS Safari összemossa az érintést a következő ablakkal.
+      window.setTimeout(function () {
+        enterMobileGeoSetup('b');
+        showMobileGeoTransitionBadge('Most a 2. fontos helyet állítod be');
+      }, 80);
       return;
     }
     if (isGeoSetupCompleteForGuidedUnlock()) {
@@ -1452,6 +1459,30 @@
     if (isGeoSetupCompleteForGuidedUnlock()) {
       unlockGuidedParamFlow(true);
     }
+  }
+
+  /** Pár másodperces villanó felirat a fontos hely sheet tetején (A→B átmenet). */
+  function showMobileGeoTransitionBadge(text) {
+    const sheet = elements.mobileGeoSheet;
+    if (!sheet) return;
+    let badge = sheet.querySelector('.mobile-geo-sheet__badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'mobile-geo-sheet__badge';
+      badge.setAttribute('role', 'status');
+      sheet.insertBefore(badge, sheet.firstChild);
+    }
+    badge.textContent = text || '';
+    badge.classList.remove('mobile-geo-sheet__badge--show');
+    void badge.offsetWidth;
+    badge.classList.add('mobile-geo-sheet__badge--show');
+    if (badge._hideTimer) {
+      clearTimeout(badge._hideTimer);
+    }
+    badge._hideTimer = window.setTimeout(function () {
+      badge.classList.remove('mobile-geo-sheet__badge--show');
+      badge._hideTimer = null;
+    }, 2400);
   }
 
   function syncMobileGeoSheetForKeyboard() {
@@ -1504,34 +1535,55 @@
 
   function initMobileGeoSheet() {
     const sheet = elements.mobileGeoSheet;
-    function handleSheetAction(e) {
-      if (e.target.closest('#mobile-geo-sheet-ok')) {
-        e.preventDefault();
-        e.stopPropagation();
-        onMobileGeoSheetOk();
-        return;
-      }
-      if (e.target.closest('#mobile-geo-sheet-cancel')) {
-        e.preventDefault();
-        e.stopPropagation();
-        onMobileGeoSheetCancel();
-      }
+    const okBtn = elements.mobileGeoSheetOk;
+    const cancelBtn = elements.mobileGeoSheetCancel;
+
+    // Több‑szintű kötés: maga a gomb (capture + bubble), és a sheet delegáltja is —
+    // így iOS Safari semelyik szakaszt sem tudja kihagyni az A → B átmenet környékén.
+    let lastInvokeAt = 0;
+    function invokeOnce(handler) {
+      const now = Date.now();
+      if (now - lastInvokeAt < 280) return false;
+      lastInvokeAt = now;
+      handler();
+      return true;
     }
+
+    function bindBtn(btn, action) {
+      if (!btn) return;
+      const fire = function (e) {
+        if (e) {
+          try {
+            e.preventDefault();
+          } catch (_) {}
+          e.stopPropagation();
+        }
+        invokeOnce(action);
+      };
+      btn.addEventListener('click', fire);
+      btn.addEventListener('touchend', fire, { passive: false });
+      btn.addEventListener('pointerup', fire);
+    }
+
+    bindBtn(okBtn, onMobileGeoSheetOk);
+    bindBtn(cancelBtn, onMobileGeoSheetCancel);
+
     if (sheet) {
-      sheet.addEventListener('click', handleSheetAction);
-      sheet.addEventListener('touchend', handleSheetAction, { passive: false });
-    }
-    if (elements.mobileGeoSheetOk) {
-      elements.mobileGeoSheetOk.addEventListener('click', function (e) {
-        e.stopPropagation();
-        onMobileGeoSheetOk();
-      });
-    }
-    if (elements.mobileGeoSheetCancel) {
-      elements.mobileGeoSheetCancel.addEventListener('click', function (e) {
-        e.stopPropagation();
-        onMobileGeoSheetCancel();
-      });
+      const delegate = function (e) {
+        if (e.target.closest('#mobile-geo-sheet-ok')) {
+          e.preventDefault();
+          e.stopPropagation();
+          invokeOnce(onMobileGeoSheetOk);
+          return;
+        }
+        if (e.target.closest('#mobile-geo-sheet-cancel')) {
+          e.preventDefault();
+          e.stopPropagation();
+          invokeOnce(onMobileGeoSheetCancel);
+        }
+      };
+      sheet.addEventListener('click', delegate);
+      sheet.addEventListener('touchend', delegate, { passive: false });
     }
   }
 
