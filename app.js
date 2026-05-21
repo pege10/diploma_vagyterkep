@@ -244,6 +244,7 @@
     mobileGeoSheet: null,
     mobileGeoSheetBody: null,
     mobileGeoSheetWarnHost: null,
+    mobileGeoCardHost: null,
     mobileGeoSheetOk: null,
     mobileGeoSheetCancel: null,
     mobileMapBackBtn: null,
@@ -281,6 +282,7 @@
     elements.mobileGeoSheet = document.getElementById('mobile-geo-sheet');
     elements.mobileGeoSheetBody = document.getElementById('mobile-geo-sheet-body');
     elements.mobileGeoSheetWarnHost = document.getElementById('mobile-geo-sheet-warn-host');
+    elements.mobileGeoCardHost = document.getElementById('mobile-geo-card-host');
     elements.mobileGeoSheetOk = document.getElementById('mobile-geo-sheet-ok');
     elements.mobileGeoSheetCancel = document.getElementById('mobile-geo-sheet-cancel');
     elements.mobileMapBackBtn = document.getElementById('mobile-map-back-btn');
@@ -1171,10 +1173,18 @@
     card.classList.add('param-item--geo-editing');
 
     const warn = elements.geoWarnLine;
+    const cardHost = elements.mobileGeoCardHost;
     mobileGeoSetupRestore = {
+      cardEl: card,
+      cardParent: card.parentNode,
+      cardNext: card.nextSibling,
       warnParent: warn ? warn.parentNode : null,
       warnNext: warn ? warn.nextSibling : null,
     };
+
+    if (cardHost && card.parentNode !== cardHost) {
+      cardHost.appendChild(card);
+    }
 
     if (warn && elements.mobileGeoSheetWarnHost) {
       elements.mobileGeoSheetWarnHost.appendChild(warn);
@@ -1195,10 +1205,20 @@
   function exitMobileGeoSetup(apply) {
     const slot = mobileGeoSetupSlot;
     const restore = mobileGeoSetupRestore;
-    const card = slot ? getGeoPlaceCardEl(slot) : null;
+    const card =
+      restore && restore.cardEl
+        ? restore.cardEl
+        : slot
+          ? getGeoPlaceCardEl(slot)
+          : null;
     const warn = elements.geoWarnLine;
 
     if (card) card.classList.remove('param-item--geo-editing');
+    if (card && restore && restore.cardParent) {
+      if (restore.cardNext) restore.cardParent.insertBefore(card, restore.cardNext);
+      else restore.cardParent.appendChild(card);
+    }
+    if (elements.mobileGeoCardHost) elements.mobileGeoCardHost.textContent = '';
     if (warn && restore && restore.warnParent) {
       if (restore.warnNext) restore.warnParent.insertBefore(warn, restore.warnNext);
       else restore.warnParent.appendChild(warn);
@@ -3531,6 +3551,19 @@
     };
   }
 
+  /** Település színezés (hőtérkép) a fontos hely körök fölött jelenjen meg. */
+  function stackHeatmapAboveImportantPlaceCircles() {
+    if (!map) return;
+    ['hse-choropleth-fill', 'hse-choropleth-blur', 'hse-choropleth-selection'].forEach(function (layerId) {
+      if (!map.getLayer(layerId)) return;
+      try {
+        map.moveLayer(layerId);
+      } catch (e) {
+        console.warn('Réteg sorrend:', layerId, e);
+      }
+    });
+  }
+
   function ensureImportantPlaceLayers() {
     if (!map || !map.isStyleLoaded()) return;
     ['a', 'b'].forEach(function (slot) {
@@ -3560,6 +3593,7 @@
         },
       });
     });
+    if (heatmapLayersReady) stackHeatmapAboveImportantPlaceCircles();
   }
 
   function geoSlotDisplayName(slot) {
@@ -3908,9 +3942,13 @@
     for (let g = 0; g < groups.length; g++) {
       const group = groups[g];
       let open = false;
-      const ranges = group.querySelectorAll('input[type="range"][data-param-key]');
+      const ranges = group.querySelectorAll('input[type="range"]');
       for (let r = 0; r < ranges.length; r++) {
-        const k = ranges[r].getAttribute('data-param-key');
+        const input = ranges[r];
+        let k = input.getAttribute('data-param-key');
+        if (!k) k = input.getAttribute('data-param-band-min-for');
+        if (!k) k = input.getAttribute('data-param-band-max-for');
+        if (!k) continue;
         const idx = guidedParamKeys.indexOf(k);
         if (idx !== -1 && idx <= activeIndex) {
           open = true;
@@ -3920,6 +3958,22 @@
       if (open) expandParamGroupEl(group);
       else collapseParamGroupEl(group);
     }
+  }
+
+  function createGuidedParamStepState(key) {
+    const card = findParamCardByDbKey(key);
+    if (card && card.getAttribute('data-param-band-filter') === '1') {
+      return { bandMin: false, bandMax: false, secondary: false };
+    }
+    return { primary: false, secondary: false };
+  }
+
+  function isGuidedPrimaryStepComplete(step, card) {
+    if (!step) return false;
+    if (card && card.getAttribute('data-param-band-filter') === '1') {
+      return !!(step.bandMin && step.bandMax);
+    }
+    return !!step.primary;
   }
 
   function expandImportantPlaceCard(slot) {
@@ -3936,10 +3990,16 @@
     }
     syncGuidedParamCardsToStep(index);
     const key = guidedParamKeys[index];
-    guidedParamStepDone[key] = { primary: false, secondary: false };
+    guidedParamStepDone[key] = createGuidedParamStepState(key);
     let card = findParamCardByDbKey(key);
-    if (!card) {
-      const el = elements.paramCategoriesHost.querySelector('[data-param-key="' + key + '"]');
+    if (!card && elements.paramCategoriesHost) {
+      const esc =
+        typeof CSS !== 'undefined' && CSS.escape
+          ? CSS.escape(key)
+          : String(key).replace(/"/g, '\\"');
+      const el =
+        elements.paramCategoriesHost.querySelector('[data-param-band-min-for="' + esc + '"]') ||
+        elements.paramCategoriesHost.querySelector('[data-param-band-max-for="' + esc + '"]');
       card = el && el.closest('.param-item');
     }
     const scroller = getSidebarScrollEl();
@@ -4002,11 +4062,12 @@
     const step = guidedParamStepDone[key];
     if (!step) return;
     const needsSecondary = guidedParamNeedsSecondaryStep(card);
-    if (!needsSecondary && step.primary) {
+    const primaryDone = isGuidedPrimaryStepComplete(step, card);
+    if (!needsSecondary && primaryDone) {
       advanceGuidedParamStep();
       return;
     }
-    if (needsSecondary && step.primary && step.secondary) {
+    if (needsSecondary && primaryDone && step.secondary) {
       advanceGuidedParamStep();
     }
   }
@@ -4076,10 +4137,14 @@
     const key = getGuidedParamKeyFromRangeInput(t);
     if (!key || key !== guidedParamKeys[guidedFlowParamIndex]) return;
     if (!guidedParamStepDone[key]) {
-      guidedParamStepDone[key] = { primary: false, secondary: false };
+      guidedParamStepDone[key] = createGuidedParamStepState(key);
     }
     const step = guidedParamStepDone[key];
-    if (isGuidedPrimaryRangeInput(t)) {
+    if (t.getAttribute('data-param-band-min-for')) {
+      step.bandMin = true;
+    } else if (t.getAttribute('data-param-band-max-for')) {
+      step.bandMax = true;
+    } else if (isGuidedPrimaryRangeInput(t)) {
       step.primary = true;
     } else if (isGuidedSecondaryRangeInput(t)) {
       step.secondary = true;
@@ -8100,9 +8165,6 @@
 
       const colorExpr = buildPlasmaColorExpr();
       const hasPercentExpr = ['!=', ['coalesce', ['feature-state', 'matchPercent'], -1], -1];
-      const beforeId = map.getLayer('important-place-a-fill')
-        ? 'important-place-a-fill'
-        : (map.getLayer('important-place-b-fill') ? 'important-place-b-fill' : undefined);
 
       if (!map.getLayer('hse-choropleth-fill')) {
         map.addLayer({
@@ -8115,7 +8177,7 @@
             'fill-opacity': ['case', hasPercentExpr, 0.5, 0],
             'fill-outline-color': 'rgba(0,0,0,0)',
           },
-        }, beforeId);
+        });
       }
 
       // Lágy szegély: ugyanaz a szín, kis blur — a települési határvonalak optikai elmosása.
@@ -8131,7 +8193,7 @@
             'line-blur': 3,
             'line-opacity': ['case', hasPercentExpr, 0.45, 0],
           },
-        }, beforeId);
+        });
       }
 
       // Kijelölt település: plazma színű szegély (matchPercent), finoman hangsúlyozva.
@@ -8152,7 +8214,7 @@
               0,
             ],
           },
-        }, beforeId);
+        });
       } else if (map.getLayer('hse-choropleth-selection')) {
         map.setPaintProperty('hse-choropleth-selection', 'line-width', 3);
         map.setPaintProperty('hse-choropleth-selection', 'line-opacity', [
@@ -8163,6 +8225,7 @@
         ]);
       }
 
+      stackHeatmapAboveImportantPlaceCircles();
       heatmapLayersReady = true;
     })().catch(function (err) {
       console.warn('Hőtérkép réteg betöltése:', err);
@@ -8948,6 +9011,9 @@
     initStrictParamsModal();
     initMobileGeoSheet();
     initMobileMapChrome();
+    if (isTouchMobileAppStarted()) {
+      document.documentElement.classList.add('mobile-map-view');
+    }
     syncMobileMapDockButtons();
     initParamInfoTooltips();
     initMap();

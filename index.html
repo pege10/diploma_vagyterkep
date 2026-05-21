@@ -20,7 +20,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=118">
+  <link rel="stylesheet" href="style.css?v=119">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -103,6 +103,7 @@
   <!-- Mobilon: fontos hely beállítás — alsó panel a térkép fölött -->
   <div id="mobile-geo-sheet" class="mobile-geo-sheet" hidden aria-hidden="true">
     <div id="mobile-geo-sheet-body" class="mobile-geo-sheet__body"></div>
+    <div id="mobile-geo-card-host" class="mobile-geo-sheet__card-host"></div>
     <div id="mobile-geo-sheet-warn-host" class="mobile-geo-sheet__warn-host"></div>
     <div class="mobile-geo-sheet__actions">
       <button type="button" id="mobile-geo-sheet-cancel" class="mobile-geo-sheet__btn mobile-geo-sheet__btn--ghost">Mégse</button>
@@ -164,7 +165,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=152"></script>
+  <script src="app.js?v=153"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
