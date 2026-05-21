@@ -1046,8 +1046,53 @@
 
   function tryOpenMobileGeoSetupIfNeeded(slot) {
     if (!shouldAutoOpenMobileGeoSetup(slot)) return;
+    openMobileGeoEditorIfNeeded(slot);
+  }
+
+  /** Főpanelen érintés / fókusz: csak a fontos-hely panel kerül a térkép fölé. */
+  function openMobileGeoEditorIfNeeded(slot) {
+    if (!isTouchMobileAppStarted() || (slot !== 'a' && slot !== 'b')) return;
+    if (!isGeoPlaceSwitchOn(slot)) return;
     if (mobileGeoSetupSlot === slot) return;
     enterMobileGeoSetup(slot);
+  }
+
+  function bindMobileGeoCardEditorTriggers(wrap, slot, inp, pickBtn, rInput) {
+    function openEditor() {
+      openMobileGeoEditorIfNeeded(slot);
+    }
+    wrap.addEventListener(
+      'pointerdown',
+      function (e) {
+        if (!isTouchMobileAppStarted()) return;
+        if (!isGeoPlaceSwitchOn(slot)) return;
+        if (e.target.closest('.param-item__ios-switch')) return;
+        if (e.target.closest('.param-item__toggle')) return;
+        openEditor();
+      },
+      { passive: true }
+    );
+    if (inp) {
+      inp.addEventListener('focus', openEditor);
+      inp.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openEditor();
+      });
+    }
+    if (pickBtn) {
+      pickBtn.addEventListener(
+        'pointerdown',
+        function (e) {
+          e.stopPropagation();
+          openEditor();
+        },
+        { passive: true }
+      );
+    }
+    if (rInput) {
+      rInput.addEventListener('pointerdown', openEditor, { passive: true });
+      rInput.addEventListener('focus', openEditor);
+    }
   }
 
   function showMobileGeoSheetEl(show) {
