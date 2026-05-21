@@ -12,6 +12,8 @@
   /* Bal/jobb panel nyíl — egy vonalban a fejléc ikonokkal; jobbra hely a térkép zoom vezérlőnek */
   --sidebar-control-top: 21px;
   --map-zoom-gutter: 56px;
+  /* Mobilon: alsó panel (paraméter / találat) max. ~1/3 képernyő */
+  --mobile-bottom-sheet-max: min(33.333vh, 300px);
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -3292,7 +3294,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     top: auto;
     bottom: 0;
     width: 100%;
-    max-height: 48vh;
+    max-height: var(--mobile-bottom-sheet-max);
     flex-direction: row;
     align-items: stretch;
   }
@@ -3309,10 +3311,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     width: auto;
     max-width: none;
     height: auto;
-    max-height: 48vh;
+    max-height: var(--mobile-bottom-sheet-max);
     border-right: none;
     border-top: 2px solid var(--ink);
-    border-radius: 0 8px 0 0;
+    border-radius: 14px 14px 0 0;
     background: var(--paper);
     box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.06);
     overflow: hidden;
@@ -3397,20 +3399,27 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     stroke: rgba(255, 255, 255, 0.45);
   }
 
-  /* Indítás után: alapból paraméter-panel; keresés után mobile-map-view = térkép */
-  html.is-touch.app-started:not(.mobile-map-view) #map-container.map-container {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-  html.is-touch.app-started.mobile-map-view #map-container.map-container {
+  /* Indítás után: térkép mindig látszik; paraméterek csak alsó ~1/3 panelben */
+  html.is-touch.app-started #map-container.map-container {
     opacity: 1 !important;
     pointer-events: auto !important;
     z-index: 10 !important;
     visibility: visible !important;
   }
 
-  html.is-touch.app-started.mobile-map-view .sidebar-dock,
+  html.is-touch.app-started.mobile-map-view.mobile-param-panel-open #map-container.map-container {
+    bottom: var(--mobile-bottom-sheet-max);
+  }
+
+  html.is-touch.app-started.mobile-map-view.mobile-param-panel-open .sidebar-dock {
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.28s ease, visibility 0s;
+    z-index: 132;
+  }
+
+  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open) .sidebar-dock,
   html.is-touch.app-started.mobile-geo-setup .sidebar-dock {
     transform: translateY(100%);
     visibility: hidden;
@@ -3425,7 +3434,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     visibility: visible !important;
   }
 
-  html.is-touch.app-started.mobile-map-view:not(.mobile-winner-sheet-open) .sidebar-dock__collapse-pill--expand {
+  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open) .sidebar-dock__collapse-pill--expand {
     display: inline-flex !important;
     position: fixed;
     z-index: 200;
@@ -3491,7 +3500,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     bottom: 0;
     z-index: 135;
     flex-direction: column;
-    max-height: min(48vh, 440px);
+    max-height: var(--mobile-bottom-sheet-max);
     background: var(--paper);
     border-top: 2px solid var(--ink);
     border-radius: 14px 14px 0 0;
@@ -3521,11 +3530,11 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch.mobile-map-view.mobile-winner-sheet-open #map-container.map-container {
-    bottom: min(48vh, 440px);
+    bottom: var(--mobile-bottom-sheet-max);
   }
 
   html.is-touch.mobile-map-view.mobile-winner-sheet-open.map-picking #map-container.map-container {
-    bottom: min(48vh, 440px);
+    bottom: var(--mobile-bottom-sheet-max);
   }
 
   html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
@@ -3574,9 +3583,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
     z-index: 143 !important;
-    max-height: min(52vh, 480px) !important;
+    max-height: calc(var(--mobile-bottom-sheet-max) - 8px) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
@@ -3666,11 +3675,11 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch.mobile-geo-setup #map-container.map-container {
-    bottom: calc(min(46vh, 420px) + 132px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--mobile-bottom-sheet-max) + 112px + env(safe-area-inset-bottom, 0px));
   }
 
   html.is-touch.mobile-geo-setup.map-picking #map-container.map-container {
-    bottom: calc(min(46vh, 420px) + 132px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--mobile-bottom-sheet-max) + 112px + env(safe-area-inset-bottom, 0px));
   }
 
   html.is-touch.mobile-geo-setup .param-item--geo-editing input,
@@ -3708,18 +3717,18 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   }
 
   html.is-touch.app-started .sidebar-dock {
-    top: 0;
+    top: auto;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    max-height: none;
+    max-height: var(--mobile-bottom-sheet-max);
     height: auto;
-    min-height: 100dvh;
+    min-height: 0;
   }
 
   html.is-touch.app-started .sidebar-dock .sidebar {
-    top: 0;
+    top: auto;
     bottom: 0;
     left: 0;
     right: 0;
@@ -3727,39 +3736,43 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     min-width: 0;
     max-width: 100%;
     height: auto;
-    min-height: 100dvh;
-    max-height: 100dvh;
-    border-top: none;
-    border-radius: 0;
+    min-height: 0;
+    max-height: var(--mobile-bottom-sheet-max);
+    border-top: 2px solid var(--ink);
+    border-radius: 14px 14px 0 0;
     background: var(--paper);
     padding: 0;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: 0;
     justify-content: flex-start;
-    z-index: 50;
-    box-shadow: none;
+    z-index: 132;
+    box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.14);
     overflow: hidden;
   }
 
   html.is-touch.app-started .sidebar-header {
-    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-top: 10px;
     padding-left: 18px;
     padding-right: 18px;
-    padding-bottom: 8px;
+    padding-bottom: 6px;
   }
 
   html.is-touch.app-started .sidebar-scroll {
     padding-top: 0;
     padding-left: 18px;
     padding-right: 18px;
-    padding-bottom: 14px;
+    padding-bottom: 8px;
   }
 
   html.is-touch.app-started .param-global-toolbar {
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   html.is-touch.app-started .sidebar-footer {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.is-touch.app-started .sidebar-title {
+    font-size: 0.95rem;
   }
 }
 

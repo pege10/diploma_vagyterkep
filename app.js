@@ -893,24 +893,26 @@
     return root.classList.contains('is-touch') || isMobileLayoutViewport();
   }
 
-  /** Mobilon panel-only UI: térkép rejtve, kivéve térképválasztás és keresés utáni térképnézet. */
+  /** Mobilon: teljes képernyős panel (nincs térkép) — indítás előtt; indulás után mindig térképes nézet. */
   function isMobileMapPanelMode() {
     const root = document.documentElement;
     return (
       isTouchMobileAppStarted() &&
-      !root.classList.contains('map-picking') &&
-      !root.classList.contains('mobile-map-view')
+      !root.classList.contains('app-started') &&
+      !root.classList.contains('map-picking')
     );
   }
 
   function syncMobileMapBackBtn() {
     const btn = elements.mobileMapBackBtn;
     if (!btn) return;
+    const root = document.documentElement;
     const show =
       isTouchMobileAppStarted() &&
-      document.documentElement.classList.contains('mobile-map-view') &&
-      !document.documentElement.classList.contains('mobile-geo-setup') &&
-      !document.documentElement.classList.contains('map-picking');
+      root.classList.contains('mobile-map-view') &&
+      !root.classList.contains('mobile-param-panel-open') &&
+      !root.classList.contains('mobile-geo-setup') &&
+      !root.classList.contains('map-picking');
     if (show) {
       btn.removeAttribute('hidden');
       btn.setAttribute('aria-hidden', 'false');
@@ -959,6 +961,7 @@
 
   function renderMobileWinnerSheet(city, matchPercent) {
     if (!isTouchMobileAppStarted() || !elements.mobileWinnerSheetBody || !city) return;
+    document.documentElement.classList.remove('mobile-param-panel-open');
     fillWinnerInfoContainer(elements.mobileWinnerSheetBody, city, matchPercent);
     showMobileWinnerSheetEl(true);
     syncMobileMapBackBtn();
@@ -967,6 +970,8 @@
   }
 
   /**
+   * Mobilon: térkép mindig látszik (mobile-map-view). on=true → csak térkép (+ találat panel);
+   * on=false → alsó ~1/3 paraméter-panel.
    * @param {boolean} on
    * @param {{ forGeoEditor?: boolean }} [opts]
    */
@@ -974,9 +979,11 @@
     if (!isTouchMobileAppStarted()) return;
     const forGeoEditor = !!(opts && opts.forGeoEditor);
     const root = document.documentElement;
-    if (on) root.classList.add('mobile-map-view');
-    else {
-      root.classList.remove('mobile-map-view');
+    root.classList.add('mobile-map-view');
+    if (on) {
+      root.classList.remove('mobile-param-panel-open');
+    } else {
+      root.classList.add('mobile-param-panel-open');
       hideMobileWinnerSheet();
     }
     syncMobileMapBackBtn();
@@ -1013,9 +1020,11 @@
 
   function syncMobileMapDockButtons() {
     if (!isTouchMobileAppStarted()) return;
-    const inGeoSetup = document.documentElement.classList.contains('mobile-geo-setup');
-    const inMap = document.documentElement.classList.contains('mobile-map-view');
-    const hasWinnerSheet = document.documentElement.classList.contains('mobile-winner-sheet-open');
+    const root = document.documentElement;
+    const inGeoSetup = root.classList.contains('mobile-geo-setup');
+    const inMap = root.classList.contains('mobile-map-view');
+    const hasWinnerSheet = root.classList.contains('mobile-winner-sheet-open');
+    const paramPanelOpen = root.classList.contains('mobile-param-panel-open');
     const openBtn = document.getElementById('sidebar-expand-btn');
     const closeBtn = document.getElementById('sidebar-collapse-btn');
     if (inGeoSetup) {
@@ -1024,15 +1033,16 @@
       return;
     }
     if (openBtn) {
-      const showExpand = inMap && !hasWinnerSheet;
+      const showExpand = inMap && !hasWinnerSheet && !paramPanelOpen;
       openBtn.setAttribute('aria-hidden', showExpand ? 'false' : 'true');
       openBtn.title = 'Paraméterek megnyitása';
       openBtn.setAttribute('aria-label', 'Paraméterek megnyitása');
     }
     if (closeBtn) {
-      closeBtn.setAttribute('aria-hidden', inMap ? 'true' : 'false');
-      closeBtn.title = 'Térkép megnyitása';
-      closeBtn.setAttribute('aria-label', 'Térkép megnyitása');
+      const showClose = inMap && paramPanelOpen && !hasWinnerSheet;
+      closeBtn.setAttribute('aria-hidden', showClose ? 'false' : 'true');
+      closeBtn.title = 'Paraméterek elrejtése';
+      closeBtn.setAttribute('aria-label', 'Paraméterek elrejtése');
     }
   }
 
@@ -3921,6 +3931,9 @@
 
   function revealGuidedParamStep(index) {
     if (!elements.paramCategoriesHost || index < 0 || index >= guidedParamKeys.length) return;
+    if (isTouchMobileAppStarted()) {
+      setMobileMapView(false);
+    }
     syncGuidedParamCardsToStep(index);
     const key = guidedParamKeys[index];
     guidedParamStepDone[key] = { primary: false, secondary: false };
@@ -3929,9 +3942,17 @@
       const el = elements.paramCategoriesHost.querySelector('[data-param-key="' + key + '"]');
       card = el && el.closest('.param-item');
     }
+    const scroller = getSidebarScrollEl();
     window.requestAnimationFrame(function () {
-      if (card && typeof card.scrollIntoView === 'function') {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      if (!card) return;
+      if (scroller && scroller.contains(card)) {
+        const cr = card.getBoundingClientRect();
+        const sr = scroller.getBoundingClientRect();
+        const nextTop =
+          scroller.scrollTop + (cr.top - sr.top) - Math.max(0, (sr.height - cr.height) / 2);
+        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+      } else if (typeof card.scrollIntoView === 'function') {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     });
   }
@@ -4529,7 +4550,7 @@
       : 'Találat részletei (előbb keress)';
   }
 
-  function renderWinnerInfoInRightPanel(city, matchPercent) {
+  function renderWinnerInfoInRightPanel(city, matchPercent, opts) {
     const inner = elements.feedbackPanelInner;
     if (!inner || !city) return;
     rightPanelMode = 'winner-info';
@@ -4542,7 +4563,9 @@
           : null;
     fillWinnerInfoContainer(inner, city, pct);
     if (isTouchMobileAppStarted()) {
-      renderMobileWinnerSheet(city, pct);
+      if (opts && opts.showMobileWinnerSheet) {
+        renderMobileWinnerSheet(city, pct);
+      }
       return;
     }
     openRightPanel();
@@ -8477,7 +8500,9 @@
         matchPercent: matchPercent,
       };
       syncWinnerInfoToggleUi();
-      renderWinnerInfoInRightPanel(winningCity);
+      renderWinnerInfoInRightPanel(winningCity, matchPercent, {
+        showMobileWinnerSheet: !!(meta && meta.flyMapToResult),
+      });
     }
 
     const lng = cityLng(winningCity);
@@ -8616,7 +8641,7 @@
 
     requestFullscreen();
 
-    document.documentElement.classList.add('app-started');
+    document.documentElement.classList.add('app-started', 'mobile-map-view');
     syncMobileMapDockButtons();
     if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a')) {
       mobileGeoAutoOpenSlot = 'a';
@@ -8881,8 +8906,12 @@
     function toggleSidebarDock() {
       if (!sidebarDock) return;
       if (isTouchMobileAppStarted()) {
-        const inMap = document.documentElement.classList.contains('mobile-map-view');
-        setMobileMapView(!inMap);
+        const root = document.documentElement;
+        if (root.classList.contains('mobile-param-panel-open')) {
+          setMobileMapView(true);
+        } else {
+          setMobileMapView(false);
+        }
         return;
       }
       const collapsed = !sidebarDock.classList.contains('sidebar-dock--collapsed');
