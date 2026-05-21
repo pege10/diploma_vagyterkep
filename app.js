@@ -734,6 +734,72 @@
     return bestF;
   }
 
+  /** Lazítás cél-flex: számított minimum, vagy legalább egy csúszka-lépéssel lazább. */
+  function resolveBandLoosenTargetFlex(targets, key, flex) {
+    const minLooseF = computeMinimalFlexLooseningForBand(targets, key);
+    if (Number.isFinite(minLooseF) && minLooseF > flex + 1e-4) return minLooseF;
+    const flexInt = Math.max(
+      0,
+      Math.min(PARAM_WEIGHT_SLIDER_MAX, Math.round(flex * PARAM_WEIGHT_SLIDER_MAX))
+    );
+    if (flexInt >= PARAM_WEIGHT_SLIDER_MAX) return 1;
+    return (flexInt + 1) / PARAM_WEIGHT_SLIDER_MAX;
+  }
+
+  function countBandFilterFails(eligible, pack) {
+    let n = 0;
+    for (let k = 0; k < eligible.length; k++) {
+      if (!passesBandFilterForCity(eligible[k], pack)) n++;
+    }
+    return n;
+  }
+
+  /**
+   * Ha nincs „egyedüli” blokkoló sáv, még mindig javasoljunk lazítást (legalább +1 flex lépés).
+   * @param {Array<object>} bandScores
+   * @param {Record<string, object>} targets
+   * @param {object[]} eligible
+   * @param {{ passAllBandsZero?: boolean }} opts
+   */
+  function fillBandLoosenScoresFallback(bandScores, targets, eligible, opts) {
+    const passAllBandsZero = !!(opts && opts.passAllBandsZero);
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      if (bandScores.some(function (s) {
+        return s.key === key;
+      })) {
+        continue;
+      }
+      const flex =
+        pack.flex != null && Number.isFinite(pack.flex)
+          ? Math.max(0, Math.min(1, pack.flex))
+          : PARAM_BAND_FLEX_DEFAULT / PARAM_WEIGHT_SLIDER_MAX;
+      const failCount = countBandFilterFails(eligible, pack);
+      if (!passAllBandsZero && failCount === 0) continue;
+
+      let targetFlex = resolveBandLoosenTargetFlex(targets, key, flex);
+      const flexInt = Math.round(flex * PARAM_WEIGHT_SLIDER_MAX);
+      const targetInt = Math.floor(targetFlex * PARAM_WEIGHT_SLIDER_MAX + 1e-6);
+      if (targetInt <= flexInt && failCount === 0) continue;
+
+      bandScores.push({
+        key: key,
+        label: paramLabelForDbKey(key),
+        type: 'band',
+        failOnly: failCount,
+        flex: flex,
+        targetFlex: Math.min(1, targetFlex),
+        score: failCount * (0.35 + flex * 0.65) + targetFlex,
+        atMaxFlex: targetInt <= flexInt,
+      });
+    }
+    bandScores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+  }
+
   /**
    * Nincs találat: mely sávos mutatók szűrik ki legtöbb települést (rugalmasság lazítás javaslat).
    * @returns {{ reason: string, message: string, suggestions: Array<{ key: string, label: string, type: string, failOnly: number, flex: number }> } | null}
