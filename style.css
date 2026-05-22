@@ -4248,25 +4248,25 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   margin: 0;
 }
 
-/* Kiállítás (/exhibition/): nincs megoldás a térképen — csak sorszám jegy */
-html.exhibition-mode .mobile-winner-sheet {
+/* Kiállítás (/exhibition/): cetli fázis — nincs megoldás a térképen */
+html.exhibition-mode:not(.exhibition-mode--revealed) .mobile-winner-sheet {
   display: none !important;
   pointer-events: none !important;
 }
 
-/* A fő panelből (nem fontos-hely szerkesztésben) ne lehessen térképre váltani */
-html.exhibition-mode.app-started:not(.mobile-geo-setup):not(.map-picking) .mobile-map-back-btn[data-direction="to-map"],
-html.exhibition-mode.app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
+/* A fő panelből (nem fontos-hely szerkesztésben) ne lehessen térképre váltani — cetli fázis */
+html.exhibition-mode:not(.exhibition-mode--revealed).app-started:not(.mobile-geo-setup):not(.map-picking) .mobile-map-back-btn[data-direction="to-map"],
+html.exhibition-mode:not(.exhibition-mode--revealed).app-started:not(.mobile-map-view) .sidebar-dock__collapse-pill--expand {
   display: none !important;
   pointer-events: none !important;
 }
 
-html.exhibition-mode #winner-info-toggle-btn,
-html.exhibition-mode #heatmap-toggle-btn {
+html.exhibition-mode:not(.exhibition-mode--revealed) #winner-info-toggle-btn,
+html.exhibition-mode:not(.exhibition-mode--revealed) #heatmap-toggle-btn {
   display: none !important;
 }
 
-html.exhibition-mode #heatmap-legend.heatmap-legend--visible {
+html.exhibition-mode:not(.exhibition-mode--revealed) #heatmap-legend.heatmap-legend--visible {
   display: none !important;
 }
 

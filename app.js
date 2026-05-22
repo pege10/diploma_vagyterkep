@@ -40,6 +40,8 @@
 
   const SUPABASE_TABLE_CITY_DATA = 'city_data';
   const SUPABASE_BEST_CITY_FINDS_TABLE = 'best_city_finds';
+  /** Kiállítás: TouchDesigner / felfedés jel (boolean) — UPDATE → Realtime a telefonon. */
+  const BEST_CITY_FIND_TD_TRIGGERED_COL = 'td_triggered';
   const PARAMETER_INFO_TABLE = 'parameter_info';
 
   /** best_city_finds: csak all_parameters-sémával egyező oszlopok (sync a táblával). */
@@ -62,6 +64,11 @@
   let citiesData = [];
   /** Összefésült település-sor oszlopnevek → best_city_finds INSERT (match_score +). */
   let bestCityFindInsertKeys = null;
+  /** Kiállítás: cetli után várakozó találat (td_triggered felfedésre). */
+  let exhibitionPendingReveal = null;
+  let exhibitionSolutionRevealed = false;
+  let exhibitionRevealRealtimeChannel = null;
+  let exhibitionTdPollTimer = null;
   /** Oszlopnevek, amelyek kisbetűs „_index” végződéssel rendelkeznek (pl. …_forest_index) */
   let indexParamKeys = [];
   /** @type {Record<string, { min: number, max: number }>} */
@@ -1811,9 +1818,143 @@
     return /\/exhibition(?:\/|$)/i.test(location.pathname || '');
   }
 
-  /** Kiállításon nem mutatjuk a nyertes települést / térképes megoldást (csak sorszám jegy). */
+  /** Kiállításon csak td_triggered felfedés után látszik a megoldás (térkép + mutatók). */
   function shouldRevealSearchSolutionToUser() {
-    return !isExhibitionMode();
+    if (!isExhibitionMode()) return true;
+    return exhibitionSolutionRevealed;
+  }
+
+  function isBestCityFindTdTriggered(value) {
+    return value === true || value === 1 || value === '1' || value === 'true';
+  }
+
+  function resetExhibitionRevealState() {
+    stopExhibitionTdPoll();
+    exhibitionPendingReveal = null;
+    exhibitionSolutionRevealed = false;
+    document.documentElement.classList.remove('exhibition-mode--revealed');
+  }
+
+  function stopExhibitionTdPoll() {
+    if (exhibitionTdPollTimer != null) {
+      clearInterval(exhibitionTdPollTimer);
+      exhibitionTdPollTimer = null;
+    }
+  }
+
+  function startExhibitionTdPoll(findId) {
+    stopExhibitionTdPoll();
+    if (!isExhibitionMode() || findId == null) return;
+    pollExhibitionTdTriggered(findId);
+    exhibitionTdPollTimer = setInterval(function () {
+      pollExhibitionTdTriggered(findId);
+    }, 2000);
+  }
+
+  function exhibitionFindIdsMatch(a, b) {
+    if (a == null || b == null) return false;
+    return String(a) === String(b);
+  }
+
+  async function markBestCityFindTdTriggered(findId) {
+    if (findId == null) return;
+    try {
+      const patch = {};
+      patch[BEST_CITY_FIND_TD_TRIGGERED_COL] = true;
+      const { error } = await supabase
+        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .update(patch)
+        .eq('id', findId);
+      if (error) {
+        console.warn('td_triggered mentés:', error.message || error);
+      }
+    } catch (err) {
+      console.warn('td_triggered mentés:', err);
+    }
+  }
+
+  async function pollExhibitionTdTriggered(findId) {
+    if (!isExhibitionMode() || findId == null || exhibitionSolutionRevealed) return;
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .select(BEST_CITY_FIND_TD_TRIGGERED_COL)
+        .eq('id', findId)
+        .maybeSingle();
+      if (error || !data) return;
+      if (isBestCityFindTdTriggered(data[BEST_CITY_FIND_TD_TRIGGERED_COL])) {
+        revealExhibitionSearchResult();
+      }
+    } catch (err) {
+      console.warn('td_triggered ellenőrzés:', err);
+    }
+  }
+
+  async function enableExhibitionHeatmapAfterReveal(targets) {
+    try {
+      await setHeatmapEnabled(true);
+      if (targets && Object.keys(targets).length) {
+        updateHeatmapFromTargets(targets);
+      }
+    } catch (err) {
+      console.warn('Kiállítás hőtérkép felfedéskor:', err);
+    }
+  }
+
+  function revealExhibitionSearchResult() {
+    const pending = exhibitionPendingReveal;
+    if (!pending || exhibitionSolutionRevealed) return;
+
+    exhibitionSolutionRevealed = true;
+    stopExhibitionTdPoll();
+    document.documentElement.classList.add('exhibition-mode--revealed');
+    closeTicketOverlayOnly();
+
+    const targets = pending.targets || {};
+    showResult(pending.city, pending.matchPercent, pending.findId, {
+      targets: targets,
+      finalScore: pending.finalScore,
+      maxPossible: pending.maxPossible,
+      flyMapToResult: true,
+      paramCount: Object.keys(targets).length,
+      persistFailed: false,
+      persistError: null,
+    });
+
+    if (isTouchMobileAppStarted()) {
+      setMobileMapView(true);
+    }
+
+    markBestCityFindTdTriggered(pending.findId);
+    void enableExhibitionHeatmapAfterReveal(targets);
+  }
+
+  function onExhibitionBestCityFindUpdate(payload) {
+    if (!isExhibitionMode() || exhibitionSolutionRevealed || !exhibitionPendingReveal) return;
+    const row = payload && payload.new;
+    if (!row || !exhibitionFindIdsMatch(row.id, exhibitionPendingReveal.findId)) return;
+    if (!isBestCityFindTdTriggered(row[BEST_CITY_FIND_TD_TRIGGERED_COL])) return;
+    revealExhibitionSearchResult();
+  }
+
+  function initExhibitionRevealRealtime() {
+    if (!isExhibitionMode() || exhibitionRevealRealtimeChannel) return;
+    exhibitionRevealRealtimeChannel = supabase
+      .channel('exhibition-best-city-finds-reveal')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: SUPABASE_BEST_CITY_FINDS_TABLE,
+        },
+        onExhibitionBestCityFindUpdate
+      )
+      .subscribe(function (status) {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('Kiállítás Realtime (td_triggered): csatorna hiba');
+        }
+      });
   }
 
   function applyExhibitionModeDocumentClass() {
@@ -9106,7 +9247,7 @@
   }
 
   async function setHeatmapEnabled(on) {
-    if (isExhibitionMode() && on) return;
+    if (isExhibitionMode() && on && !exhibitionSolutionRevealed) return;
     heatmapEnabled = !!on;
     syncHeatmapToggleUi();
     if (heatmapEnabled) {
@@ -9710,6 +9851,9 @@
         ticketId = saved && saved.id != null ? saved.id : null;
         persistError = saved && saved.error ? saved.error : null;
       }
+      if (isExhibitionMode()) {
+        resetExhibitionRevealState();
+      }
       let anchorY = NaN;
       if (layoutAnchor && scroller) {
         anchorY = layoutAnchor.getBoundingClientRect().top;
@@ -9723,7 +9867,22 @@
         persistFailed: persistToDb && ticketId == null,
         persistError: persistError,
       });
-      if (showTicket && shouldShowSearchTicketOverlay()) showTicketOverlay(ticketId);
+      if (isExhibitionMode() && ticketId != null) {
+        exhibitionPendingReveal = {
+          findId: ticketId,
+          city: result.city,
+          matchPercent: matchPercent,
+          targets: targets,
+          finalScore: result.finalScore,
+          maxPossible: maxP,
+        };
+      }
+      if (showTicket && shouldShowSearchTicketOverlay()) {
+        showTicketOverlay(ticketId);
+        if (isExhibitionMode() && ticketId != null) {
+          startExhibitionTdPoll(ticketId);
+        }
+      }
       if (flyMapToResult && isTouchMobileAppStarted()) {
         setMobileMapView(true);
       }
@@ -9947,6 +10106,7 @@
   async function init() {
     initElements();
     applyExhibitionModeDocumentClass();
+    initExhibitionRevealRealtime();
     initLayoutDocking();
     initHeatmapToggle();
     initWinnerInfoToggle();

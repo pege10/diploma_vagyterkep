@@ -6,6 +6,7 @@
 --
 -- Meta oszlopok (csak ezek + all_parameters):
 --   id, created_at, match_score  (egyezés %, 0–100)
+--   td_triggered  (boolean, default false — kiállítás felfedés / TouchDesigner jel)
 --
 -- Nincs külön: telepules_nev, lat, lng, erdo_ertek, kultura_ertek, egyezes_pontszam
 --   → settlement_name, CITYDATA_Latitude / CITYDATA_Longitude, index oszlopok az all_parameters-ben.
@@ -62,6 +63,12 @@ COMMENT ON TABLE public.best_city_finds IS
 COMMENT ON COLUMN public.best_city_finds.id IS 'Sorszám / jegy (projector, realtime INSERT).';
 COMMENT ON COLUMN public.best_city_finds.created_at IS 'Keresés időpontja.';
 COMMENT ON COLUMN public.best_city_finds.match_score IS 'Egyezés százalék (0–100); 100 = tökéletes egyezés.';
+
+ALTER TABLE public.best_city_finds
+  ADD COLUMN IF NOT EXISTS td_triggered boolean NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN public.best_city_finds.td_triggered IS
+  'Kiállítás: true = felfedés (cetli → térkép + mutatók). TouchDesigner UPDATE vagy app mentés felfedéskor.';
 
 -- Régi meta oszlopok eltávolítása, ha egy korábbi séma már létrejött
 ALTER TABLE public.best_city_finds DROP COLUMN IF EXISTS telepules_nev;
@@ -177,6 +184,14 @@ CREATE POLICY "best_city_finds_insert_anon"
   ON public.best_city_finds
   FOR INSERT
   TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "best_city_finds_update_anon" ON public.best_city_finds;
+CREATE POLICY "best_city_finds_update_anon"
+  ON public.best_city_finds
+  FOR UPDATE
+  TO anon, authenticated
+  USING (true)
   WITH CHECK (true);
 
 -- Supabase Dashboard → Database → Publications: best_city_finds engedélyezése realtime-hoz.
