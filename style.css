@@ -3736,6 +3736,23 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   word-break: normal;
 }
 
+.feedback-param-list__stats-dd--multiline {
+  white-space: pre-line;
+  line-height: 1.35;
+}
+
+.feedback-param-list__stats-dd--breakdown {
+  grid-column: 1 / -1;
+  margin: -2px 0 4px;
+  padding: 0 0 2px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--ink-soft);
+  white-space: pre-line;
+}
+
 .feedback-param-list__empty {
   font-size: 0.82rem;
   color: var(--ink-soft);

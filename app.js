@@ -62,6 +62,7 @@
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let citiesData = [];
+  /** @type {Record<string, string[]>|null} NSR sportág-lista településnév (kisbetű) szerint. */
   /** Összefésült település-sor oszlopnevek → best_city_finds INSERT (match_score +). */
   let bestCityFindInsertKeys = null;
   /** Kiállítás: cetli után várakozó találat (td_triggered felfedésre). */
@@ -1792,9 +1793,16 @@
           key: key,
           isBand: true,
           label: paramLabelForDbKey(key),
-          wantText: fmtUi(pack.bandMin) + ' – ' + fmtUi(pack.bandMax),
+          wantText: formatBandRangeWantTextForFeedback(
+            pack.bandMin,
+            pack.bandMax,
+            fmtUi,
+            displayModel,
+            key
+          ),
           gotText: gotText,
           diffText: diffText,
+          extraStatRows: formatFeedbackParamExtraStatRows(winningCity, key),
         });
         continue;
       }
@@ -1809,6 +1817,7 @@
         wantText: formatIndexParamUiAtSliderValue(key, want),
         gotText: formatCityInfoValueForParamKey(winningCity, key),
         diffText: formatIndexDeviationPercent(want, got),
+        extraStatRows: formatFeedbackParamExtraStatRows(winningCity, key),
       });
     }
 
@@ -1837,7 +1846,6 @@
       const name = document.createElement('div');
       name.className = 'feedback-param-list__name';
       name.textContent = row.label;
-      name.title = row.key;
       item.appendChild(name);
 
       const stats = document.createElement('dl');
@@ -1846,11 +1854,28 @@
       [
         { label: 'Preferált érték', value: row.wantText },
         { label: 'Település érték', value: row.gotText },
-        { label: 'Eltérés', value: row.diffText },
       ].forEach(function (part) {
         const dt = document.createElement('dt');
         dt.textContent = part.label;
-        dt.title = part.label;
+        const dd = document.createElement('dd');
+        dd.textContent = part.value;
+        if (part.value && String(part.value).indexOf('\n') !== -1) {
+          dd.className = 'feedback-param-list__stats-dd--multiline';
+        }
+        stats.appendChild(dt);
+        stats.appendChild(dd);
+      });
+
+      const dtDiff = document.createElement('dt');
+      dtDiff.textContent = 'Eltérés';
+      const ddDiff = document.createElement('dd');
+      ddDiff.textContent = row.diffText;
+      stats.appendChild(dtDiff);
+      stats.appendChild(ddDiff);
+
+      (row.extraStatRows || []).forEach(function (part) {
+        const dt = document.createElement('dt');
+        dt.textContent = part.label;
         const dd = document.createElement('dd');
         dd.textContent = part.value;
         stats.appendChild(dt);
@@ -1908,13 +1933,13 @@
     if (geoSlotReady('a')) {
       slots.push({
         slot: 'a',
-        label: geoImportantPlaceTitle.a || geoSlotDisplayName('a'),
+        label: geoImportantPlaceDistanceLabel('a'),
       });
     }
     if (geoSlotReady('b')) {
       slots.push({
         slot: 'b',
-        label: geoImportantPlaceTitle.b || geoSlotDisplayName('b'),
+        label: geoImportantPlaceDistanceLabel('b'),
       });
     }
     if (!slots.length) return;
@@ -2862,8 +2887,109 @@
   }
 
   function budapestCarTrainCompanionTotalMinKey(indexKey) {
-    if (typeof indexKey !== 'string' || !/_budapest_car_train_index$/i.test(indexKey)) return null;
-    return indexKey.replace(/_budapest_car_train_index$/i, '_total_min');
+    return budapestCarTrainCompanionColumnKey(indexKey, '_total_min');
+  }
+
+  function budapestCarTrainCompanionColumnKey(indexKey, suffix) {
+    if (typeof indexKey !== 'string' || !/_budapest_car_train_index$/i.test(indexKey)) {
+      return null;
+    }
+    return indexKey.replace(/_budapest_car_train_index$/i, suffix);
+  }
+
+  /** Találat panel: autó → állomás → vonat sorok (Budapest elérhetőség). */
+  function formatBudapestCarTrainExtraStatRows(city, indexKey) {
+    if (!city || !indexKey) return [];
+    const carKey = budapestCarTrainCompanionColumnKey(indexKey, '_car_to_station_min');
+    const trainKey = budapestCarTrainCompanionColumnKey(indexKey, '_train_to_bp_min');
+    const stationKey = budapestCarTrainCompanionColumnKey(indexKey, '_nearest_station');
+    if (!carKey || !trainKey || !stationKey) return [];
+
+    const carMin = parseNumeric(city[carKey]);
+    const trainMin = parseNumeric(city[trainKey]);
+    const station = String(city[stationKey] != null ? city[stationKey] : '').trim();
+
+    const rows = [];
+    if (station) {
+      rows.push({ label: 'Legközelebbi állomás', value: station });
+    }
+    if (carMin != null) {
+      rows.push({ label: 'Autó az állomásig', value: formatMinutesForUi(carMin) });
+    }
+    if (trainMin != null) {
+      rows.push({ label: 'Vonat Budapestre', value: formatMinutesForUi(trainMin) });
+    }
+    return rows;
+  }
+
+  function isBudapestCarTrainIndexKey(indexKey) {
+    return typeof indexKey === 'string' && /_budapest_car_train_index$/i.test(indexKey);
+  }
+
+  function isDistrictSeatAccessIndexKey(indexKey) {
+    return typeof indexKey === 'string' && /_jarasszekhely_auto_index$/i.test(indexKey);
+  }
+
+  function isTransportFrequencyIndexKey(indexKey) {
+    return typeof indexKey === 'string' && /_transport_frequency_index$/i.test(indexKey);
+  }
+
+  function transportFrequencyDistrictSeatName(city) {
+    if (!city) return '';
+    const raw =
+      city.TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye != null
+        ? city.TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye
+        : city.jaras_szekhelye;
+    return String(raw || '').trim();
+  }
+
+  function formatFeedbackParamExtraStatRows(city, indexKey) {
+    const rows = [];
+    if (isBudapestCarTrainIndexKey(indexKey)) {
+      return formatBudapestCarTrainExtraStatRows(city, indexKey);
+    }
+    if (isDistrictSeatAccessIndexKey(indexKey)) {
+      const seatName = transportFrequencyDistrictSeatName(city);
+      if (seatName) {
+        rows.push({ label: 'Járásszékhely', value: seatName });
+      }
+      return rows;
+    }
+    if (isTransportFrequencyIndexKey(indexKey)) {
+      if (!city || !indexKey || isTransportFrequencySzékhelyTier(city, indexKey)) return rows;
+      const seatName = transportFrequencyDistrictSeatName(city);
+      if (seatName) {
+        rows.push({ label: 'Járásszékhely', value: seatName });
+      }
+      return rows;
+    }
+    const def = schoolVariantDefForIndexKey(indexKey);
+    if (def && city) {
+      const nameKey = schoolCompanionNameKey(def.companionKey);
+      const schoolName = nameKey ? String(city[nameKey] || '').trim() : '';
+      const uiId = schoolUiParamIdForIndexKey(indexKey);
+      let institutionLabel = 'Legközelebbi iskola';
+      if (uiId === 'primary_school_proximity_index') {
+        institutionLabel = 'Legközelebbi általános iskola';
+      } else if (uiId === 'high_school_proximity_index') {
+        institutionLabel = 'Legközelebbi gimnázium';
+      }
+      if (schoolName) {
+        rows.push({ label: institutionLabel, value: schoolName });
+      }
+      const eduType =
+        def.id === 'alternativ' ? 'alternatív iskola' : 'állami iskola';
+      rows.push({ label: 'Oktatás típusa', value: eduType });
+    }
+    return rows;
+  }
+
+  function schoolCompanionNameKey(companionKmKey) {
+    if (typeof companionKmKey !== 'string') return null;
+    if (/_legkozelebbi_km$/i.test(companionKmKey)) {
+      return companionKmKey.replace(/_legkozelebbi_km$/i, '_legkozelebbi_nev');
+    }
+    return null;
   }
 
   function internetCompanionMbpsKey(indexKey) {
@@ -3613,6 +3739,23 @@
     }
     const fmt = cfg && cfg.formatValue ? cfg.formatValue : formatIndexScoreForUi;
     return fmt(indexVal);
+  }
+
+  /** Találat panel: sávos preferált tartomány (pl. sportág + létesítmény külön sorban). */
+  function formatBandRangeWantTextForFeedback(bandMin, bandMax, fmtUi, displayModel, indexKey) {
+    const info = findCompanionInfoForIndexKey(indexKey);
+    if (displayModel && displayModel.formatAtIndex && info && info.pair) {
+      const oneLine = function (ix) {
+        return String(displayModel.formatAtIndex(ix)).replace(/\n/g, ' ').trim();
+      };
+      return oneLine(bandMin) + '\n' + oneLine(bandMax);
+    }
+    const lo = fmtUi(bandMin);
+    const hi = fmtUi(bandMax);
+    if (lo.indexOf('\n') !== -1 || hi.indexOf('\n') !== -1) {
+      return lo.replace(/\n/g, ' ').trim() + '\n' + hi.replace(/\n/g, ' ').trim();
+    }
+    return lo + ' – ' + hi;
   }
 
   function bandFilterCompanionKey(dbKey) {
@@ -5303,6 +5446,19 @@
     return nm && nm !== '–' ? nm : 'Fontos hely';
   }
 
+  /** Találat panel: fontos hely sor felirata (sorszám + településnév). */
+  function geoImportantPlaceDistanceLabel(slot) {
+    const placeName = geoSlotDisplayName(slot);
+    const title =
+      geoImportantPlaceTitle[slot] ||
+      GEO_IMPORTANT_PLACE_DEFAULT_TITLE[slot] ||
+      'Fontos hely';
+    if (!placeName || placeName === 'Fontos hely') return title;
+    const numMatch = title.match(/^(\d+\.)/);
+    if (numMatch) return numMatch[1] + ' ' + placeName;
+    return placeName;
+  }
+
   /** Pin + felirat: csak ha a slot kapcsolója BE van és van beállított hely. */
   function syncGeoMarkersFromState() {
     if (!map || isMobileMapPanelMode()) return;
@@ -6600,7 +6756,6 @@
       const td0 = document.createElement('td');
       td0.className = 'feedback-table__key';
       td0.textContent = paramLabelForDbKey(row.key);
-      td0.title = row.key;
 
       const td1 = document.createElement('td');
       td1.className = 'feedback-table__num';
@@ -6688,15 +6843,11 @@
       const tdK = document.createElement('td');
       tdK.className = 'feedback-table__key';
       tdK.textContent = columnDisplayLabel(k);
-      tdK.title = k;
 
       const tdV = document.createElement('td');
       tdV.className = 'feedback-table__val';
       const formatted = formatValueForTable(winningCity[k]);
       tdV.textContent = formatted.text;
-      if (formatted.title && formatted.title !== formatted.text) {
-        tdV.title = formatted.title;
-      }
 
       tr.appendChild(tdK);
       tr.appendChild(tdV);

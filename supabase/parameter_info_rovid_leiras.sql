@@ -1,8 +1,13 @@
 -- =============================================================================
--- parameter_info: panel alcímek (rovid_leiras) — mit mér + mit mutat a csúszka
+-- parameter_info: rövid leírások (rovid_leiras) — mit jelent az adott mutató?
 -- =============================================================================
 --
--- Megegyezik az app.js BUILTIN_PARAM_UI_COPY intro szövegeivel.
+-- Stílus: tegező, egyes szám második személy (pl. „neked”, „állítsd be”, „érsz el”).
+-- Referencia (érintetlen): important_place_1 / important_place_2
+--
+-- Ez a szkript CSAK a rovid_leiras mezőt írja felül. A fontos hely 1 és 2
+-- sorok nincsenek benne.
+--
 -- Futtasd a Supabase SQL Editorben. Újra futtatható.
 -- =============================================================================
 
@@ -12,95 +17,100 @@ FROM (
   VALUES
     (
       'forest_index',
-      'Mennyire erdős a környék (3 km). Földfedettségi térképek alapján; a csúszkán az átlagos erdőarány (%) látszik.'
+      'Mennyire erdős a település környezete (3 km-es kör). Állítsd be, ha fontos neked, mennyi zöld terület veszi körül a választott helyet.'
     ),
     (
       'water_index',
-      'Mennyire van víz a közelben (3 km). Térképi víztestek alapján; a csúszkán az átlagos vízarány (%) látszik.'
+      'Mennyire jelentős a vízfelület a település közelében (3 km): tavak, folyók és egyéb víztestek aránya. Neked szól, ha vízközeli hangulatot keresel.'
     ),
     (
       'terrain_index',
-      'Mennyire dombos a környék (3 km). Domborzati modell alapján; a csúszkán az átlagos lejtés (°) látszik.'
+      'A település domborzati jellege (3 km): mennyire dombos vagy sík a környék. Állítsd be, ha neked a hegyvidéki vagy épp a lapos táj a fontos.'
     ),
     (
       'airpollution_index',
-      'Elfogadható levegőminőség (3 km). Légminőség-modell alapján; magasabb = tisztább levegő.'
+      'A település környezetének levegőminősége (3 km). Neked tisztább levegőt jelent a magasabb érték, erősebb szennyezést az alacsonyabb.'
     ),
     (
       'budapest_car_train_index',
-      'Elfogadható összidő Budapestre (autó + vonat). Menetrend alapján; a csúszkán percben látszik.'
+      'Mennyi idő alatt érsz el Budapestre autóval és vonattal együtt. Használd, ha neked mindkét közlekedési mód számít a főváros felé.'
     ),
     (
       'internet_index',
-      'Elfogadható internet sebesség. Valós felhasználói mérések alapján; a csúszkán Mbps látszik.'
+      'A település átlagos mobilinternet-sebessége (Mbps). Neked szól, ha otthonról dolgozol, streamelsz vagy gyors netre vágysz.'
     ),
     (
       'urban_mobility_index',
-      'Elfogadható városi mobilitás. Menetrend és településméret alapján; 0–100 skálán.'
+      'Mennyire jól tudsz közlekedni a településen és környékén: járhatóság, elérhetőség, közlekedési lehetőségek egyben.'
     ),
     (
       'transport_frequency_index',
-      'Elfogadható járatsűrűség a járásszékhely felé. Busz- és vonatmenetrend alapján; a csúszkán napi járatok száma látszik.'
+      'Mennyire sűrűn járnak buszok és vonatok a járás székhelyén (járásszékhely és BP kerület nélkül). Neked szól, ha a tömegközlekedés gyakorisága fontos.'
     ),
     (
       'district_seat_access_index',
-      'Elfogadható autós idő a járásszékhelyre. Közlekedési felmérés alapján; a csúszkán percben látszik.'
+      'Autóval mennyi idő alatt éred el a járás székhelyét. Állítsd be, ha neked számít a megyei ügyintézés vagy a szolgáltatások közelsége.'
     ),
     (
       'budapest_access_index',
-      'Elfogadható autós idő Budapestre. Közlekedési felmérés alapján; a csúszkán percben látszik.'
+      'Autóval mennyi idő alatt érsz el Budapestre. A keresés a beállított időn belül maradó településeket részesíti előnyben.'
     ),
     (
       'cultural_index',
-      'Elfogadható kulturális élet. Statisztikai adatok: mozi, színház, könyvtár, rendezvény.'
+      'Mennyire pezsgő a kulturális élet: műintézetek, rendezvények, programok a településen. Neked szól, ha fontos a kulturált környezet.'
     ),
     (
       'groceries_index',
-      'Elfogadható bevásárlási ellátás. Üzletláncház helyei alapján; a csúszkán km és üzletszám látszik.'
+      'Milyen messze van tőled a legközelebbi üzlet, és hány különböző márka érhető el 5 km-en belül. Neked a mindennapi bevásárlás kényelmét méri.'
     ),
     (
       'sport_index',
-      'Elfogadható sportlehetőség. Sportegyesületek és térképi létesítmények alapján.'
+      'Milyen sportágak és létesítmények érhetők el a településen. Állítsd be, ha neked fontos a sport és a szabadidős lehetőségek.'
     ),
     (
       'gastro_index',
-      'Elfogadható vendéglátó kínálat. Éttermek és kávézók térképi adatai alapján; a csúszkán helyszám látszik.'
+      'Mennyi étterem, kávézó és hasonló hely van a településen és környékén. Neked szól, ha a gasztronómia és a vendéglátás jelenléte számít.'
     ),
     (
       'senior_index',
-      'Preferált arány 65 év felett. Népességszámlálás alapján; a csúszkán a népességarány (%) látszik.'
+      'A település népességének hány százaléka 65 év felett. Állítsd be, ha neked az számít, mennyire idős vagy fiatal a közösség.'
     ),
     (
       'diploma_index',
-      'Preferált diplomás arány. Népességszámlálás alapján; a csúszkán a végzettségarány (%) látszik.'
+      'A lakosság hány százaléka rendelkezik diplomával. Neked akkor releváns, ha fontos, milyen végzettségű a település közössége.'
     ),
     (
       'primary_school_proximity_index',
-      'Elfogadható iskolaközelség. Iskolatörzs és útvonal-adatok alapján; a csúszkán távolság (km) látszik. Válaszd ki az iskola típusát.'
+      'Milyen messze van tőled a legközelebbi állami vagy alternatív általános iskola. Válaszd ki a panelen, melyik iskolatípus számít neked.'
     ),
     (
       'high_school_proximity_index',
-      'Elfogadható gimnázium-közelség. Iskolatörzs és útvonal-adatok alapján; a csúszkán távolság (km) látszik. Válaszd ki az iskola típusát.'
+      'Milyen messze van tőled a legközelebbi állami vagy alternatív gimnázium. Válaszd ki a panelen, melyik iskolatípus számít neked.'
     ),
     (
       'real_estate_price_grow_5yrs_index',
-      'Elfogadható áremelkedés (5 év). Ingatlanpiaci statisztika alapján; a csúszkán % látszik. Válaszd ki az ingatlan típusát.'
+      'Mennyit emelkedtek az ingatlanárak az elmúlt 5 évben (%). Válaszd ki a panelen, neked a ház, lakás vagy telek mennyire számít.'
     ),
     (
       'real_estate_price_avg5mth_index',
-      'Elfogadható árszint. Ingatlanpiaci statisztika alapján; a csúszkán Ft/m² látszik. Válaszd ki az ingatlan típusát.'
+      'Mekkora az aktuális ingatlanár-szint (Ft/m², 2025–2026). Válaszd ki a panelen a neked releváns típust: ház, lakás vagy telek.'
     ),
     (
       'sleeping_city_index',
-      'Preferált alvóváros jelleg. Népességszámlálás alapján; magasabb = többen ingáznak el dolgozni.'
+      'Mennyire „alvóváros” a település: a lakosság mennyire a környező nagyvárosok munkahelyei és szolgáltatásai felé jár. Neked szól, ha ez a jelleg számít.'
     ),
     (
       'jobs_index',
-      'Elfogadható helyi munkalehetőség. Népességszámlálás alapján; a csúszkán a helyi munkahely/lakos arány (%) látszik.'
+      'Mennyire tudsz a településen vagy annak közelében elhelyezkedni anélkül, hogy messzebb ingáznod kellene. Neked a helyi munkalehetőségek arányát mutatja.'
     ),
     (
       'turism_index',
-      'Preferált turisztikai aktivitás. Idegenforgalmi adó bevétele lakosonként; 0–100 skálán.'
+      'Mennyire turisztikusan aktív a település: vendéglátás, látogatottság, turisztikai infrastruktúra. Neked szól, ha a pezsgő vagy épp a csendesebb turizmus a fontos.'
     )
 ) AS v(parameter_key, rovid_leiras)
 WHERE p.parameter_key = v.parameter_key;
+
+-- Ellenőrzés (fontos helyek változatlanok maradnak):
+-- SELECT parameter_key, megnevezes, rovid_leiras
+-- FROM public.parameter_info
+-- ORDER BY parameter_key;
