@@ -26,9 +26,9 @@
 --    - Elvárt fejléc példa:
 --      parameter_key,ui_definicio
 --      forest_index,"Az erdő index..."
---      geo_important_a,"Az 1. fontos hely..."
---      geo_important_b,"A 2. fontos hely..."
---    - A parameter_key értékek = app.js index mezők (forest_index, water_index, …) + geo_important_a / geo_important_b
+--      important_place_1,"1. számodra fontos hely"
+--      important_place_2,"2. számodra fontos hely"
+--    - A parameter_key értékek = app.js index mezők (forest_index, water_index, …) + important_place_1 / important_place_2
 --
 -- D) Meglévő tábla bővítése (megnevezés + forrás oszlopok, CSV-ből import):
 -- ALTER TABLE public.parameter_info ADD COLUMN IF NOT EXISTS megnevezes TEXT;

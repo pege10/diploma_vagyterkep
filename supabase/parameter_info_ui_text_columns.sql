@@ -32,7 +32,7 @@ ALTER TABLE public.parameter_info
 COMMENT ON COLUMN public.parameter_info.rovid_leiras IS
   'Rövid alcím a kártya tetején. Hosszú tooltip: ui_definicio (meglévő oszlop).';
 COMMENT ON COLUMN public.parameter_info.szlider1_megnevezes IS
-  '1. csúszka címke: tartomány / kívánt index.';
+  '1. csúszka címke: tartomány / preferált érték.';
 COMMENT ON COLUMN public.parameter_info.szlider1_bal IS '1. csúszka bal szélső felirat.';
 COMMENT ON COLUMN public.parameter_info.szlider1_jobb IS '1. csúszka jobb szélső felirat.';
 COMMENT ON COLUMN public.parameter_info.szlider2_megnevezes IS
@@ -53,47 +53,47 @@ SET
   szlider2_jobb = COALESCE(NULLIF(btrim(p.szlider2_jobb), ''), v.szlider2_jobb)
 FROM (
   VALUES
-    -- Index + fontosság (2 csúszka: kívánt index + fontosság)
+    -- Index + fontosság (2 csúszka: preferált érték + fontosság)
     (
       'forest_index',
-      'Kívánt erdőlefedettségi index (3 km). Szűrés: index; a szélső értékek: átlagos erdőarány (%).',
-      'Kívánt index', 'Kevesebb erdő', 'Több erdő',
+      'Preferált erdőlefedettség (3 km). A csúszka felirata: átlagos erdőarány (%).',
+      'Preferált érték', 'Kevesebb erdő', 'Több erdő',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     (
       'water_index',
-      'Kívánt vízfelület-index (3 km). Szűrés: index; a szélső értékek: átlagos vízarány (%).',
-      'Kívánt index', 'Kevesebb víz', 'Több víz',
+      'Preferált vízfelület (3 km). A csúszka felirata: átlagos vízarány (%).',
+      'Preferált érték', 'Kevesebb víz', 'Több víz',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     (
       'terrain_index',
-      'Kívánt hegyvidéki karakter index (3 km). Szűrés: index; a szélső értékek: átlagos lejtés (°).',
-      'Kívánt index', 'Laposabb', 'Hegyesebb',
+      'Preferált hegyvidéki karakter (3 km). A csúszka felirata: átlagos lejtés (°).',
+      'Preferált érték', 'Laposabb', 'Hegyesebb',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     (
       'senior_index',
-      'Kívánt arány a 65 év felettieknek. Szűrés: index; a szélső értékek: népességarány (%).',
-      'Kívánt index', 'Fiatalabb', 'Idősebb',
+      'Preferált arány a 65 év felettieknek. A csúszka felirata: népességarány (%).',
+      'Preferált érték', 'Fiatalabb', 'Idősebb',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     (
       'sleeping_city_index',
-      'Kívánt alvóváros index – mennyire kiszolgált a település a környező nagyvárosok felől.',
-      'Kívánt index', 'Alacsonyabb', 'Magasabb',
+      'Preferált alvóváros jelleg – mennyire kiszolgált a település a környező nagyvárosok felől. A csúszka 0–100 skálán.',
+      'Preferált érték', 'Alacsonyabb', 'Magasabb',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     (
       'turism_index',
-      'Kívánt turizmus index (0–100).',
-      'Kívánt index', 'Alacsonyabb', 'Magasabb',
+      'Preferált turizmus (0–100).',
+      'Preferált érték', 'Alacsonyabb', 'Magasabb',
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
     ),
     -- Sávos szűrő: tartomány + rugalmasság (Laza–Szigorú)
     (
       'airpollution_index',
-      'Elfogadható légszennyezettségi index (3 km). Szűrés: index pont; magasabb index = erősebb szennyezés.',
+      'Elfogadható légszennyezettség (3 km). A csúszka magasabb értéke erősebb szennyezést jelent.',
       'Elfogadható tartomány', 'Tisztább', 'Szennyezettebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
@@ -117,73 +117,73 @@ FROM (
     ),
     (
       'internet_index',
-      'Elfogadható internet index. Szűrés: pont; felirat: Mbps.',
+      'Elfogadható internet sebesség. A csúszka felirata: Mbps.',
       'Elfogadható sebesség', 'Gyengébb', 'Erősebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'transport_frequency_index',
-      'Elfogadható tömegközlekedési index (0–100). Szűrés: pont; a felirat a pontszinthez tartozó legjobb járatszám (járásszékhely és BP kerület nélkül).',
+      'Elfogadható tömegközlekedés (0–100). A csúszka felirata: napi járatok száma (járásszékhely és BP kerület nélkül).',
       'Elfogadható tartomány', 'Gyengébb', 'Erősebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'urban_mobility_index',
-      'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
+      'Elfogadható tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
       'Elfogadható tartomány', 'Alacsonyabb', 'Magasabb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'cultural_index',
-      'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
+      'Elfogadható tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
       'Elfogadható tartomány', 'Alacsonyabb', 'Magasabb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'sport_index',
-      'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
+      'Elfogadható tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
       'Elfogadható tartomány', 'Alacsonyabb', 'Magasabb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'groceries_index',
-      'Elfogadható kisker index. Szűrés: pont; felirat: km és üzletszám.',
+      'Elfogadható kiskerellátás. A csúszka felirata: km és üzletszám.',
       'Elfogadható ellátás', 'Gyengébb', 'Erősebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'gastro_index',
-      'Elfogadható gasztronómia index. Szűrés: pont; felirat: helyszám.',
+      'Elfogadható gasztronómia. A csúszka felirata: helyszám.',
       'Elfogadható kínálat', 'Kevesebb', 'Több',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'jobs_index',
-      'Elfogadható helyi munkalehetőség index (0–100). Szűrés: pont; felirat: munkalehetőség aránya (%).',
+      'Elfogadható helyi munkalehetőség (0–100). A csúszka felirata: munkalehetőség aránya (%).',
       'Elfogadható tartomány', 'Gyengébb', 'Erősebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'primary_school_proximity_index',
-      'Elfogadható iskolaválaszték index. Szűrés: pont; felirat: távolság (km).',
+      'Elfogadható iskolaválaszték. A csúszka felirata: távolság (km).',
       'Elfogadható közelség', 'Távolabb', 'Közelebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'high_school_proximity_index',
-      'Elfogadható iskolaválaszték index. Szűrés: pont; felirat: távolság (km).',
+      'Elfogadható iskolaválaszték. A csúszka felirata: távolság (km).',
       'Elfogadható közelség', 'Távolabb', 'Közelebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'real_estate_price_grow_5yrs_index',
-      'Elfogadható áremelkedés index. Szűrés: pont; felirat: %.',
+      'Elfogadható áremelkedés (5 év). A csúszka felirata: %.',
       'Elfogadható emelkedés', 'Alacsonyabb', 'Magasabb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'real_estate_price_avg5mth_index',
-      'Elfogadható ingatlanár index. Szűrés: pont; felirat: Ft/m².',
+      'Elfogadható ingatlanár-szint. A csúszka felirata: Ft/m².',
       'Elfogadható árszint', 'Olcsóbb', 'Drágább',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
@@ -192,6 +192,19 @@ FROM (
       'diploma_index',
       NULL, NULL, NULL, NULL,
       'Fontosság a keresésben', 'Nem számít', 'Maximális'
+    ),
+    -- Számodra fontos helyek (geo slot a/b — nincs index csúszka, csak település + sugár)
+    (
+      'important_place_1',
+      'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
+      'Település érték', NULL, NULL,
+      'Sugár (km)', 'Kisebb kör', 'Nagyobb kör'
+    ),
+    (
+      'important_place_2',
+      'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
+      'Település érték', NULL, NULL,
+      'Sugár (km)', 'Kisebb kör', 'Nagyobb kör'
     )
 ) AS v(
   parameter_key,
@@ -204,6 +217,18 @@ FROM (
   szlider2_jobb
 )
 WHERE p.parameter_key = v.parameter_key;
+
+-- ── Meglévő DB: régi csúszkafeliratok frissítése (COALESCE seed nem írja felül) ──
+
+UPDATE public.parameter_info
+SET szlider1_megnevezes = 'Preferált érték'
+WHERE szlider1_megnevezes = 'Kívánt index';
+
+UPDATE public.parameter_info
+SET
+  szlider1_megnevezes = 'Település érték',
+  szlider2_megnevezes = 'Sugár (km)'
+WHERE parameter_key IN ('important_place_1', 'important_place_2');
 
 -- telepules_nev_egysegesites: meta sor, nincs csúszka — szándékosan nincs a VALUES listában.
 

@@ -163,8 +163,16 @@
   let parameterInfoByKey = {};
   /** parameter_info teljes sor uiParamId (normalized) szerint — csúszka feliratok felülírásához */
   let parameterInfoRowsByKey = {};
-  /** Fontos hely kártyacímek — parameter_info geo_important_a / b megnevezes, ha van */
+  /** Fontos hely kártyacímek — parameter_info important_place_1 / 2 megnevezes, ha van */
   let geoImportantPlaceTitle = { a: '', b: '' };
+  const GEO_IMPORTANT_PLACE_INFO_KEY = { a: 'important_place_1', b: 'important_place_2' };
+  const GEO_IMPORTANT_PLACES_GROUP_TITLE = 'Számodra fontos helyek';
+  const GEO_IMPORTANT_PLACE_DEFAULT_TITLE = {
+    a: '1. számodra fontos hely',
+    b: '2. számodra fontos hely',
+  };
+  const GEO_IMPORTANT_PLACE_DEFAULT_INTRO =
+    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.';
 
   let map = null;
   let winningMarker = null;
@@ -253,29 +261,169 @@
     'XXIII',
   ];
 
-  const APP_WELCOME_STORAGE_KEY = 'hse-app-welcome-dismissed-v1';
-
-  const APP_WELCOME_DIALOG_HTML =
+  const APP_WELCOME_OVERLAY_SHELL =
     '<div class="app-welcome-dialog">' +
     '<button type="button" id="app-welcome-close" class="app-welcome-close" aria-label="Bezárás">×</button>' +
-    '<div class="app-welcome-dialog__scroll">' +
-    '<h2 id="app-welcome-title" class="app-welcome-title">Hogyan működik?</h2>' +
-    '<p id="app-welcome-lead" class="app-welcome-lead">A Holistic Search Engine a beállított mutatók alapján keresi meg a számodra legjobban illő magyar települést. Az alábbi lépések segítenek az induláshoz.</p>' +
-    '<ol class="app-welcome-steps">' +
-    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">1</span><strong>Fontos helyek</strong></div><p>Kapcsold be a kártyát a jobb oldali kapcsolóval. Add meg a települést (név vagy térkép gomb), majd állítsd a sugarat.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--switch" title="Bekapcsolás"></span><span class="app-welcome-glyph app-welcome-glyph--pin material-symbols-outlined">pin_drop</span></div></li>' +
-    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">2</span><strong>Mutatók</strong></div><p>Kapcsold be a számodra fontos mutatókat. A felső csúszka a kívánt érték, az alsó a fontosság (0 = nem számít, max = maximális).</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--switch"></span><span class="app-welcome-glyph app-welcome-glyph--slider"></span></div></li>' +
-    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">3</span><strong>Keresés</strong></div><p>Nyomd meg a láblécben az „A tökéletes helyed keresése” gombot. Utána a csúszkák módosítására automatikusan újrakeres.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--search">A tökéletes helyed keresése</span></div></li>' +
-    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">4</span><strong>Eredmény és térkép</strong></div><p>Jobb oldalon megjelenik a találat, a részletek és a távolságok. A térképen piros jelölő mutatja a települést; keresés után a tökéletes hely hőtérkép (H) bekapcsolható.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--edge">›</span><span class="app-welcome-glyph app-welcome-glyph--heat">H</span></div></li>' +
-    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">5</span><strong>Fejléc gombok</strong></div><p><strong>S</strong> = szóló nézet törlése · kapcsoló ikon = összes mutató be/ki · <strong>i</strong> = használati útmutató · ‹ = bal panel becsukása.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--letter">S</span><span class="app-welcome-glyph app-welcome-glyph--ico material-symbols-outlined">toggle_on</span><span class="app-welcome-glyph app-welcome-glyph--letter">i</span><span class="app-welcome-glyph app-welcome-glyph--edge">‹</span></div></li>' +
-    '</ol>' +
-    '<button type="button" id="app-welcome-ok" class="app-welcome-ok">Értem, kezdjük</button>' +
-    '</div></div>';
+    '<div class="app-welcome-dialog__scroll" id="app-welcome-scroll-host"></div>' +
+    '</div>';
 
-  function syncWelcomeOverlayContentIfStale(overlayEl) {
+  const WELCOME_GLYPH_SWITCH_ON =
+    '<button type="button" class="param-item__ios-switch app-welcome-demo-switch" aria-checked="true" tabindex="-1" disabled aria-hidden="true"></button>';
+  const WELCOME_GLYPH_PIN =
+    '<span class="app-welcome-glyph app-welcome-glyph--pin material-symbols-outlined">pin_drop</span>';
+  const WELCOME_GLYPH_SLIDER_STACK =
+    '<div class="app-welcome-demo-sliders" aria-hidden="true">' +
+    '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="35" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
+    '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="65" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
+    '</div>';
+  function resolveAppAssetUrl(relativePath) {
+    const scripts = document.getElementsByTagName('script');
+    for (let i = scripts.length - 1; i >= 0; i--) {
+      const srcAttr = scripts[i].getAttribute('src');
+      if (!srcAttr || srcAttr.indexOf('app.js') === -1) continue;
+      try {
+        return new URL(relativePath, scripts[i].src).href;
+      } catch (_) {
+        break;
+      }
+    }
+    try {
+      return new URL(relativePath, window.location.href).href;
+    } catch (_) {
+      return '/' + String(relativePath).replace(/^\//, '');
+    }
+  }
+
+  const WELCOME_RESULT_MAP_IMG = 'img/welcome-result-map.png?v=3';
+  const WELCOME_GLYPH_SEARCH =
+    '<span class="app-welcome-glyph app-welcome-glyph--search">A tökéletes helyed keresése</span>';
+
+  function welcomeResultGlyphHtml() {
+    const src = resolveAppAssetUrl(WELCOME_RESULT_MAP_IMG);
+    return (
+      '<span class="app-welcome-glyph app-welcome-glyph--map-preview">' +
+      '<img src="' +
+      src +
+      '" alt="" width="130" height="130" loading="lazy" decoding="async">' +
+      '</span>'
+    );
+  }
+
+  const WELCOME_GLYPH_HEADER =
+    '<span class="app-welcome-glyph app-welcome-glyph--letter">S</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--ico material-symbols-outlined">toggle_on</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--letter">i</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--edge">‹</span>';
+
+  function buildWelcomeStepHtml(num, title, text, glyphsHtml, glyphsInline) {
+    const glyphsClass =
+      'app-welcome-glyphs' + (glyphsInline ? ' app-welcome-glyphs--inline-row' : '');
+    return (
+      '<li class="app-welcome-step">' +
+      '<div class="app-welcome-step__row">' +
+      '<div class="app-welcome-step__copy">' +
+      '<div class="app-welcome-step__head">' +
+      '<span class="app-welcome-step__num" aria-hidden="true">' +
+      num +
+      '</span><strong>' +
+      title +
+      '</strong></div>' +
+      '<p>' +
+      text +
+      '</p></div>' +
+      (glyphsHtml
+        ? '<div class="' + glyphsClass + '" aria-hidden="true">' + glyphsHtml + '</div>'
+        : '') +
+      '</div></li>'
+    );
+  }
+
+  function buildWelcomeScrollHtml(variant) {
+    const isFull = variant === 'full';
+    const lead = isFull
+      ? 'A bekapcsolt paraméterek alapján megmutatja a számodra legjobban illő települést. Ami nincs bekapcsolva, az nem számít bele a kalkulációba és a végeredménybe. Az alábbi lépések a részletes használathoz.'
+      : 'Találd meg a számodra legtökéletesebb magyarországi települést, a leginkább hozzád passzoló hangulatot, a valós adatbázisokra épülő paraméterek alapján.';
+    let steps = '';
+    if (isFull) {
+      steps +=
+        buildWelcomeStepHtml(
+          1,
+          'Fontos helyek és mutatók',
+          'Kapcsold be a fontos helyeket és a mutatókat a jobb oldali kapcsolóval. Add meg a helyeket (név vagy térkép gomb), állítsd a sugarat. A mutatóknál a felső csúszka a kívánt érték, az alsó a fontosság (0 = nem számít, max = maximális).',
+          WELCOME_GLYPH_SWITCH_ON + WELCOME_GLYPH_PIN + WELCOME_GLYPH_SLIDER_STACK
+        ) +
+        buildWelcomeStepHtml(
+          2,
+          'Keresés',
+          'Nyomd meg a „A tökéletes helyed keresése” gombot. A csúszkák módosítására ezután automatikusan újrakeres.',
+          WELCOME_GLYPH_SEARCH
+        ) +
+        buildWelcomeStepHtml(
+          3,
+          'Eredmény és térkép',
+          'Nézd meg a legjobban hozzád illő települést, és böngészd a részletes adatokat. A térképen piros jelölő mutatja a találatot; keresés után a hőtérkép (H) is bekapcsolható.',
+          welcomeResultGlyphHtml()
+        ) +
+        buildWelcomeStepHtml(
+          4,
+          'Fejléc gombok',
+          '<strong>S</strong> = szóló nézet törlése · kapcsoló = összes mutató be/ki · <strong>i</strong> = útmutató · ‹ = bal panel becsukása.',
+          WELCOME_GLYPH_HEADER,
+          true
+        );
+    } else {
+      steps +=
+        buildWelcomeStepHtml(
+          1,
+          'Beállítás',
+          'Kapcsold be a fontos helyeket és a számodra fontos mutatókat, majd állítsd be a szimpatikus értékeket.',
+          WELCOME_GLYPH_SWITCH_ON
+        ) +
+        buildWelcomeStepHtml(
+          2,
+          'Keresés',
+          'Nyomd meg a „A tökéletes helyed keresése” gombot.',
+          WELCOME_GLYPH_SEARCH
+        ) +
+        buildWelcomeStepHtml(
+          3,
+          'Eredmény',
+          'Nézd meg a legjobban hozzád illő települést, és böngészd a részletes adatokat.',
+          welcomeResultGlyphHtml()
+        );
+    }
+    const title =
+      'Hogyan működik a<br><span class="app-welcome-title__line2">Holistic Search Engine?</span>';
+    const stepsHeading = '';
+    return (
+      '<h2 id="app-welcome-title" class="app-welcome-title">' +
+      title +
+      '</h2>' +
+      '<p id="app-welcome-lead" class="app-welcome-lead">' +
+      lead +
+      '</p>' +
+      stepsHeading +
+      '<ol class="app-welcome-steps">' +
+      steps +
+      '</ol>' +
+      '<button type="button" id="app-welcome-ok" class="app-welcome-ok">Értem, kezdjük</button>'
+    );
+  }
+
+  function ensureWelcomeOverlayShell(overlayEl) {
     if (!overlayEl) return;
-    if (overlayEl.querySelectorAll('.app-welcome-step').length >= 5) return;
-    overlayEl.innerHTML = APP_WELCOME_DIALOG_HTML;
-    appWelcomeModalEventsBound = false;
+    if (!overlayEl.querySelector('#app-welcome-scroll-host')) {
+      overlayEl.innerHTML = APP_WELCOME_OVERLAY_SHELL;
+      appWelcomeModalEventsBound = false;
+    }
+  }
+
+  function applyWelcomeDialogContent(overlayEl, variant) {
+    ensureWelcomeOverlayShell(overlayEl);
+    const host = overlayEl.querySelector('#app-welcome-scroll-host');
+    if (!host) return;
+    host.innerHTML = buildWelcomeScrollHtml(variant === 'full' ? 'full' : 'brief');
+    overlayEl.setAttribute('data-welcome-variant', variant === 'full' ? 'full' : 'brief');
   }
 
   const elements = {
@@ -358,8 +506,9 @@
       elements.appWelcomeOverlay = mountAppWelcomeOverlayIfMissing();
       if (elements.appWelcomeOverlay) {
         elements.appWelcomeCloseBtn = document.getElementById('app-welcome-close');
-        elements.appWelcomeOkBtn = document.getElementById('app-welcome-ok');
       }
+    } else {
+      ensureWelcomeOverlayShell(elements.appWelcomeOverlay);
     }
     elements.strictParamsOverlay = document.getElementById('strict-params-overlay');
     elements.strictParamsTitle = document.getElementById('strict-params-title');
@@ -707,7 +856,7 @@
     wrap.setAttribute('aria-modal', 'true');
     wrap.setAttribute('aria-labelledby', 'app-welcome-title');
     wrap.setAttribute('aria-describedby', 'app-welcome-lead');
-    wrap.innerHTML = APP_WELCOME_DIALOG_HTML;
+    wrap.innerHTML = APP_WELCOME_OVERLAY_SHELL;
     if (anchor && anchor.parentNode) {
       anchor.parentNode.insertBefore(wrap, anchor);
     } else {
@@ -719,14 +868,13 @@
   function resolveAppWelcomeOverlay() {
     var existing = document.getElementById('app-welcome-overlay');
     if (existing) {
-      syncWelcomeOverlayContentIfStale(existing);
+      ensureWelcomeOverlayShell(existing);
       elements.appWelcomeOverlay = existing;
     } else {
       elements.appWelcomeOverlay = mountAppWelcomeOverlayIfMissing();
     }
     if (elements.appWelcomeOverlay) {
       elements.appWelcomeCloseBtn = document.getElementById('app-welcome-close');
-      elements.appWelcomeOkBtn = document.getElementById('app-welcome-ok');
       ensureAppWelcomeModalEventsBound();
     }
     return elements.appWelcomeOverlay;
@@ -736,7 +884,6 @@
     if (appWelcomeModalEventsBound) return;
     const ov = elements.appWelcomeOverlay;
     const closeBtn = elements.appWelcomeCloseBtn;
-    const okBtn = elements.appWelcomeOkBtn;
     if (!ov) return;
     if (closeBtn) {
       closeBtn.addEventListener('click', function (e) {
@@ -744,10 +891,13 @@
         closeAppWelcomeModal();
       });
     }
-    if (okBtn) {
-      okBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        closeAppWelcomeModal();
+    const scrollHost = ov.querySelector('#app-welcome-scroll-host');
+    if (scrollHost) {
+      scrollHost.addEventListener('click', function (e) {
+        if (e.target.closest('#app-welcome-ok')) {
+          e.stopPropagation();
+          closeAppWelcomeModal();
+        }
       });
     }
     ov.addEventListener('click', function (e) {
@@ -781,9 +931,11 @@
     }
   }
 
-  function openAppWelcomeModal() {
+  function openAppWelcomeModal(opts) {
+    const variant = opts && opts.variant === 'full' ? 'full' : 'brief';
     const ov = resolveAppWelcomeOverlay();
     if (!ov) return;
+    applyWelcomeDialogContent(ov, variant);
     ov.removeAttribute('hidden');
     ov.setAttribute('aria-hidden', 'false');
     const scrollEl = ov.querySelector('.app-welcome-dialog__scroll');
@@ -806,15 +958,8 @@
     ) {
       return;
     }
-    if (!document.documentElement.classList.contains('is-touch')) {
-      try {
-        if (localStorage.getItem(APP_WELCOME_STORAGE_KEY) === '1') return;
-      } catch (e) {
-        /* ignore */
-      }
-    }
     window.requestAnimationFrame(function () {
-      openAppWelcomeModal();
+      openAppWelcomeModal({ variant: 'brief' });
     });
   }
 
@@ -823,7 +968,7 @@
     btn.addEventListener('click', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      openAppWelcomeModal();
+      openAppWelcomeModal({ variant: 'full' });
     });
   }
 
@@ -1661,8 +1806,8 @@
         key: key,
         isBand: false,
         label: paramLabelForDbKey(key),
-        wantText: formatParamCompareNumber(want),
-        gotText: got != null ? formatParamCompareNumber(got) : '–',
+        wantText: formatIndexParamUiAtSliderValue(key, want),
+        gotText: formatCityInfoValueForParamKey(winningCity, key),
         diffText: formatIndexDeviationPercent(want, got),
       });
     }
@@ -1699,8 +1844,8 @@
       stats.className = 'feedback-param-list__stats';
 
       [
-        { label: 'Cél', value: row.wantText },
-        { label: 'Település', value: row.gotText },
+        { label: 'Preferált érték', value: row.wantText },
+        { label: 'Település érték', value: row.gotText },
         { label: 'Eltérés', value: row.diffText },
       ].forEach(function (part) {
         const dt = document.createElement('dt');
@@ -2902,7 +3047,7 @@
     const indexBand = Object.assign({}, flexSliderDefaults, {
       invertScale: false,
       intro:
-        'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
+        'Elfogadható tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
       bandLabel: 'Elfogadható tartomány',
       leftHint: 'Alacsonyabb',
       rightHint: 'Magasabb',
@@ -2920,7 +3065,7 @@
       case 'airpollution_index':
         preset = Object.assign({}, indexBand, {
           intro:
-            'Elfogadható légszennyezettségi index (3 km). Szűrés: index pont; magasabb index = erősebb szennyezés.',
+            'Elfogadható légszennyezettség (3 km). A csúszka magasabb értéke erősebb szennyezést jelent.',
           bandLabel: 'Elfogadható tartomány',
           leftHint: 'Tisztább',
           rightHint: 'Szennyezettebb',
@@ -2952,7 +3097,7 @@
         break;
       case 'internet_index':
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható internet index. Szűrés: pont; felirat: Mbps.',
+          intro: 'Elfogadható internet sebesség. A csúszka felirata: Mbps.',
           bandLabel: 'Elfogadható sebesség',
           leftHint: 'Gyengébb',
           rightHint: 'Erősebb',
@@ -2961,7 +3106,7 @@
       case 'transport_frequency_index':
         preset = Object.assign({}, indexBand, {
           intro:
-            'Elfogadható tömegközlekedési index (0–100). Szűrés: pont; a felirat a pontszinthez tartozó legjobb járatszám (járásszékhely és BP kerület nélkül).',
+            'Elfogadható tömegközlekedés (0–100). A csúszka felirata: napi járatok száma (járásszékhely és BP kerület nélkül).',
           bandLabel: 'Elfogadható tartomány',
           leftHint: 'Gyengébb',
           rightHint: 'Erősebb',
@@ -2974,7 +3119,7 @@
         break;
       case 'groceries_index':
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható kisker index. Szűrés: pont; felirat: km és üzletszám.',
+          intro: 'Elfogadható kiskerellátás. A csúszka felirata: km és üzletszám.',
           bandLabel: 'Elfogadható ellátás',
           leftHint: 'Gyengébb',
           rightHint: 'Erősebb',
@@ -2983,7 +3128,7 @@
         break;
       case 'gastro_index':
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható gasztronómia index. Szűrés: pont; felirat: helyszám.',
+          intro: 'Elfogadható gasztronómia. A csúszka felirata: helyszám.',
           bandLabel: 'Elfogadható kínálat',
           leftHint: 'Kevesebb',
           rightHint: 'Több',
@@ -2992,7 +3137,7 @@
       case 'jobs_index':
         preset = Object.assign({}, indexBand, {
           intro:
-            'Elfogadható helyi munkalehetőség index (0–100). Szűrés: pont; felirat: munkalehetőség aránya (%).',
+            'Elfogadható helyi munkalehetőség (0–100). A csúszka felirata: munkalehetőség aránya (%).',
           bandLabel: 'Elfogadható tartomány',
           leftHint: 'Gyengébb',
           rightHint: 'Erősebb',
@@ -3002,7 +3147,7 @@
       case 'high_school_proximity_index': {
         if (!schoolVariantDefForIndexKey(dbKey)) return null;
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható iskolaválaszték index. Szűrés: pont; felirat: távolság (km).',
+          intro: 'Elfogadható iskolaválaszték. A csúszka felirata: távolság (km).',
           bandLabel: 'Elfogadható közelség',
           leftHint: 'Távolabb',
           rightHint: 'Közelebb',
@@ -3019,7 +3164,7 @@
           return null;
         }
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható áremelkedés index. Szűrés: pont; felirat: %.',
+          intro: 'Elfogadható áremelkedés (5 év). A csúszka felirata: %.',
           bandLabel: 'Elfogadható emelkedés',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
@@ -3035,7 +3180,7 @@
           return null;
         }
         preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható ingatlanár index. Szűrés: pont; felirat: Ft/m².',
+          intro: 'Elfogadható ingatlanár-szint. A csúszka felirata: Ft/m².',
           bandLabel: 'Elfogadható árszint',
           leftHint: 'Olcsóbb',
           rightHint: 'Drágább',
@@ -3593,8 +3738,8 @@
       case 'forest_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt erdőlefedettségi index (3 km). Szűrés: index; a szélső értékek: átlagos erdőarány (%).',
-          valueLabel: 'Kívánt index',
+            'Preferált erdőlefedettség (3 km). A csúszka felirata: átlagos erdőarány (%).',
+          valueLabel: 'Preferált érték',
           leftHint: 'Kevesebb erdő',
           rightHint: 'Több erdő',
         });
@@ -3602,8 +3747,8 @@
       case 'water_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt vízfelület-index (3 km). Szűrés: index; a szélső értékek: átlagos vízarány (%).',
-          valueLabel: 'Kívánt index',
+            'Preferált vízfelület (3 km). A csúszka felirata: átlagos vízarány (%).',
+          valueLabel: 'Preferált érték',
           leftHint: 'Kevesebb víz',
           rightHint: 'Több víz',
         });
@@ -3611,8 +3756,8 @@
       case 'terrain_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt hegyvidéki karakter index (3 km). Szűrés: index; a szélső értékek: átlagos lejtés (°).',
-          valueLabel: 'Kívánt index',
+            'Preferált hegyvidéki karakter (3 km). A csúszka felirata: átlagos lejtés (°).',
+          valueLabel: 'Preferált érték',
           leftHint: 'Laposabb',
           rightHint: 'Hegyesebb',
         });
@@ -3620,8 +3765,8 @@
       case 'senior_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt arány a 65 év felettieknek. Szűrés: index; a szélső értékek: népességarány (%).',
-          valueLabel: 'Kívánt index',
+            'Preferált arány a 65 év felettieknek. A csúszka felirata: népességarány (%).',
+          valueLabel: 'Preferált érték',
           leftHint: 'Fiatalabb',
           rightHint: 'Idősebb',
         });
@@ -3629,16 +3774,16 @@
       case 'sleeping_city_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt alvóváros index – mennyire kiszolgált a település a környező nagyvárosok felől.',
-          valueLabel: 'Kívánt index',
+            'Preferált alvóváros jelleg – mennyire kiszolgált a település a környező nagyvárosok felől. A csúszka 0–100 skálán.',
+          valueLabel: 'Preferált érték',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
         break;
       case 'turism_index':
         result = Object.assign(base, {
-          intro: 'Kívánt turizmus index (0–100).',
-          valueLabel: 'Kívánt index',
+          intro: 'Preferált turizmus (0–100).',
+          valueLabel: 'Preferált érték',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
@@ -3646,8 +3791,8 @@
       case 'primary_school_proximity_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt iskolaválaszték index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
-          valueLabel: 'Kívánt index',
+            'Preferált iskolaválaszték. A csúszka felirata: távolság (km). Válaszd ki az iskola típusát.',
+          valueLabel: 'Preferált érték',
           leftHint: 'Távolabb',
           rightHint: 'Közelebb',
         });
@@ -3655,8 +3800,8 @@
       case 'high_school_proximity_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt gimnázium-elérhetőség index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
-          valueLabel: 'Kívánt index',
+            'Preferált gimnázium-elérhetőség. A csúszka felirata: távolság (km). Válaszd ki az iskola típusát.',
+          valueLabel: 'Preferált érték',
           leftHint: 'Távolabb',
           rightHint: 'Közelebb',
         });
@@ -3664,8 +3809,8 @@
       case 'real_estate_price_grow_5yrs_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt áremelkedés index (5 év). Szűrés: index; felirat: %. Válaszd ki az ingatlan típusát.',
-          valueLabel: 'Kívánt index',
+            'Preferált áremelkedés (5 év). A csúszka felirata: %. Válaszd ki az ingatlan típusát.',
+          valueLabel: 'Preferált érték',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
@@ -3673,8 +3818,8 @@
       case 'real_estate_price_avg5mth_index':
         result = Object.assign(base, {
           intro:
-            'Kívánt ingatlanár-szint index. Szűrés: index; felirat: Ft/m². Válaszd ki az ingatlan típusát.',
-          valueLabel: 'Kívánt index',
+            'Preferált ingatlanár-szint. A csúszka felirata: Ft/m². Válaszd ki az ingatlan típusát.',
+          valueLabel: 'Preferált érték',
           leftHint: 'Olcsóbb',
           rightHint: 'Drágább',
         });
@@ -3687,14 +3832,10 @@
   }
 
   function getGeoImportantPlaceUiConfigDefaults(slot) {
-    const placeNum = slot === 'a' ? '1.' : '2.';
     return {
-      intro:
-        placeNum +
-        ' fontos hely (szűrő). Válaszd ki a központ települését névvel vagy a térképen; ' +
-        'a keresés csak a beállított körön belüli településeket veszi figyelembe.',
-      cityLabel: 'Település',
-      radiusLabel: 'Keresési kör',
+      intro: GEO_IMPORTANT_PLACE_DEFAULT_INTRO,
+      cityLabel: 'Település érték',
+      radiusLabel: 'Sugár (km)',
       leftHint: 'Kisebb kör',
       rightHint: 'Nagyobb kör',
     };
@@ -6213,7 +6354,7 @@
     tableA.className = 'feedback-table';
 
     const trh = document.createElement('tr');
-    ['Mutató', 'Cél', 'Település', '|Δ|', 'w (0–10)', 'w·|Δ|'].forEach(function (label) {
+    ['Mutató', 'Preferált érték', 'Település érték', '|Δ|', 'w (0–10)', 'w·|Δ|'].forEach(function (label) {
       const th = document.createElement('th');
       th.textContent = label;
       trh.appendChild(th);
@@ -6304,6 +6445,8 @@
         isBand: false,
         want: want,
         got: got,
+        wantText: formatIndexParamUiAtSliderValue(key, want),
+        gotText: formatCityInfoValueForParamKey(winningCity, key),
         diff: diff,
         weight: weight,
         wdiff: wdiff,
@@ -6332,17 +6475,11 @@
 
       const td1 = document.createElement('td');
       td1.className = 'feedback-table__num';
-      td1.textContent = row.isBand
-        ? row.wantText
-        : String(Math.round(row.want * 1000) / 1000);
+      td1.textContent = row.wantText != null ? row.wantText : '–';
 
       const td2 = document.createElement('td');
       td2.className = 'feedback-table__num';
-      td2.textContent = row.isBand
-        ? row.gotText
-        : row.got != null
-          ? String(Math.round(row.got * 1000) / 1000)
-          : '–';
+      td2.textContent = row.gotText != null ? row.gotText : '–';
 
       const td3 = document.createElement('td');
       td3.className = 'feedback-table__num';
@@ -7529,95 +7666,44 @@
     input.step = String(step);
     input.value = String(mid);
 
-    let indexCompanionModel = null;
-    /** @type {null | function(number|null): string} */
-    let indexCompanionFormat = null;
-    /** @type {{ a: object, b: object, formatPair: function(number|null, number|null): string } | null} */
-    let twoCompanion = null;
-    if (uiParamEnt) {
-      if (uiParamEnt.id === 'forest_index') {
-        const ck = forestCompanionRatioColumnKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatForestRatioForUi;
-      } else if (uiParamEnt.id === 'water_index') {
-        const ck = waterCompanionRatioColumnKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatForestRatioForUi;
-      } else if (uiParamEnt.id === 'terrain_index') {
-        const ck = terrainCompanionSlopeColumnKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatSlopeDegreesForUi;
-      } else if (uiParamEnt.id === 'budapest_car_train_index') {
-        const ck = budapestCarTrainCompanionTotalMinKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatMinutesForUi;
-      } else if (uiParamEnt.id === 'internet_index') {
-        const ck = internetCompanionMbpsKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatMbpsForUi;
-      } else if (uiParamEnt.id === 'transport_frequency_index') {
-        const ck = transportFrequencyCompanionNapiJaratokKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatNapiJaratokForUi;
-      } else if (uiParamEnt.id === 'district_seat_access_index') {
-        const ck = districtSeatCompanionPercKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatMinutesForUi;
-      } else if (uiParamEnt.id === 'budapest_access_index') {
-        const ck = budapestAccessCompanionPercKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatMinutesForUi;
-      } else if (uiParamEnt.id === 'groceries_index') {
-        const ckKm = groceriesCompanionKmKey(key);
-        const ckShops = groceriesCompanionBrandsKey(key);
-        const mKm = ckKm ? createIndexCompanionAverageModel(key, ckKm, step) : null;
-        const mShops = ckShops ? createIndexCompanionAverageModel(key, ckShops, step) : null;
-        if (mKm && mShops) {
-          twoCompanion = { a: mKm, b: mShops, formatPair: formatGroceriesPairForUi };
-        }
-      } else if (uiParamEnt.id === 'sport_index') {
-        const ckA = sportCompanionSportagDbKey(key);
-        const ckB = sportCompanionLetesitmenyDbKey(key);
-        const mA = ckA ? createIndexCompanionAverageModel(key, ckA, step) : null;
-        const mB = ckB ? createIndexCompanionAverageModel(key, ckB, step) : null;
-        if (mA && mB) {
-          twoCompanion = { a: mA, b: mB, formatPair: formatSportPairForUi };
-        }
-      } else if (uiParamEnt.id === 'gastro_index') {
-        const ck = gastroCompanionGasztroDbKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatVendeglatohelyForUi;
-      } else if (uiParamEnt.id === 'senior_index') {
-        const ck = seniorCompanionArany65Key(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatForestRatioForUi;
-      } else if (uiParamEnt.id === 'diploma_index') {
-        const ck = diplomaCompanionAranyaKey(key);
-        indexCompanionModel = ck ? createIndexCompanionAverageModel(key, ck, step) : null;
-        indexCompanionFormat = formatForestRatioForUi;
-      }
-    }
-
     let valueStack;
-    if (twoCompanion) {
-      valueStack = buildTwoCompanionSliderStack(
-        input,
+    const companionInfo = findCompanionInfoForIndexKey(key);
+    if (companionInfo && companionInfo.pair) {
+      const parseFn = companionInfo.pair.parse || parseNumeric;
+      const mA = createIndexCompanionAverageModel(key, companionInfo.pair.a, step, parseFn);
+      const mB = createIndexCompanionAverageModel(key, companionInfo.pair.b, step, parseFn);
+      if (mA && mB) {
+        valueStack = buildTwoCompanionSliderStack(
+          input,
+          step,
+          r.min,
+          r.max,
+          mA,
+          mB,
+          companionInfo.pair.formatPair
+        );
+      } else {
+        valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
+      }
+    } else if (companionInfo && companionInfo.companionKey && companionInfo.format) {
+      const model = createIndexCompanionAverageModel(
+        key,
+        companionInfo.companionKey,
         step,
-        r.min,
-        r.max,
-        twoCompanion.a,
-        twoCompanion.b,
-        twoCompanion.formatPair
+        companionInfo.parse || parseNumeric
       );
-    } else if (indexCompanionModel && indexCompanionFormat) {
-      valueStack = buildIndexCompanionSliderStack(
-        input,
-        step,
-        r.min,
-        r.max,
-        indexCompanionModel,
-        indexCompanionFormat
-      );
+      if (model) {
+        valueStack = buildIndexCompanionSliderStack(
+          input,
+          step,
+          r.min,
+          r.max,
+          model,
+          companionInfo.format
+        );
+      } else {
+        valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
+      }
     } else {
       valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
     }
@@ -8028,7 +8114,7 @@
     const host = document.getElementById('important-places-host');
     if (!host) return;
     host.innerHTML = '';
-    const grp = createParamGroupBlock('Számomra fontos helyek', true);
+    const grp = createParamGroupBlock(GEO_IMPORTANT_PLACES_GROUP_TITLE, true);
     grp.wrap.classList.add('important-places-group');
 
     const warn = document.createElement('p');
@@ -8037,10 +8123,16 @@
     warn.hidden = true;
 
     grp.body.appendChild(
-      createImportantPlaceCard('a', geoImportantPlaceTitle.a || '1. számomra fontos hely')
+      createImportantPlaceCard(
+        'a',
+        geoImportantPlaceTitle.a || GEO_IMPORTANT_PLACE_DEFAULT_TITLE.a
+      )
     );
     grp.body.appendChild(
-      createImportantPlaceCard('b', geoImportantPlaceTitle.b || '2. számomra fontos hely')
+      createImportantPlaceCard(
+        'b',
+        geoImportantPlaceTitle.b || GEO_IMPORTANT_PLACE_DEFAULT_TITLE.b
+      )
     );
     grp.body.appendChild(warn);
     host.appendChild(grp.wrap);
@@ -8522,8 +8614,8 @@
         const gLab = pickParameterInfoMegnevezes(gRow);
         if (!gk || !gLab) continue;
         const gkn = normalizeParameterInfoTableKey(gk);
-        if (gkn === 'geo_important_a') geoImportantPlaceTitle.a = gLab;
-        if (gkn === 'geo_important_b') geoImportantPlaceTitle.b = gLab;
+        if (gkn === 'important_place_1') geoImportantPlaceTitle.a = gLab;
+        if (gkn === 'important_place_2') geoImportantPlaceTitle.b = gLab;
       }
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -8654,7 +8746,7 @@
   }
 
   function infoDbKeyForGeoSlot(slot) {
-    return slot === 'a' ? 'geo_important_a' : 'geo_important_b';
+    return GEO_IMPORTANT_PLACE_INFO_KEY[slot] || 'important_place_1';
   }
 
   function getActiveParamKeyFromCard(card) {
@@ -10647,7 +10739,7 @@
       if (document.documentElement.classList.contains('is-touch')) {
         pendingMobileWelcomeThenGeo =
           shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && !geoSlotReady('a');
-        openAppWelcomeModal();
+        openAppWelcomeModal({ variant: 'brief' });
       } else {
         maybeOpenAppWelcomeModal();
         if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && elements.geoActiveA) {

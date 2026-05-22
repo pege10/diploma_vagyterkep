@@ -795,6 +795,11 @@ body {
   overflow: hidden;
 }
 
+.app-welcome-overlay[data-welcome-variant='full'] .app-welcome-dialog {
+  width: min(560px, 100%);
+  max-height: min(92vh, 760px);
+}
+
 .app-welcome-dialog__scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -833,11 +838,16 @@ body {
 }
 
 .app-welcome-title {
-  margin: 0 32px 10px 0;
+  margin: 0 32px 0 0;
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--ink);
+}
+
+.app-welcome-title__line2 {
+  display: block;
+  margin-bottom: 1.15em;
 }
 
 .app-welcome-lead {
@@ -846,6 +856,14 @@ body {
   font-weight: 500;
   line-height: 1.5;
   color: var(--ink-soft);
+}
+
+.app-welcome-subtitle {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--ink);
 }
 
 .app-welcome-steps {
@@ -857,6 +875,19 @@ body {
 .app-welcome-step {
   padding: 12px 0;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.app-welcome-step__row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.app-welcome-step__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 10px;
+  max-width: calc(100% - 176px);
 }
 
 .app-welcome-step:first-child {
@@ -879,7 +910,7 @@ body {
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: 4px;
   background: var(--ink);
   color: #fff;
   font-size: 0.68rem;
@@ -888,18 +919,26 @@ body {
 }
 
 .app-welcome-step p {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.45;
   color: var(--ink-soft);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .app-welcome-glyphs {
+  flex: 0 0 140px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  margin-left: 4px;
 }
 
 .app-welcome-glyph {
@@ -909,24 +948,35 @@ body {
   flex-shrink: 0;
 }
 
-.app-welcome-glyph--switch {
-  width: 34px;
-  height: 18px;
-  border-radius: 999px;
-  border: 1.5px solid var(--ink);
-  background: #fff;
-  position: relative;
+.app-welcome-glyphs .app-welcome-demo-switch.param-item__ios-switch {
+  margin: 0;
+  pointer-events: none;
 }
 
-.app-welcome-glyph--switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--ink);
+.app-welcome-demo-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.app-welcome-demo-slider {
+  width: 100%;
+}
+
+.app-welcome-demo-slider .param-range-row {
+  padding: 0;
+  min-height: 24px;
+}
+
+.app-welcome-demo-slider input[type='range'] {
+  pointer-events: none;
+}
+
+.app-welcome-glyphs--inline-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .app-welcome-glyph--pin {
@@ -937,15 +987,11 @@ body {
   font-size: 1rem;
 }
 
-.app-welcome-glyph--slider {
-  width: 72px;
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(to right, #ddd 0%, #ddd 45%, var(--ink) 45%, var(--ink) 55%, #ddd 55%);
-  border: 1px solid rgba(0, 0, 0, 0.15);
-}
-
 .app-welcome-glyph--search {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  margin: 0 auto;
   padding: 5px 10px;
   border: 2px solid var(--ink);
   border-radius: 4px;
@@ -955,7 +1001,29 @@ body {
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  max-width: 140px;
+  box-sizing: border-box;
+}
+
+.app-welcome-glyph--map-preview {
+  display: block;
+  width: 130px;
+  height: 130px;
+  margin: 0 auto;
+  border-radius: 4px;
+  border: none;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--paper);
+  box-sizing: border-box;
+}
+
+.app-welcome-glyph--map-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: grayscale(1);
 }
 
 .app-welcome-glyph--edge {
@@ -1017,6 +1085,165 @@ body {
 .app-welcome-ok:hover,
 .app-welcome-ok:focus-visible {
   background: #222;
+}
+
+html.is-touch .app-welcome-overlay {
+  padding: 12px 14px;
+  align-items: center;
+}
+
+html.is-touch .app-welcome-dialog {
+  width: 100%;
+  max-height: none;
+}
+
+html.is-touch .app-welcome-dialog__scroll {
+  overflow: hidden;
+  padding: 18px 16px 16px;
+}
+
+html.is-touch .app-welcome-overlay[data-welcome-variant='full'] .app-welcome-dialog__scroll {
+  overflow-y: auto;
+  max-height: calc(100dvh - 24px);
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 16px 16px;
+}
+
+html.is-touch .app-welcome-overlay[data-welcome-variant='full'] .app-welcome-step__row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+html.is-touch .app-welcome-overlay[data-welcome-variant='full'] .app-welcome-glyphs {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 0;
+  margin-top: 2px;
+  padding-top: 2px;
+}
+
+html.is-touch .app-welcome-overlay[data-welcome-variant='full'] .app-welcome-glyph--search {
+  margin-bottom: 8px;
+}
+
+html.is-touch .app-welcome-glyph--map-preview {
+  width: 112px;
+  height: 112px;
+}
+
+html.is-touch .app-welcome-title {
+  margin: 0 28px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+html.is-touch .app-welcome-title__line2 {
+  margin-bottom: 1.2em;
+}
+
+html.is-touch .app-welcome-lead {
+  margin-bottom: 24px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+html.is-touch .app-welcome-steps {
+  margin-bottom: 14px;
+}
+
+html.is-touch .app-welcome-step {
+  padding: 10px 0;
+}
+
+html.is-touch .app-welcome-step__row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+html.is-touch .app-welcome-step__copy {
+  max-width: none;
+  padding-right: 0;
+}
+
+html.is-touch .app-welcome-step__head {
+  margin-bottom: 4px;
+  font-size: 0.84rem;
+  gap: 7px;
+}
+
+html.is-touch .app-welcome-step__num {
+  width: 20px;
+  height: 20px;
+  font-size: 0.66rem;
+}
+
+html.is-touch .app-welcome-step p {
+  font-size: 0.74rem;
+  line-height: 1.38;
+  margin: 0;
+}
+
+html.is-touch .app-welcome-glyphs {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-left: 0;
+  margin-top: 2px;
+  padding-top: 2px;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+html.is-touch .app-welcome-glyphs--inline-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+html.is-touch .app-welcome-glyphs:not(.app-welcome-glyphs--inline-row) {
+  flex-direction: column;
+}
+
+html.is-touch .app-welcome-glyphs .app-welcome-demo-switch.param-item__ios-switch {
+  transform: scale(1.2);
+}
+
+html.is-touch .app-welcome-glyph--pin {
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+}
+
+html.is-touch .app-welcome-glyph--search {
+  width: auto;
+  max-width: min(100%, 280px);
+  font-size: 0.62rem;
+  padding: 7px 12px;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+html.is-touch .app-welcome-demo-sliders {
+  gap: 6px;
+  width: min(100%, 160px);
+}
+
+html.is-touch .app-welcome-demo-slider .param-range-row {
+  min-height: 22px;
+}
+
+html.is-touch .app-welcome-ok {
+  padding: 10px 14px;
+  font-size: 0.86rem;
+  margin-top: 4px;
 }
 
 /* Túl szűk paraméterek – nincs találat */

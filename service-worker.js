@@ -4,7 +4,7 @@
    Supabase / térkép csempék: mindig hálózat.
    ========================================================== */
 
-const CACHE_NAME = 'darts-cache-v106';
+const CACHE_NAME = 'darts-cache-v129';
 
 const STATIC_ASSETS = [
   '/',
@@ -13,8 +13,9 @@ const STATIC_ASSETS = [
   '/exhibition/index.html',
   '/exhibition/manifest.json',
   '/exhibition.html',
-  '/style.css?v=161',
-  '/app.js?v=227',
+  '/style.css?v=176',
+  '/app.js?v=244',
+  '/img/welcome-result-map.png',
   '/data/magyarorszag_telepulesek_kozigazgatasi_hatarai_egyszerusitett.bundle.js?v=2',
   '/sorszam.html',
   '/manifest.json',
