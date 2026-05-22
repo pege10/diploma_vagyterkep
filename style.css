@@ -3526,6 +3526,12 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   text-align: left;
 }
 
+.feedback-winner__settlement-meta--standalone {
+  margin: 14px 0 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .feedback-winner__settlement-meta {
   display: flex;
   flex-direction: column;
@@ -4303,7 +4309,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     padding: 12px 18px 10px;
   }
 
-  /* Telefon (fő + /exhibition): nincs összes be/kikapcsolás, nincs szóló */
+  /* Telefon (fő + /exhibition): nincs összes be/kikapcsolás, nincs solo */
   html.is-touch #param-clear-all-solo-btn,
   html.is-touch #param-toggle-all-btn,
   html.is-touch .param-solo-wrap--head {

@@ -20,7 +20,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=176">
+  <link rel="stylesheet" href="style.css?v=179">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -34,7 +34,7 @@
       <h1 class="sidebar-title">Holistic Search Engine</h1>
       <div class="sidebar-header__actions">
         <div class="sidebar-header__tool-cluster" aria-label="Gyors műveletek és panel">
-          <button type="button" id="param-clear-all-solo-btn" class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" title="Összes szóló kikapcsolása" aria-label="Összes szóló kikapcsolása" aria-pressed="false">
+          <button type="button" id="param-clear-all-solo-btn" class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" title="Összes solo kikapcsolása" aria-label="Összes solo kikapcsolása" aria-pressed="false">
             <span class="sidebar-header__cluster-letter" aria-hidden="true">S</span>
           </button>
           <button type="button" id="param-toggle-all-btn" class="sidebar-header__cluster-btn" title="Összes mutató be- vagy kikapcsolása" aria-label="Összes mutató be- vagy kikapcsolása" aria-pressed="false">
@@ -182,7 +182,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=244"></script>
+  <script src="app.js?v=254"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

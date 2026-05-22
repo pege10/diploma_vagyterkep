@@ -21,8 +21,8 @@ VALUES
   (
     'important_place_1',
     '1. számodra fontos hely',
-    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
-    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
+    'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
+    'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
     'Település érték',
     NULL,
     NULL,
@@ -33,8 +33,8 @@ VALUES
   (
     'important_place_2',
     '2. számodra fontos hely',
-    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
-    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.',
+    'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
+    'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
     'Település érték',
     NULL,
     NULL,

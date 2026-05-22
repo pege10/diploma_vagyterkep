@@ -76,7 +76,7 @@
 
   /** Első találat csak a „Tökéletes hely keresése” gombbal; utána a csúszkák változására is fut a keresés. */
   let sliderAutoSearchActive = false;
-  /** Szóló nézet: heatmap csak erre az index kulcsra (null = összes aktív mutató). */
+  /** Solo nézet: heatmap csak erre az index kulcsra (null = összes aktív mutató). */
   let soloHeatmapParamKey = null;
   let sliderSearchDebounceTimer = null;
   const SLIDER_SEARCH_DEBOUNCE_MS = 280;
@@ -172,7 +172,7 @@
     b: '2. számodra fontos hely',
   };
   const GEO_IMPORTANT_PLACE_DEFAULT_INTRO =
-    'Válaszd ki azt a települést, amitől nem költöznél egy bizonyos távolságnál messzebb (pl. család, munkahely). A keresés csak a beállított körön belüli településeket veszi figyelembe.';
+    'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).';
 
   let map = null;
   let winningMarker = null;
@@ -367,7 +367,7 @@
         buildWelcomeStepHtml(
           4,
           'Fejléc gombok',
-          '<strong>S</strong> = szóló nézet törlése · kapcsoló = összes mutató be/ki · <strong>i</strong> = útmutató · ‹ = bal panel becsukása.',
+          '<strong>S</strong> = solo nézet törlése · kapcsoló = összes mutató be/ki · <strong>i</strong> = útmutató · ‹ = bal panel becsukása.',
           WELCOME_GLYPH_HEADER,
           true
         );
@@ -3014,6 +3014,297 @@
   }
 
   /**
+   * Beépített panel- és tooltip-szövegek (parameter_info fallback + egységes stílus).
+   * intro = kártya alcím; uiDef = i-gomb tooltip; többi = csúszkafeliratok.
+   */
+  var BUILTIN_PARAM_UI_COPY = {
+    forest_index: {
+      intro:
+        'Mennyire erdős a környék (3 km). Földfedettségi térképek alapján; a csúszkán az átlagos erdőarány (%) látszik.',
+      uiDef:
+        'A település lakott területe körüli 3 km-es zónában mért erdőborítottság. Adat: Copernicus földfedettségi térkép és OpenStreetMap erdői.\n\nA csúszkán beállítod a preferált erdőarányt; a paraméter a település tényleges értékét mutatja százalékban.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Kevesebb erdő',
+      rightHint: 'Több erdő',
+    },
+    water_index: {
+      intro:
+        'Mennyire van víz a közelben (3 km). Térképi víztestek alapján; a csúszkán az átlagos vízarány (%) látszik.',
+      uiDef:
+        'Mennyi része érint víz közelében a település lakott területének (tavak, folyók). Adat: OpenStreetMap víz-felületek, 3 km-es zónában.\n\nA csúszkán a kívánt vízarányt állítod be; a paraméter a település tényleges arányát mutatja.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Kevesebb víz',
+      rightHint: 'Több víz',
+    },
+    terrain_index: {
+      intro:
+        'Mennyire dombos a környék (3 km). Domborzati modell alapján; a csúszkán az átlagos lejtés (°) látszik.',
+      uiDef:
+        'A település körüli 3 km-es zónában mért átlagos lejtőszög. Adat: Copernicus domborzati modell (30 m).\n\nMagasabb érték = hegyesebb környék, alacsonyabb = síkabb táj. A paraméter a tényleges lejtést mutatja fokban.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Laposabb',
+      rightHint: 'Hegyesebb',
+    },
+    airpollution_index: {
+      intro:
+        'Elfogadható levegőminőség (3 km). Légminőség-modell alapján; magasabb = tisztább levegő.',
+      uiDef:
+        'A település 3 km-es körzetének levegőminősége (por, nitrogén-dioxid, porszemcsék). Adat: Copernicus légminőség-újraelemzés.\n\nA sáv jelöli az elfogadható tartományt. Jobbra tisztább, balra szennyezettebb levegő; a csúszka magasabb indexe jobb minőséget jelent.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Szennyezettebb',
+      rightHint: 'Tisztább',
+    },
+    budapest_car_train_index: {
+      intro:
+        'Elfogadható összidő Budapestre (autó + vonat). Menetrend alapján; a csúszkán percben látszik.',
+      uiDef:
+        'Reggeli csúcsidőben mennyi idő alatt érsz el Budapestre: autó a legközelebbi állomásra, majd vonat. Adat: MÁV menetrend és útvonal-számítás.\n\nA sáv az elfogadható összidőt jelöli. Jobbra rövidebb, balra hosszabb utazás.',
+      bandLabel: 'Elfogadható időtartam',
+      leftHint: 'Legtöbb idő',
+      rightHint: 'Jobb (0 perc)',
+    },
+    internet_index: {
+      intro:
+        'Elfogadható internet sebesség. Valós felhasználói mérések alapján; a csúszkán Mbps látszik.',
+      uiDef:
+        'A település körüli 3 km-es zónában mért átlagos letöltési sebesség. Adat: Ookla Speedtest mérések (nem hirdetett lefedettség).\n\nA sáv jelöli, milyen sebességet fogadsz el; a paraméter a tényleges Mbps-értéket mutatja.',
+      bandLabel: 'Elfogadható sebesség',
+      leftHint: 'Gyengébb',
+      rightHint: 'Erősebb',
+    },
+    urban_mobility_index: {
+      intro:
+        'Elfogadható városi mobilitás. Menetrend és településméret alapján; 0–100 skálán.',
+      uiDef:
+        'Mennyire jól lehet közlekedni és bejárni a települést. Adat: helyi buszmenetrendek (GTFS), KSH közlekedési statisztika és a lakott terület mérete.\n\nA sáv az elfogadható tartományt jelöli; magasabb érték = jobb tömegközlekedés vagy kompaktabb, gyalogosan járható település.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    transport_frequency_index: {
+      intro:
+        'Elfogadható járatsűrűség a járásszékhely felé. Busz- és vonatmenetrend alapján; a csúszkán napi járatok száma látszik.',
+      uiDef:
+        'Hány járat köti össze naponta a települést a járás székhelyével. Adat: Volánbusz és MÁV menetrend (Budapest kerületei külön kezelve).\n\nA sáv az elfogadható tartományt jelöli; a paraméter a napi járatok számát mutatja.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Gyengébb',
+      rightHint: 'Erősebb',
+    },
+    district_seat_access_index: {
+      intro:
+        'Elfogadható autós idő a járásszékhelyre. Közlekedési felmérés alapján; a csúszkán percben látszik.',
+      uiDef:
+        'Mennyi idő autóval a járás székhelyére (közigazgatás, egészségügy, boltok). Adat: KSH TEIR közlekedési felmérés (2022).\n\nA sáv az elfogadható menetidőt jelöli; jobbra rövidebb, balra hosszabb utazás.',
+      bandLabel: 'Elfogadható időtartam',
+      leftHint: 'Legtöbb idő',
+      rightHint: 'Legkevesebb idő',
+    },
+    budapest_access_index: {
+      intro:
+        'Elfogadható autós idő Budapestre. Közlekedési felmérés alapján; a csúszkán percben látszik.',
+      uiDef:
+        'Mennyi idő autóval Budapestre a leggyorsabb útvonalon. Adat: KSH TEIR közlekedési felmérés (2022).\n\nA sáv az elfogadható menetidőt jelöli; jobbra rövidebb, balra hosszabb utazás.',
+      bandLabel: 'Elfogadható időtartam',
+      leftHint: 'Legtöbb idő',
+      rightHint: 'Jobb (0 perc)',
+    },
+    cultural_index: {
+      intro:
+        'Elfogadható kulturális élet. Statisztikai adatok: mozi, színház, könyvtár, rendezvény.',
+      uiDef:
+        'A település kulturális kínálata és aktivitása. Adat: KSH TEIR – mozitermek, színházak, könyvtárak száma és rendszeres kulturális programokon résztvevők.\n\nA sáv az elfogadható tartományt jelöli; magasabb érték = gazdagabb kulturális élet.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    groceries_index: {
+      intro:
+        'Elfogadható bevásárlási ellátás. Üzletláncház helyei alapján; a csúszkán km és üzletszám látszik.',
+      uiDef:
+        'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete, és hány különböző lánc érhető el 5 km-en belül. Adat: OpenStreetMap üzlet-helyek.\n\nA sáv az elfogadható ellátást jelöli; a paraméter távolságot (km) és üzletszámot mutat.',
+      bandLabel: 'Elfogadható ellátás',
+      leftHint: 'Gyengébb',
+      rightHint: 'Erősebb',
+    },
+    sport_index: {
+      intro:
+        'Elfogadható sportlehetőség. Sportegyesületek és térképi létesítmények alapján.',
+      uiDef:
+        'Milyen sportágak érhetők el szervezett formában, és mennyi sportlétesítmény van 3 km-en belül. Adat: Nemzeti Sportinformációs Rendszer és OpenStreetMap.\n\nA sáv az elfogadható tartományt jelöli; magasabb érték = több és változatosabb sportlehetőség.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    gastro_index: {
+      intro:
+        'Elfogadható vendéglátó kínálat. Éttermek és kávézók térképi adatai alapján; a csúszkán helyszám látszik.',
+      uiDef:
+        'Hány vendéglátóhely (étterem, kávézó, bár stb.) van a település lakott területén. Adat: OpenStreetMap.\n\nA sáv az elfogadható kínálatot jelöli; a paraméter a helyek számát mutatja.',
+      bandLabel: 'Elfogadható kínálat',
+      leftHint: 'Kevesebb',
+      rightHint: 'Több',
+    },
+    senior_index: {
+      intro:
+        'Preferált arány 65 év felett. Népességszámlálás alapján; a csúszkán a népességarány (%) látszik.',
+      uiDef:
+        'A településen élők hány százaléka 65 év felett. Adat: 2022-es népszámlálás.\n\nA csúszkán beállítod a preferált arányt; a paraméter a település tényleges értékét mutatja.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Fiatalabb',
+      rightHint: 'Idősebb',
+    },
+    diploma_index: {
+      intro:
+        'Preferált diplomás arány. Népességszámlálás alapján; a csúszkán a végzettségarány (%) látszik.',
+      uiDef:
+        'A 7 év feletti lakosok hány százaléka rendelkezik diplomával. Adat: 2022-es népszámlálás.\n\nA csúszkán beállítod, mennyire fontos ez a keresésben; magasabb arány = több diplomás a közösségben.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    primary_school_proximity_index: {
+      intro:
+        'Elfogadható iskolaközelség. Iskolatörzs és útvonal-adatok alapján; a csúszkán távolság (km) látszik. Válaszd ki az iskola típusát.',
+      uiDef:
+        'Milyen messze van a legközelebbi általános iskola (állami vagy alternatív). Adat: Oktatási Hivatal intézménytörzs és közúti távolság-számítás.\n\nA sáv az elfogadható közelséget jelöli; válaszd ki a panelen a neked számító iskolatípust.',
+      bandLabel: 'Elfogadható közelség',
+      leftHint: 'Távolabb',
+      rightHint: 'Közelebb',
+    },
+    high_school_proximity_index: {
+      intro:
+        'Elfogadható gimnázium-közelség. Iskolatörzs és útvonal-adatok alapján; a csúszkán távolság (km) látszik. Válaszd ki az iskola típusát.',
+      uiDef:
+        'Milyen messze van a legközelebbi gimnázium (állami vagy alternatív). Adat: Oktatási Hivatal intézménytörzs és közúti távolság-számítás.\n\nA sáv az elfogadható közelséget jelöli; válaszd ki a panelen a neked számító iskolatípust.',
+      bandLabel: 'Elfogadható közelség',
+      leftHint: 'Távolabb',
+      rightHint: 'Közelebb',
+    },
+    real_estate_price_grow_5yrs_index: {
+      intro:
+        'Elfogadható áremelkedés (5 év). Ingatlanpiaci statisztika alapján; a csúszkán % látszik. Válaszd ki az ingatlan típusát.',
+      uiDef:
+        'Mennyit emelkedtek az ingatlanárak 2022 márciusa óta (ház, lakás, telek átlaga). Adat: helyi ingatlanpiaci statisztika.\n\nA sáv az elfogadható emelkedést jelöli; válaszd ki a panelen a neked releváns ingatlantípust.',
+      bandLabel: 'Elfogadható emelkedés',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    real_estate_price_avg5mth_index: {
+      intro:
+        'Elfogadható árszint. Ingatlanpiaci statisztika alapján; a csúszkán Ft/m² látszik. Válaszd ki az ingatlan típusát.',
+      uiDef:
+        'Aktuális átlagos négyzetméterár (2025–2026 átlag). Adat: helyi ingatlanpiaci statisztika.\n\nA sáv az elfogadható árszintet jelöli; olcsóbb irány balra, drágább jobbra. Válaszd ki az ingatlantípust a panelen.',
+      bandLabel: 'Elfogadható árszint',
+      leftHint: 'Olcsóbb',
+      rightHint: 'Drágább',
+    },
+    sleeping_city_index: {
+      intro:
+        'Preferált alvóváros jelleg. Népességszámlálás alapján; magasabb = többen ingáznak el dolgozni.',
+      uiDef:
+        'A foglalkoztatott lakosok hány százaléka jár el más településre dolgozni. Adat: 2022-es népszámlálás.\n\nMagasabb érték = erősebb alvóváros-jelleg (a lakók többsége máshol dolgozik).',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    jobs_index: {
+      intro:
+        'Elfogadható helyi munkalehetőség. Népességszámlálás alapján; a csúszkán a helyi munkahely/lakos arány (%) látszik.',
+      uiDef:
+        'Mennyi helyi munkahely jut egy foglalkoztatott lakosra. Adat: 2022-es népszámlálás.\n\nMagasabb érték = több helyi munkalehetőség; az 1,0 körüli arány egyensúlyt jelent.',
+      bandLabel: 'Elfogadható tartomány',
+      leftHint: 'Gyengébb',
+      rightHint: 'Erősebb',
+    },
+    turism_index: {
+      intro:
+        'Preferált turisztikai aktivitás. Idegenforgalmi adó bevétele lakosonként; 0–100 skálán.',
+      uiDef:
+        'Mennyire turisztikusan aktív a település. Adat: települési idegenforgalmi adó (IFA) bevétele lakosonként (2024).\n\nMagasabb érték = erősebb turizmus és vendéglátás.',
+      valueLabel: 'Preferált érték',
+      leftHint: 'Alacsonyabb',
+      rightHint: 'Magasabb',
+    },
+    important_place_1: {
+      intro:
+        'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
+      uiDef:
+        'Szubjektív távolságkorlát: megadsz egy települést és egy sugarat (km). A keresés csak azokat a helyeket tartja meg, amelyek a körön belül vannak.\n\nNincs külső adatforrás – a te preferenciád alapján szűr.',
+      cityLabel: 'Település érték',
+      radiusLabel: 'Sugár (km)',
+      leftHint: 'Kisebb kör',
+      rightHint: 'Nagyobb kör',
+    },
+    important_place_2: {
+      intro:
+        'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
+      uiDef:
+        'Szubjektív távolságkorlát: megadsz egy települést és egy sugarat (km). A keresés csak azokat a helyeket tartja meg, amelyek a körön belül vannak.\n\nNincs külső adatforrás – a te preferenciád alapján szűr.',
+      cityLabel: 'Település érték',
+      radiusLabel: 'Sugár (km)',
+      leftHint: 'Kisebb kör',
+      rightHint: 'Nagyobb kör',
+    },
+  };
+
+  function applyBuiltinParamUiCopy(uiParamId, cfg) {
+    const copy = BUILTIN_PARAM_UI_COPY[uiParamId];
+    if (!copy || !cfg) return cfg;
+    const out = Object.assign({}, cfg);
+    if (copy.intro) out.intro = copy.intro;
+    if (copy.bandLabel) out.bandLabel = copy.bandLabel;
+    if (copy.valueLabel) out.valueLabel = copy.valueLabel;
+    if (copy.leftHint) out.leftHint = copy.leftHint;
+    if (copy.rightHint) out.rightHint = copy.rightHint;
+    if (copy.cityLabel) out.cityLabel = copy.cityLabel;
+    if (copy.radiusLabel) out.radiusLabel = copy.radiusLabel;
+    return out;
+  }
+
+  function getBuiltinParameterUiDefinicio(uiParamId) {
+    const copy = BUILTIN_PARAM_UI_COPY[uiParamId];
+    return copy && copy.uiDef ? copy.uiDef : '';
+  }
+
+  /** Ellenőrzött, működő forrás-URL-ek (parameter_info.adatforras_link felülírás / fallback). */
+  var BUILTIN_PARAM_ADATFORRAS_LINKS = {
+    forest_index:
+      'https://land.copernicus.eu/pan-european/corine-land-cover/clc2018; https://www.openstreetmap.org',
+    water_index: 'https://www.openstreetmap.org',
+    terrain_index: 'https://dataspace.copernicus.eu/',
+    airpollution_index:
+      'https://ads.atmosphere.copernicus.eu/datasets/cams-europe-air-quality-reanalyses',
+    budapest_car_train_index:
+      'https://www.mavcsoport.hu/mav-start/belfoldi-utazas/menetrend',
+    internet_index:
+      'https://registry.opendata.aws/speedtest-global-performance/; https://www.openstreetmap.org',
+    urban_mobility_index:
+      'https://opendata.bkk.hu/datasets; https://gtfs.kti.hu/; https://www.teir.hu; https://www.openstreetmap.org',
+    transport_frequency_index:
+      'https://gtfs.kti.hu/; https://www.mavcsoport.hu/mav-start/belfoldi-utazas/menetrend; https://www.openstreetmap.org',
+    district_seat_access_index: 'https://www.teir.hu',
+    budapest_access_index: 'https://www.teir.hu',
+    cultural_index: 'https://www.teir.hu',
+    groceries_index: 'https://www.openstreetmap.org',
+    sport_index: 'https://nsr.gov.hu/; https://www.openstreetmap.org',
+    gastro_index: 'https://www.openstreetmap.org',
+    senior_index: 'https://nepszamlalas2022.ksh.hu/',
+    diploma_index: 'https://nepszamlalas2022.ksh.hu/',
+    primary_school_proximity_index:
+      'https://www.oktatas.hu/kozneveles; https://nominatim.openstreetmap.org/; https://project-osrm.org/',
+    high_school_proximity_index:
+      'https://www.oktatas.hu/kozneveles; https://nominatim.openstreetmap.org/; https://project-osrm.org/',
+    sleeping_city_index: 'https://nepszamlalas2022.ksh.hu/',
+    jobs_index: 'https://nepszamlalas2022.ksh.hu/',
+  };
+
+  function getBuiltinParameterAdatforrasLink(uiParamId) {
+    if (!uiParamId) return '';
+    const kn = normalizeParameterInfoTableKey(uiParamId);
+    return kn && BUILTIN_PARAM_ADATFORRAS_LINKS[kn] ? BUILTIN_PARAM_ADATFORRAS_LINKS[kn] : '';
+  }
+
+  /**
    * @returns {{ filterCol: string, formatValue: function, parseValue: function,
    *             invertScale: boolean, intro: string, bandLabel: string,
    *             leftHint: string, rightHint: string, defaultMaxDelta: number|null,
@@ -3063,96 +3354,31 @@
 
     switch (ent.id) {
       case 'airpollution_index':
-        preset = Object.assign({}, indexBand, {
-          intro:
-            'Elfogadható légszennyezettség (3 km). A csúszka magasabb értéke erősebb szennyezést jelent.',
-          bandLabel: 'Elfogadható tartomány',
-          leftHint: 'Tisztább',
-          rightHint: 'Szennyezettebb',
-          scorePrefer: 'lower',
-        });
+        preset = Object.assign({}, indexBand, { scorePrefer: 'higher' });
         break;
       case 'budapest_access_index':
-        preset = Object.assign({}, minutesLoHi, {
-          intro:
-            'Elfogadható utazási idő Budapestre (percben). Balra hosszabb, jobbra rövidebb idő.',
-          bandLabel: 'Elfogadható időtartam',
-          rightHint: 'Jobb (0 perc)',
-        });
-        break;
       case 'budapest_car_train_index':
-        preset = Object.assign({}, minutesLoHi, {
-          intro:
-            'Elfogadható összidő Budapestre, autó + vonat (percben). Balra hosszabb, jobbra rövidebb.',
-          bandLabel: 'Elfogadható időtartam',
-          rightHint: 'Jobb (0 perc)',
-        });
-        break;
       case 'district_seat_access_index':
-        preset = Object.assign({}, minutesLoHi, {
-          intro:
-            'Elfogadható utazási idő a járásszékhelyre (percben). Balra hosszabb, jobbra rövidebb idő.',
-          bandLabel: 'Elfogadható időtartam',
-        });
+        preset = minutesLoHi;
         break;
       case 'internet_index':
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható internet sebesség. A csúszka felirata: Mbps.',
-          bandLabel: 'Elfogadható sebesség',
-          leftHint: 'Gyengébb',
-          rightHint: 'Erősebb',
-        });
-        break;
       case 'transport_frequency_index':
-        preset = Object.assign({}, indexBand, {
-          intro:
-            'Elfogadható tömegközlekedés (0–100). A csúszka felirata: napi járatok száma (járásszékhely és BP kerület nélkül).',
-          bandLabel: 'Elfogadható tartomány',
-          leftHint: 'Gyengébb',
-          rightHint: 'Erősebb',
-        });
-        break;
       case 'urban_mobility_index':
       case 'cultural_index':
       case 'sport_index':
+      case 'gastro_index':
         preset = indexBand;
         break;
       case 'groceries_index':
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható kiskerellátás. A csúszka felirata: km és üzletszám.',
-          bandLabel: 'Elfogadható ellátás',
-          leftHint: 'Gyengébb',
-          rightHint: 'Erősebb',
-          scorePrefer: 'higher',
-        });
-        break;
-      case 'gastro_index':
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható gasztronómia. A csúszka felirata: helyszám.',
-          bandLabel: 'Elfogadható kínálat',
-          leftHint: 'Kevesebb',
-          rightHint: 'Több',
-        });
+        preset = Object.assign({}, indexBand, { scorePrefer: 'higher' });
         break;
       case 'jobs_index':
-        preset = Object.assign({}, indexBand, {
-          intro:
-            'Elfogadható helyi munkalehetőség (0–100). A csúszka felirata: munkalehetőség aránya (%).',
-          bandLabel: 'Elfogadható tartomány',
-          leftHint: 'Gyengébb',
-          rightHint: 'Erősebb',
-        });
+        preset = indexBand;
         break;
       case 'primary_school_proximity_index':
       case 'high_school_proximity_index': {
         if (!schoolVariantDefForIndexKey(dbKey)) return null;
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható iskolaválaszték. A csúszka felirata: távolság (km).',
-          bandLabel: 'Elfogadható közelség',
-          leftHint: 'Távolabb',
-          rightHint: 'Közelebb',
-          scorePrefer: 'higher',
-        });
+        preset = Object.assign({}, indexBand, { scorePrefer: 'higher' });
         break;
       }
       case 'real_estate_price_grow_5yrs_index': {
@@ -3163,12 +3389,7 @@
         ) {
           return null;
         }
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható áremelkedés (5 év). A csúszka felirata: %.',
-          bandLabel: 'Elfogadható emelkedés',
-          leftHint: 'Alacsonyabb',
-          rightHint: 'Magasabb',
-        });
+        preset = indexBand;
         break;
       }
       case 'real_estate_price_avg5mth_index': {
@@ -3179,13 +3400,7 @@
         ) {
           return null;
         }
-        preset = Object.assign({}, indexBand, {
-          intro: 'Elfogadható ingatlanár-szint. A csúszka felirata: Ft/m².',
-          bandLabel: 'Elfogadható árszint',
-          leftHint: 'Olcsóbb',
-          rightHint: 'Drágább',
-          scorePrefer: 'lower',
-        });
+        preset = Object.assign({}, indexBand, { scorePrefer: 'lower' });
         break;
       }
       default:
@@ -3193,7 +3408,10 @@
     }
 
     if (!preset) return null;
-    return applyParameterInfoUiTextOverrides(ent.id, enrichBandFilterConfig(dbKey, preset));
+    return applyParameterInfoUiTextOverrides(
+      ent.id,
+      applyBuiltinParamUiCopy(ent.id, enrichBandFilterConfig(dbKey, preset))
+    );
   }
 
   /** Sáv: utazási idő mutatóknál szűrés/perc oszlop; egyébként index (dbKey). */
@@ -3732,112 +3950,23 @@
    */
   function getValueSliderUiConfig(uiParamId) {
     if (!uiParamId || isUiParamDisabled(uiParamId)) return null;
-    const base = Object.assign({}, DEFAULT_WEIGHT_SLIDER_UI);
-    let result = null;
-    switch (uiParamId) {
-      case 'forest_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált erdőlefedettség (3 km). A csúszka felirata: átlagos erdőarány (%).',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Kevesebb erdő',
-          rightHint: 'Több erdő',
-        });
-        break;
-      case 'water_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált vízfelület (3 km). A csúszka felirata: átlagos vízarány (%).',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Kevesebb víz',
-          rightHint: 'Több víz',
-        });
-        break;
-      case 'terrain_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált hegyvidéki karakter (3 km). A csúszka felirata: átlagos lejtés (°).',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Laposabb',
-          rightHint: 'Hegyesebb',
-        });
-        break;
-      case 'senior_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált arány a 65 év felettieknek. A csúszka felirata: népességarány (%).',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Fiatalabb',
-          rightHint: 'Idősebb',
-        });
-        break;
-      case 'sleeping_city_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált alvóváros jelleg – mennyire kiszolgált a település a környező nagyvárosok felől. A csúszka 0–100 skálán.',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Alacsonyabb',
-          rightHint: 'Magasabb',
-        });
-        break;
-      case 'turism_index':
-        result = Object.assign(base, {
-          intro: 'Preferált turizmus (0–100).',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Alacsonyabb',
-          rightHint: 'Magasabb',
-        });
-        break;
-      case 'primary_school_proximity_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált iskolaválaszték. A csúszka felirata: távolság (km). Válaszd ki az iskola típusát.',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Távolabb',
-          rightHint: 'Közelebb',
-        });
-        break;
-      case 'high_school_proximity_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált gimnázium-elérhetőség. A csúszka felirata: távolság (km). Válaszd ki az iskola típusát.',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Távolabb',
-          rightHint: 'Közelebb',
-        });
-        break;
-      case 'real_estate_price_grow_5yrs_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált áremelkedés (5 év). A csúszka felirata: %. Válaszd ki az ingatlan típusát.',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Alacsonyabb',
-          rightHint: 'Magasabb',
-        });
-        break;
-      case 'real_estate_price_avg5mth_index':
-        result = Object.assign(base, {
-          intro:
-            'Preferált ingatlanár-szint. A csúszka felirata: Ft/m². Válaszd ki az ingatlan típusát.',
-          valueLabel: 'Preferált érték',
-          leftHint: 'Olcsóbb',
-          rightHint: 'Drágább',
-        });
-        break;
-      default:
-        result = null;
-    }
-    if (!result) return null;
-    return applyParameterInfoUiTextOverrides(uiParamId, result);
+    const copy = BUILTIN_PARAM_UI_COPY[uiParamId];
+    if (!copy || !copy.valueLabel) return null;
+    return applyParameterInfoUiTextOverrides(
+      uiParamId,
+      applyBuiltinParamUiCopy(uiParamId, Object.assign({}, DEFAULT_WEIGHT_SLIDER_UI, copy))
+    );
   }
 
   function getGeoImportantPlaceUiConfigDefaults(slot) {
+    const uiParamId = infoDbKeyForGeoSlot(slot);
+    const copy = BUILTIN_PARAM_UI_COPY[uiParamId] || {};
     return {
-      intro: GEO_IMPORTANT_PLACE_DEFAULT_INTRO,
-      cityLabel: 'Település érték',
-      radiusLabel: 'Sugár (km)',
-      leftHint: 'Kisebb kör',
-      rightHint: 'Nagyobb kör',
+      intro: copy.intro || GEO_IMPORTANT_PLACE_DEFAULT_INTRO,
+      cityLabel: copy.cityLabel || 'Település érték',
+      radiusLabel: copy.radiusLabel || 'Sugár (km)',
+      leftHint: copy.leftHint || 'Kisebb kör',
+      rightHint: copy.rightHint || 'Nagyobb kör',
     };
   }
 
@@ -5478,8 +5607,8 @@
     btn.setAttribute('aria-pressed', hasSolo ? 'true' : 'false');
     btn.disabled = !hasSolo;
     btn.title = hasSolo
-      ? 'Összes szóló kikapcsolása'
-      : 'Nincs bekapcsolt szóló nézet';
+      ? 'Összes solo kikapcsolása'
+      : 'Nincs bekapcsolt solo nézet';
   }
 
   function syncHeaderAllParamsToggleBtnUi() {
@@ -6584,9 +6713,17 @@
     openRightPanel();
   }
 
-  /** Aktuális csúszkaértékek mentése „eredeti” visszaállításhoz (build / első betöltés után). */
+  /** Paraméterpanel: nincs natív hover tooltip (title) sehol a kártyákon. */
+  function clearParamPanelHoverTitles(scopeEl) {
+    if (!scopeEl) return;
+    scopeEl.querySelectorAll('[title]').forEach(function (el) {
+      el.removeAttribute('title');
+    });
+  }
+
   function captureParamSlidersBaseline(scopeEl) {
     if (!scopeEl) return;
+    clearParamPanelHoverTitles(scopeEl);
     scopeEl.querySelectorAll('input[type="range"][data-param-key]').forEach(function (el) {
       el.setAttribute('data-baseline-value', String(el.value));
     });
@@ -6825,7 +6962,6 @@
     activeSwitch.setAttribute('role', 'switch');
     activeSwitch.setAttribute('aria-checked', 'false');
     activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
-    activeSwitch.title = 'Beleszámít a keresésbe';
 
     const headRow = document.createElement('div');
     headRow.className = 'param-item__head-row';
@@ -6844,7 +6980,6 @@
     const titleEl = document.createElement('span');
     titleEl.className = 'param-item__title';
     titleEl.textContent = labelText;
-    titleEl.title = uiParamId;
 
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
@@ -6968,7 +7103,6 @@
       card._ingModel = model;
       slInput.setAttribute('data-param-key', key);
       slInput.setAttribute('aria-label', labelText + ' (' + key + ')');
-      slInput.title = key;
       if (wInp) wInp.setAttribute('data-param-weight-for', key);
       slInput.min = String(r.min);
       slInput.max = String(r.max);
@@ -7055,7 +7189,6 @@
     wInput.id = wid;
     wInput.setAttribute('data-param-weight-for', variantMap[defaultVariantId].indexKey);
     wInput.setAttribute('aria-label', 'Fontosság: ' + labelText);
-    wInput.title = 'Fontosság (0–' + PARAM_WEIGHT_SLIDER_MAX + ', egész)';
     wInput.min = '0';
     wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
     wInput.step = '1';
@@ -7064,6 +7197,9 @@
     weightWrap.appendChild(wStack);
     mountWeightSliderUi(weightWrap, wStack, variantSliderUi);
 
+    if (variantSliderUi && variantSliderUi.valueLabel) {
+      itemBody.insertBefore(createParamSliderLabel(variantSliderUi.valueLabel), stack);
+    }
     if (variantSliderUi) {
       appendParamRangeHints(stack, variantSliderUi.leftHint, variantSliderUi.rightHint);
     }
@@ -7094,7 +7230,6 @@
   }
 
   function appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, cfg) {
-    const flexTitle = cfg && cfg.flexTitle ? cfg.flexTitle : '';
     const flexLabelText =
       cfg && cfg.flexLabel ? cfg.flexLabel : 'Rugalmasság';
     const flexLeft =
@@ -7114,7 +7249,6 @@
     flexInput.id = 'param-flex-' + sliderIdNum;
     flexInput.setAttribute('data-param-flex-for', key);
     flexInput.setAttribute('aria-label', 'Rugalmasság: ' + labelText);
-    flexInput.title = flexTitle;
     flexInput.min = '0';
     flexInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
     flexInput.step = '1';
@@ -7218,7 +7352,6 @@
     activeSwitch.setAttribute('role', 'switch');
     activeSwitch.setAttribute('aria-checked', 'false');
     activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
-    activeSwitch.title = 'Beleszámít a keresésbe';
 
     const headRow = document.createElement('div');
     headRow.className = 'param-item__head-row';
@@ -7237,7 +7370,6 @@
     const titleEl = document.createElement('span');
     titleEl.className = 'param-item__title';
     titleEl.textContent = labelText;
-    titleEl.title = key;
 
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
@@ -7385,7 +7517,6 @@
     activeSwitch.setAttribute('role', 'switch');
     activeSwitch.setAttribute('aria-checked', 'false');
     activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
-    activeSwitch.title = 'Beleszámít a keresésbe';
 
     const headRow = document.createElement('div');
     headRow.className = 'param-item__head-row';
@@ -7404,7 +7535,6 @@
     const titleEl = document.createElement('span');
     titleEl.className = 'param-item__title';
     titleEl.textContent = labelText;
-    titleEl.title = uiParamId;
 
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
@@ -7586,7 +7716,6 @@
     activeSwitch.setAttribute('role', 'switch');
     activeSwitch.setAttribute('aria-checked', 'false');
     activeSwitch.setAttribute('aria-label', 'Beleszámít a keresésbe: ' + labelText);
-    activeSwitch.title = 'Beleszámít a keresésbe';
 
     const headRow = document.createElement('div');
     headRow.className = 'param-item__head-row';
@@ -7605,7 +7734,6 @@
     const titleEl = document.createElement('span');
     titleEl.className = 'param-item__title';
     titleEl.textContent = labelText;
-    titleEl.title = key;
 
     toggle.appendChild(chevron);
     toggle.appendChild(titleEl);
@@ -7660,7 +7788,6 @@
     input.id = sid;
     input.setAttribute('data-param-key', key);
     input.setAttribute('aria-label', labelText + ' (' + key + ')');
-    input.title = key;
     input.min = String(r.min);
     input.max = String(r.max);
     input.step = String(step);
@@ -7707,6 +7834,9 @@
     } else {
       valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
     }
+    if (sliderUi && sliderUi.valueLabel) {
+      itemBody.appendChild(createParamSliderLabel(sliderUi.valueLabel));
+    }
     itemBody.appendChild(valueStack);
     if (sliderUi) {
       appendParamRangeHints(valueStack, sliderUi.leftHint, sliderUi.rightHint);
@@ -7724,7 +7854,6 @@
       'aria-label',
       'Fontosság: ' + labelText + ' (' + key + ')'
     );
-    wInput.title = 'Fontosság (0–' + PARAM_WEIGHT_SLIDER_MAX + ', egész) · ' + key;
     wInput.min = '0';
     wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
     wInput.step = '1';
@@ -7948,7 +8077,6 @@
     activeSwitch.id = 'geo-active-' + slot;
     activeSwitch.setAttribute('role', 'switch');
     activeSwitch.setAttribute('aria-label', 'Szűrő bekapcsolva: ' + titleLabel);
-    activeSwitch.title = 'Fontos hely szűrő be / ki';
 
     if (slot === 'a') {
       wrap.setAttribute('data-param-active', '1');
@@ -8017,7 +8145,6 @@
     pickBtn.className = 'pick-map-btn';
     pickBtn.setAttribute('aria-pressed', 'false');
     pickBtn.setAttribute('aria-label', titleLabel + ' — térkép');
-    pickBtn.title = 'Térképen';
     pickBtn.innerHTML =
       '<span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>';
 
@@ -8048,7 +8175,9 @@
     const stack = buildParamRangeRowWithExtrema(rInput, 1, 0, 500, formatKmForUi);
     bindParamRangeTrackSeek(rInput);
 
+    itemBody.appendChild(createParamSliderLabel(geoUi.radiusLabel));
     itemBody.appendChild(stack);
+    appendParamRangeHints(stack, geoUi.leftHint, geoUi.rightHint);
 
     wrap.appendChild(headRow);
     wrap.appendChild(itemBody);
@@ -8136,6 +8265,7 @@
     );
     grp.body.appendChild(warn);
     host.appendChild(grp.wrap);
+    clearParamPanelHoverTitles(host);
   }
 
   function buildParamSliders() {
@@ -8520,6 +8650,9 @@
 
   function pickParameterInfoAdatforrasLink(row) {
     if (!row || typeof row !== 'object') return '';
+    const rowKey = pickParameterInfoRowKey(row);
+    const builtin = getBuiltinParameterAdatforrasLink(rowKey);
+    if (builtin) return builtin;
     const direct = row.adatforras_link || row.adatforras_linkje;
     if (direct != null && String(direct).trim() !== '') return String(direct).trim();
     const keys = Object.keys(row);
@@ -8658,6 +8791,10 @@
     for (let i = 0; i < tryKeys.length; i++) {
       const t = parameterInfoByKey[tryKeys[i]];
       if (t != null && String(t).trim() !== '') return String(t);
+    }
+    for (let j = 0; j < tryKeys.length; j++) {
+      const builtin = getBuiltinParameterUiDefinicio(tryKeys[j]);
+      if (builtin) return builtin;
     }
     return (
       'Ehhez a mutatóhoz még nincs leírás a parameter_info táblában. Kulcs: ' +
@@ -8834,7 +8971,6 @@
 
   function onParamSoloButtonClick(btn) {
     if (!sliderAutoSearchActive) {
-      btn.title = 'Előbb nyomd meg az „A tökéletes helyed keresése” gombot.';
       return;
     }
     const card = btn.closest('.param-item');
@@ -8858,10 +8994,8 @@
     btn.type = 'button';
     btn.className = 'param-solo-btn param-solo-btn--head';
     btn.setAttribute('data-param-solo-for', paramKey || '');
-    btn.setAttribute('aria-label', 'Szóló nézet: csak ez a mutató a térképen');
+    btn.setAttribute('aria-label', 'Solo nézet: csak ez a mutató a térképen');
     btn.setAttribute('aria-pressed', 'false');
-    btn.title =
-      'Szóló: csak ennek a mutatónak az eredményei a térképen (előbb keresés)';
     btn.textContent = 'S';
     btn.addEventListener('click', function (e) {
       e.stopPropagation();

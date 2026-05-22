@@ -21,4 +21,4 @@ COMMENT ON COLUMN public.city_data.panel_adatok IS
 COMMENT ON COLUMN public.city_data.panel_rovid_szoveg IS
   'Találat panel: rövid bevezető szöveg az egyezés % alatt.';
 COMMENT ON COLUMN public.city_data.panel_leiras IS
-  'Találat panel: három mondatos rövid település-leírás (egyezés % alatt).';
+  'Találat panel: Wikipedia-alapú rövid település-leírás (egyezés % alatt). Üres = nincs ismertető doboz.';
