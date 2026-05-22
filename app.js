@@ -191,6 +191,8 @@
   let mobileGeoSetupTurnedOnBySheet = false;
   /** @type {ResizeObserver|null} */
   let mobileGeoSheetResizeObserver = null;
+  /** @type {ResizeObserver|null} */
+  let mobileWinnerSheetPeekObserver = null;
   /** Indítás után automatikus 1. fontos hely panel (adatbetöltés után nyílik). */
   let mobileGeoAutoOpenSlot = null;
   /** @type {{ snap: 'expanded'|'collapsed', dragging: boolean, startY: number, startHeight: number }} */
@@ -484,6 +486,7 @@
     mobileGeoSheetCancel: null,
     mobileMapBackBtn: null,
     mobileWinnerSheet: null,
+    mobileWinnerSheetHead: null,
     mobileWinnerSheetBody: null,
   };
 
@@ -534,6 +537,7 @@
     elements.mobileGeoSheetCancel = document.getElementById('mobile-geo-sheet-cancel');
     elements.mobileMapBackBtn = document.getElementById('mobile-map-back-btn');
     elements.mobileWinnerSheet = document.getElementById('mobile-winner-sheet');
+    elements.mobileWinnerSheetHead = document.getElementById('mobile-winner-sheet-head');
     elements.mobileWinnerSheetBody = document.getElementById('mobile-winner-sheet-body');
   }
 
@@ -1592,14 +1596,42 @@
   function readMobileWinnerSheetPeekPx() {
     const raw = getComputedStyle(document.documentElement).getPropertyValue('--mobile-winner-sheet-peek');
     const n = parseFloat(raw);
-    return Number.isFinite(n) && n > 0 ? n : 24;
+    return Number.isFinite(n) && n > 0 ? n : 120;
+  }
+
+  function syncMobileWinnerSheetPeek() {
+    const sheet = elements.mobileWinnerSheet;
+    const zone = sheet && sheet.querySelector('.mobile-winner-sheet__drag-zone');
+    if (!zone) return 0;
+    const h = Math.ceil(zone.getBoundingClientRect().height);
+    if (h > 0) {
+      document.documentElement.style.setProperty('--mobile-winner-sheet-peek', h + 'px');
+    }
+    return h;
+  }
+
+  function bindMobileWinnerSheetPeekObserver() {
+    const sheet = elements.mobileWinnerSheet;
+    const zone = sheet && sheet.querySelector('.mobile-winner-sheet__drag-zone');
+    if (!zone || typeof ResizeObserver === 'undefined') return;
+    if (mobileWinnerSheetPeekObserver) mobileWinnerSheetPeekObserver.disconnect();
+    mobileWinnerSheetPeekObserver = new ResizeObserver(function () {
+      syncMobileWinnerSheetPeek();
+      if (
+        document.documentElement.classList.contains('mobile-winner-sheet-open') &&
+        mobileWinnerSheetDragState.snap === 'collapsed'
+      ) {
+        snapMobileWinnerSheet('collapsed');
+      }
+    });
+    mobileWinnerSheetPeekObserver.observe(zone);
   }
 
   function getMobileWinnerSheetMetrics() {
     const vv = window.visualViewport;
     const vh = vv && vv.height ? vv.height : window.innerHeight;
     const expanded = Math.min(vh * (2 / 3), vh - 72);
-    const peek = readMobileWinnerSheetPeekPx();
+    const peek = syncMobileWinnerSheetPeek() || readMobileWinnerSheetPeekPx();
     return { expanded: Math.max(peek + 40, expanded), peek: peek };
   }
 
@@ -1656,16 +1688,17 @@
     const sheet = elements.mobileWinnerSheet;
     if (!sheet || sheet.dataset.dragBound === '1') return;
     sheet.dataset.dragBound = '1';
-    const handle = sheet.querySelector('.mobile-winner-sheet__handle');
-    if (!handle) return;
+    const dragZone = sheet.querySelector('.mobile-winner-sheet__drag-zone');
+    if (!dragZone) return;
+    bindMobileWinnerSheetPeekObserver();
 
     function finishDrag(e) {
       if (!mobileWinnerSheetDragState.dragging) return;
       mobileWinnerSheetDragState.dragging = false;
       sheet.classList.remove('mobile-winner-sheet--dragging');
       try {
-        if (e && handle.hasPointerCapture(e.pointerId)) {
-          handle.releasePointerCapture(e.pointerId);
+        if (e && dragZone.hasPointerCapture(e.pointerId)) {
+          dragZone.releasePointerCapture(e.pointerId);
         }
       } catch (_) {}
       const m = getMobileWinnerSheetMetrics();
@@ -1675,7 +1708,7 @@
       snapMobileWinnerSheet(current >= mid ? 'expanded' : 'collapsed');
     }
 
-    handle.addEventListener('pointerdown', function (e) {
+    dragZone.addEventListener('pointerdown', function (e) {
       if (!document.documentElement.classList.contains('mobile-winner-sheet-open')) return;
       mobileWinnerSheetDragState.dragging = true;
       mobileWinnerSheetDragState.startY = e.clientY;
@@ -1689,20 +1722,20 @@
           : m.expanded;
       sheet.classList.add('mobile-winner-sheet--dragging');
       try {
-        handle.setPointerCapture(e.pointerId);
+        dragZone.setPointerCapture(e.pointerId);
       } catch (_) {}
       e.preventDefault();
     });
 
-    handle.addEventListener('pointermove', function (e) {
+    dragZone.addEventListener('pointermove', function (e) {
       if (!mobileWinnerSheetDragState.dragging) return;
       const dy = mobileWinnerSheetDragState.startY - e.clientY;
       setMobileWinnerSheetVisibleHeight(mobileWinnerSheetDragState.startHeight + dy, { skipMapResize: true });
       if (map) map.resize();
     });
 
-    handle.addEventListener('pointerup', finishDrag);
-    handle.addEventListener('pointercancel', finishDrag);
+    dragZone.addEventListener('pointerup', finishDrag);
+    dragZone.addEventListener('pointercancel', finishDrag);
 
     window.addEventListener('resize', function () {
       if (!document.documentElement.classList.contains('mobile-winner-sheet-open')) return;
@@ -1796,6 +1829,7 @@
   }
 
   function hideMobileWinnerSheet() {
+    if (elements.mobileWinnerSheetHead) elements.mobileWinnerSheetHead.innerHTML = '';
     if (elements.mobileWinnerSheetBody) elements.mobileWinnerSheetBody.innerHTML = '';
     showMobileWinnerSheetEl(false);
     syncMobileMapBackBtn();
@@ -1803,10 +1837,7 @@
     if (map) setTimeout(function () { if (map) map.resize(); }, 120);
   }
 
-  function buildFeedbackWinnerHeroEl(city, matchPercent) {
-    const wrap = document.createElement('div');
-    wrap.className = 'feedback-winner';
-
+  function buildFeedbackWinnerHeadRow(city) {
     const row = document.createElement('div');
     row.className = 'feedback-winner__row';
     row.setAttribute('role', 'img');
@@ -1822,7 +1853,14 @@
 
     row.appendChild(title);
     row.appendChild(cityEl);
-    wrap.appendChild(row);
+    return row;
+  }
+
+  function buildFeedbackWinnerHeroEl(city, matchPercent) {
+    const wrap = document.createElement('div');
+    wrap.className = 'feedback-winner';
+
+    wrap.appendChild(buildFeedbackWinnerHeadRow(city));
 
     if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
       const pctBox = document.createElement('div');
@@ -2244,6 +2282,55 @@
     });
   }
 
+  function fillMobileWinnerSheetContent(city, matchPercent, targets) {
+    const head = elements.mobileWinnerSheetHead;
+    const body = elements.mobileWinnerSheetBody;
+    if (!head || !body || !city) return;
+
+    head.textContent = '';
+    body.textContent = '';
+
+    const headWrap = document.createElement('div');
+    headWrap.className = 'feedback-winner feedback-winner--sheet-head';
+    headWrap.appendChild(buildFeedbackWinnerHeadRow(city));
+    head.appendChild(headWrap);
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'feedback-winner feedback-winner--sheet-body';
+
+    if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
+      const pctBox = document.createElement('div');
+      pctBox.className = 'feedback-winner__match-box';
+      const pctNum = document.createElement('span');
+      pctNum.className = 'feedback-winner__match-pct';
+      pctNum.textContent = Math.round(Number(matchPercent)) + '%';
+      pctBox.appendChild(pctNum);
+      pctBox.appendChild(document.createTextNode(' egyezés'));
+      bodyWrap.appendChild(pctBox);
+    }
+
+    appendFeedbackSettlementInfo(bodyWrap, city);
+    body.appendChild(bodyWrap);
+    appendFeedbackDrivingDistancesHost(body, city);
+
+    const paramHost = document.createElement('div');
+    paramHost.className = 'feedback-param-list-host';
+    const resolvedTargets =
+      targets ||
+      (lastSearchFeedbackMeta && lastSearchFeedbackMeta.targets) ||
+      null;
+    appendFeedbackParamListToContainer(
+      paramHost,
+      buildSearchResultParamRows(city, resolvedTargets)
+    );
+    body.appendChild(paramHost);
+
+    syncMobileWinnerSheetPeek();
+    requestAnimationFrame(function () {
+      syncMobileWinnerSheetPeek();
+    });
+  }
+
   function fillWinnerInfoContainer(container, city, matchPercent, targets) {
     if (!container || !city) return;
     container.textContent = '';
@@ -2265,12 +2352,7 @@
   function renderMobileWinnerSheet(city, matchPercent, targets) {
     if (!isTouchMobileAppStarted() || !elements.mobileWinnerSheetBody || !city) return;
     document.documentElement.classList.remove('mobile-param-panel-open');
-    fillWinnerInfoContainer(
-      elements.mobileWinnerSheetBody,
-      city,
-      matchPercent,
-      targets
-    );
+    fillMobileWinnerSheetContent(city, matchPercent, targets);
     showMobileWinnerSheetEl(true);
     syncMobileMapBackBtn();
     syncMobileMapDockButtons();
