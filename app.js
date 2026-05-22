@@ -189,8 +189,17 @@
   let mobileGeoSetupSlot = null;
   let mobileGeoSetupRestore = null;
   let mobileGeoSetupTurnedOnBySheet = false;
+  /** @type {ResizeObserver|null} */
+  let mobileGeoSheetResizeObserver = null;
   /** Indítás után automatikus 1. fontos hely panel (adatbetöltés után nyílik). */
   let mobileGeoAutoOpenSlot = null;
+  /** @type {{ snap: 'expanded'|'collapsed', dragging: boolean, startY: number, startHeight: number }} */
+  let mobileWinnerSheetDragState = {
+    snap: 'expanded',
+    dragging: false,
+    startY: 0,
+    startHeight: 0,
+  };
   /** Mobilon: welcome után nyíljon meg az automatikus geo panel (egyszer). */
   let pendingMobileWelcomeThenGeo = false;
 
@@ -1568,11 +1577,222 @@
       sheet.removeAttribute('hidden');
       sheet.setAttribute('aria-hidden', 'false');
       root.classList.add('mobile-winner-sheet-open');
+      snapMobileWinnerSheet('expanded');
     } else {
       sheet.setAttribute('hidden', '');
       sheet.setAttribute('aria-hidden', 'true');
       root.classList.remove('mobile-winner-sheet-open');
+      root.style.removeProperty('--mobile-winner-sheet-height');
+      mobileWinnerSheetDragState.snap = 'expanded';
+      sheet.classList.remove('mobile-winner-sheet--collapsed', 'mobile-winner-sheet--dragging');
+      sheet.setAttribute('aria-expanded', 'true');
     }
+  }
+
+  function readMobileWinnerSheetPeekPx() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--mobile-winner-sheet-peek');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) && n > 0 ? n : 24;
+  }
+
+  function getMobileWinnerSheetMetrics() {
+    const vv = window.visualViewport;
+    const vh = vv && vv.height ? vv.height : window.innerHeight;
+    const expanded = Math.min(vh * (2 / 3), vh - 72);
+    const peek = readMobileWinnerSheetPeekPx();
+    return { expanded: Math.max(peek + 40, expanded), peek: peek };
+  }
+
+  function setMobileWinnerSheetVisibleHeight(px, opts) {
+    const root = document.documentElement;
+    const sheet = elements.mobileWinnerSheet;
+    const m = getMobileWinnerSheetMetrics();
+    const clamped = Math.max(m.peek, Math.min(m.expanded, px));
+    root.style.setProperty('--mobile-winner-sheet-height', Math.round(clamped) + 'px');
+    if (sheet) {
+      const collapsed = clamped <= m.peek + 4;
+      sheet.classList.toggle('mobile-winner-sheet--collapsed', collapsed);
+      sheet.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+    if (!opts || !opts.skipMapResize) {
+      if (map) {
+        requestAnimationFrame(function () {
+          if (map) map.resize();
+        });
+      }
+    }
+    return clamped;
+  }
+
+  function snapMobileWinnerSheet(snap) {
+    const sheet = elements.mobileWinnerSheet;
+    const m = getMobileWinnerSheetMetrics();
+    mobileWinnerSheetDragState.snap = snap === 'collapsed' ? 'collapsed' : 'expanded';
+    if (sheet) sheet.classList.remove('mobile-winner-sheet--dragging');
+    const h = mobileWinnerSheetDragState.snap === 'collapsed' ? m.peek : m.expanded;
+    setMobileWinnerSheetVisibleHeight(h);
+  }
+
+  function initMobileRangeFocusRingFix() {
+    const root = document.documentElement;
+    if (!root.classList.contains('is-touch') || root.dataset.rangeFocusFixBound === '1') return;
+    root.dataset.rangeFocusFixBound = '1';
+    document.addEventListener(
+      'touchend',
+      function (e) {
+        const t = e.target;
+        if (!t || t.nodeName !== 'INPUT' || t.type !== 'range') return;
+        window.setTimeout(function () {
+          try {
+            t.blur();
+          } catch (_) {}
+        }, 0);
+      },
+      true
+    );
+  }
+
+  function initMobileWinnerSheetDrag() {
+    const sheet = elements.mobileWinnerSheet;
+    if (!sheet || sheet.dataset.dragBound === '1') return;
+    sheet.dataset.dragBound = '1';
+    const handle = sheet.querySelector('.mobile-winner-sheet__handle');
+    if (!handle) return;
+
+    function finishDrag(e) {
+      if (!mobileWinnerSheetDragState.dragging) return;
+      mobileWinnerSheetDragState.dragging = false;
+      sheet.classList.remove('mobile-winner-sheet--dragging');
+      try {
+        if (e && handle.hasPointerCapture(e.pointerId)) {
+          handle.releasePointerCapture(e.pointerId);
+        }
+      } catch (_) {}
+      const m = getMobileWinnerSheetMetrics();
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--mobile-winner-sheet-height');
+      const current = parseFloat(raw) || m.expanded;
+      const mid = (m.peek + m.expanded) / 2;
+      snapMobileWinnerSheet(current >= mid ? 'expanded' : 'collapsed');
+    }
+
+    handle.addEventListener('pointerdown', function (e) {
+      if (!document.documentElement.classList.contains('mobile-winner-sheet-open')) return;
+      mobileWinnerSheetDragState.dragging = true;
+      mobileWinnerSheetDragState.startY = e.clientY;
+      const m = getMobileWinnerSheetMetrics();
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--mobile-winner-sheet-height');
+      const current = parseFloat(raw);
+      mobileWinnerSheetDragState.startHeight = Number.isFinite(current)
+        ? current
+        : mobileWinnerSheetDragState.snap === 'collapsed'
+          ? m.peek
+          : m.expanded;
+      sheet.classList.add('mobile-winner-sheet--dragging');
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch (_) {}
+      e.preventDefault();
+    });
+
+    handle.addEventListener('pointermove', function (e) {
+      if (!mobileWinnerSheetDragState.dragging) return;
+      const dy = mobileWinnerSheetDragState.startY - e.clientY;
+      setMobileWinnerSheetVisibleHeight(mobileWinnerSheetDragState.startHeight + dy, { skipMapResize: true });
+      if (map) map.resize();
+    });
+
+    handle.addEventListener('pointerup', finishDrag);
+    handle.addEventListener('pointercancel', finishDrag);
+
+    window.addEventListener('resize', function () {
+      if (!document.documentElement.classList.contains('mobile-winner-sheet-open')) return;
+      snapMobileWinnerSheet(mobileWinnerSheetDragState.snap);
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () {
+        if (!document.documentElement.classList.contains('mobile-winner-sheet-open')) return;
+        snapMobileWinnerSheet(mobileWinnerSheetDragState.snap);
+      });
+    }
+  }
+
+  function syncMobileGeoSheetLayout() {
+    const root = document.documentElement;
+    const sheet = elements.mobileGeoSheet;
+    if (!sheet || !root.classList.contains('mobile-geo-setup')) {
+      root.style.removeProperty('--mobile-geo-sheet-height');
+      return;
+    }
+    requestAnimationFrame(function () {
+      const h = Math.ceil(sheet.getBoundingClientRect().height);
+      if (h > 0) {
+        root.style.setProperty('--mobile-geo-sheet-height', h + 'px');
+      }
+      if (map) map.resize();
+    });
+  }
+
+  function bindMobileGeoSheetResizeObserver() {
+    const sheet = elements.mobileGeoSheet;
+    if (!sheet || typeof ResizeObserver === 'undefined') return;
+    if (mobileGeoSheetResizeObserver) return;
+    mobileGeoSheetResizeObserver = new ResizeObserver(function () {
+      syncMobileGeoSheetLayout();
+    });
+    mobileGeoSheetResizeObserver.observe(sheet);
+  }
+
+  /** Mobilon: a találat jelölője a felső, látható térképsávban legyen (nem a lap alatt). */
+  function getMobileWinnerMapFlyPadding() {
+    if (!isTouchMobileAppStarted()) return null;
+    const mapEl = elements.mapContainer;
+    let mapH = mapEl ? mapEl.clientHeight : 0;
+    if (mapH <= 0) {
+      const vv = window.visualViewport;
+      const vh = vv && vv.height ? vv.height : window.innerHeight;
+      const m = getMobileWinnerSheetMetrics();
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--mobile-winner-sheet-height');
+      const sheetH = Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : m.expanded;
+      const inset =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--mobile-floating-sheet-inset')
+        ) || 12;
+      const gap =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--mobile-floating-sheet-map-gap')
+        ) || 8;
+      mapH = Math.max(120, vh - sheetH - inset - gap - inset);
+    }
+    return {
+      top: Math.max(48, Math.round(mapH * 0.1)),
+      bottom: Math.round(mapH * 0.6),
+      left: 0,
+      right: 0,
+    };
+  }
+
+  function flyMapToWinningCity(lng, lat) {
+    if (!map || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
+    const run = function () {
+      if (!map) return;
+      map.resize();
+      const opts = {
+        center: [lng, lat],
+        zoom: RESULT_ZOOM,
+        duration: 1500,
+        essential: true,
+      };
+      const pad = getMobileWinnerMapFlyPadding();
+      if (pad) opts.padding = pad;
+      map.flyTo(opts);
+    };
+    if (isTouchMobileAppStarted()) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(run);
+      });
+      return;
+    }
+    run();
   }
 
   function hideMobileWinnerSheet() {
@@ -2373,6 +2593,8 @@
     updateImportantPlaceCircles();
     syncGeoMarkersFromState();
     syncMobileMapBackBtn();
+    window.setTimeout(syncMobileGeoSheetLayout, 0);
+    window.setTimeout(syncMobileGeoSheetLayout, 150);
   }
 
   /** DOM-visszahelyezés: nextSibling csak akkor használható, ha még a parent gyereke (B-nél a warn a sheetben van). */
@@ -2419,6 +2641,7 @@
 
     document.documentElement.classList.remove('mobile-geo-setup', 'mobile-geo-keyboard', 'mobile-geo-input-focused');
     document.documentElement.style.removeProperty('--mobile-vv-bottom');
+    document.documentElement.style.removeProperty('--mobile-geo-sheet-height');
     document.documentElement.removeAttribute('data-geo-setup-slot');
     showMobileGeoSheetEl(false);
 
@@ -2510,7 +2733,9 @@
     badge._hideTimer = window.setTimeout(function () {
       badge.classList.remove('mobile-geo-sheet__badge--show');
       badge._hideTimer = null;
+      syncMobileGeoSheetLayout();
     }, 2400);
+    syncMobileGeoSheetLayout();
   }
 
   function syncMobileGeoSheetForKeyboard() {
@@ -2530,27 +2755,17 @@
       root.classList.remove('mobile-geo-keyboard');
       root.style.removeProperty('--mobile-vv-bottom');
     }
+    syncMobileGeoSheetLayout();
   }
 
   function scrollMobileGeoInputIntoView(inp) {
     if (!inp || !document.documentElement.classList.contains('mobile-geo-setup')) return;
-    const host = elements.mobileGeoCardHost;
     window.setTimeout(function () {
       syncMobileGeoSheetForKeyboard();
-      if (host && host.contains(inp)) {
-        const hostRect = host.getBoundingClientRect();
-        const inpRect = inp.getBoundingClientRect();
-        const vv = window.visualViewport;
-        const viewTop = vv ? vv.offsetTop + 12 : 12;
-        const viewBottom = vv ? vv.offsetTop + vv.height - 12 : window.innerHeight - 12;
-        if (inpRect.top < viewTop || inpRect.bottom > viewBottom) {
-          const delta = inpRect.top - (viewTop + (viewBottom - viewTop) * 0.28);
-          host.scrollTop += delta;
-        }
-      }
       try {
         inp.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       } catch (_) {}
+      syncMobileGeoSheetLayout();
     }, 320);
   }
 
@@ -2613,6 +2828,7 @@
       sheet.addEventListener('click', delegate);
       sheet.addEventListener('touchend', delegate, { passive: false });
     }
+    bindMobileGeoSheetResizeObserver();
   }
 
   /** Kiállítás: holisticsearch.space/exhibition — külön UX, nincs megoldás a térképen. */
@@ -10876,13 +11092,8 @@
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
     const shouldFlyMap = meta && meta.flyMapToResult === true;
-    if (map && shouldFlyMap) {
-      map.flyTo({
-        center: [lng, lat],
-        zoom: RESULT_ZOOM,
-        duration: 1500,
-        essential: true,
-      });
+    if (shouldFlyMap) {
+      flyMapToWinningCity(lng, lat);
     }
 
     const pinMarker = new maplibregl.Marker({ color: '#d81515', scale: 1.35 })
@@ -11358,6 +11569,8 @@
     maybeOpenAppWelcomeModal();
     initStrictParamsModal();
     initMobileGeoSheet();
+    initMobileWinnerSheetDrag();
+    initMobileRangeFocusRingFix();
     initMobileGeoKeyboardGuard();
     initPortraitOrientationLock();
     initMobileMapChrome();

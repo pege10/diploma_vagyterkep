@@ -14,14 +14,14 @@
   <meta name="apple-mobile-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Holistic Search">
-  <link rel="icon" href="/icons/favicon.svg?v=2" type="image/svg+xml">
-  <link rel="icon" href="/icons/favicon-32.png?v=2" sizes="32x32" type="image/png">
-  <link rel="icon" href="/icons/favicon-16.png?v=2" sizes="16x16" type="image/png">
+  <link rel="icon" href="/icons/favicon.svg?v=3" type="image/svg+xml">
+  <link rel="icon" href="/icons/favicon-32.png?v=3" sizes="32x32" type="image/png">
+  <link rel="icon" href="/icons/favicon-16.png?v=3" sizes="16x16" type="image/png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css?v=183">
+  <link rel="stylesheet" href="/style.css?v=188">
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
@@ -71,7 +71,8 @@
     <span class="mobile-map-back-btn__glyph" aria-hidden="true">‹</span>
   </button>
 
-  <div id="mobile-winner-sheet" class="mobile-winner-sheet" hidden aria-hidden="true">
+  <div id="mobile-winner-sheet" class="mobile-winner-sheet" hidden aria-hidden="true" aria-expanded="true">
+    <div class="mobile-winner-sheet__handle" aria-hidden="true"><span></span></div>
     <div id="mobile-winner-sheet-body" class="mobile-winner-sheet__body"></div>
   </div>
 
@@ -175,7 +176,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/app.js?v=265"></script>
+  <script src="/app.js?v=271"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
