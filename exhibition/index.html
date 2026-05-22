@@ -18,7 +18,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css?v=148">
+  <link rel="stylesheet" href="/style.css?v=161">
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
 <body>
@@ -37,9 +37,9 @@
           <button type="button" id="param-toggle-all-btn" class="sidebar-header__cluster-btn" title="Összes mutató be- vagy kikapcsolása" aria-label="Összes mutató be- vagy kikapcsolása" aria-pressed="false">
             <span class="material-symbols-outlined sidebar-header__cluster-ico" aria-hidden="true">toggle_on</span>
           </button>
-          <button type="button" id="param-restore-baseline-btn" class="sidebar-header__cluster-btn" title="Eredeti értékek visszaállítása" aria-label="Eredeti értékek visszaállítása">
-            <span class="material-symbols-outlined sidebar-header__cluster-ico" aria-hidden="true">restart_alt</span>
-          </button>
+          <span class="sidebar-header__cluster-cell sidebar-header__cluster-cell--info">
+            <button type="button" id="app-howto-btn" class="app-howto-btn" title="Hogyan működik?" aria-label="Hogyan működik?">i</button>
+          </span>
           <button type="button" id="sidebar-collapse-btn" class="sidebar-header__cluster-btn sidebar-header__cluster-btn--chevron" aria-expanded="true" aria-controls="sidebar-main" aria-hidden="false" title="Bal panel elrejtése" aria-label="Bal panel elrejtése">
             <span class="sidebar-dock__collapse-pill-glyph" aria-hidden="true">‹</span>
           </button>
@@ -86,16 +86,16 @@
 
   <div id="heatmap-legend" class="heatmap-legend" aria-hidden="true">
     <div class="heatmap-legend__head">
-      <div class="heatmap-legend__title">Találat-hőtérkép</div>
-      <button type="button" id="heatmap-toggle-btn" class="heatmap-legend__toggle feedback-panel__edge-tab feedback-panel__edge-tab--tool" aria-pressed="false" title="Találat-hőtérkép bekapcsolása" aria-label="Találat-hőtérkép be / ki">
+      <div class="heatmap-legend__title">Tökéletes hely hőtérkép</div>
+      <button type="button" id="heatmap-toggle-btn" class="heatmap-legend__toggle feedback-panel__edge-tab feedback-panel__edge-tab--tool" aria-pressed="false" title="Tökéletes hely hőtérkép bekapcsolása" aria-label="Tökéletes hely hőtérkép be / ki">
         <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">H</span>
       </button>
     </div>
     <div class="heatmap-legend__body">
       <div class="heatmap-legend__bar" aria-hidden="true"></div>
       <div class="heatmap-legend__row">
-        <span>halvány egyezés</span>
-        <span>erős egyezés</span>
+        <span>alacsony egyezés</span>
+        <span>magas egyezés</span>
       </div>
     </div>
   </div>
@@ -133,6 +133,78 @@
     </div>
   </div>
 
+  <div id="app-welcome-overlay" class="app-welcome-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="app-welcome-title" aria-describedby="app-welcome-lead">
+    <div class="app-welcome-dialog">
+      <button type="button" id="app-welcome-close" class="app-welcome-close" aria-label="Bezárás">×</button>
+      <div class="app-welcome-dialog__scroll">
+      <h2 id="app-welcome-title" class="app-welcome-title">Hogyan működik?</h2>
+      <p id="app-welcome-lead" class="app-welcome-lead">
+        A Holistic Search Engine a beállított mutatók alapján keresi meg a számodra legjobban illő magyar települést.
+        Az alábbi lépések segítenek az induláshoz.
+      </p>
+      <ol class="app-welcome-steps">
+        <li class="app-welcome-step">
+          <div class="app-welcome-step__head">
+            <span class="app-welcome-step__num" aria-hidden="true">1</span>
+            <strong>Fontos helyek</strong>
+          </div>
+          <p>Kapcsold be a kártyát a jobb oldali kapcsolóval. Add meg a települést (név vagy térkép gomb), majd állítsd a sugarat.</p>
+          <div class="app-welcome-glyphs" aria-hidden="true">
+            <span class="app-welcome-glyph app-welcome-glyph--switch" title="Bekapcsolás"></span>
+            <span class="app-welcome-glyph app-welcome-glyph--pin material-symbols-outlined">pin_drop</span>
+          </div>
+        </li>
+        <li class="app-welcome-step">
+          <div class="app-welcome-step__head">
+            <span class="app-welcome-step__num" aria-hidden="true">2</span>
+            <strong>Mutatók</strong>
+          </div>
+          <p>Kapcsold be a számodra fontos mutatókat. A felső csúszka a kívánt érték, az alsó a fontosság (0 = nem számít, max = maximális).</p>
+          <div class="app-welcome-glyphs" aria-hidden="true">
+            <span class="app-welcome-glyph app-welcome-glyph--switch"></span>
+            <span class="app-welcome-glyph app-welcome-glyph--slider"></span>
+          </div>
+        </li>
+        <li class="app-welcome-step">
+          <div class="app-welcome-step__head">
+            <span class="app-welcome-step__num" aria-hidden="true">3</span>
+            <strong>Keresés</strong>
+          </div>
+          <p>Nyomd meg a láblécben az „A tökéletes helyed keresése” gombot. Utána a csúszkák módosítására automatikusan újrakeres.</p>
+          <div class="app-welcome-glyphs" aria-hidden="true">
+            <span class="app-welcome-glyph app-welcome-glyph--search">A tökéletes helyed keresése</span>
+          </div>
+        </li>
+        <li class="app-welcome-step">
+          <div class="app-welcome-step__head">
+            <span class="app-welcome-step__num" aria-hidden="true">4</span>
+            <strong>Eredmény és térkép</strong>
+          </div>
+          <p>Jobb oldalon megjelenik a találat, a részletek és a távolságok. A térképen piros jelölő mutatja a települést; keresés után a tökéletes hely hőtérkép (H) bekapcsolható.</p>
+          <div class="app-welcome-glyphs" aria-hidden="true">
+            <span class="app-welcome-glyph app-welcome-glyph--edge">›</span>
+            <span class="app-welcome-glyph app-welcome-glyph--heat">H</span>
+          </div>
+        </li>
+        <li class="app-welcome-step">
+          <div class="app-welcome-step__head">
+            <span class="app-welcome-step__num" aria-hidden="true">5</span>
+            <strong>Fejléc gombok</strong>
+          </div>
+          <p><strong>S</strong> = szóló nézet törlése · kapcsoló ikon = összes mutató be/ki · <strong>i</strong> = használati útmutató · ‹ = bal panel becsukása.</p>
+          <div class="app-welcome-glyphs" aria-hidden="true">
+            <span class="app-welcome-glyph app-welcome-glyph--letter">S</span>
+            <span class="app-welcome-glyph app-welcome-glyph--ico material-symbols-outlined">toggle_on</span>
+            <span class="app-welcome-glyph app-welcome-glyph--letter">i</span>
+            <span class="app-welcome-glyph app-welcome-glyph--edge">‹</span>
+          </div>
+        </li>
+      </ol>
+      <button type="button" id="app-welcome-ok" class="app-welcome-ok">Értem, kezdjük</button>
+      </div>
+    </div>
+  </div>
+
   <div id="first-search-hint-overlay" class="first-search-hint-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="first-search-hint-title" aria-describedby="first-search-hint-list">
     <div class="first-search-hint-dialog">
       <button type="button" id="first-search-hint-close" class="first-search-hint-close" aria-label="Bezárás">×</button>
@@ -165,7 +237,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/app.js?v=210"></script>
+  <script src="/app.js?v=227"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

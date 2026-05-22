@@ -182,6 +182,8 @@
   let mobileGeoSetupTurnedOnBySheet = false;
   /** Indítás után automatikus 1. fontos hely panel (adatbetöltés után nyílik). */
   let mobileGeoAutoOpenSlot = null;
+  /** Mobilon: welcome után nyíljon meg az automatikus geo panel (egyszer). */
+  let pendingMobileWelcomeThenGeo = false;
 
   let geoSlotState = {
     a: { city: null, lat: NaN, lng: NaN },
@@ -251,6 +253,31 @@
     'XXIII',
   ];
 
+  const APP_WELCOME_STORAGE_KEY = 'hse-app-welcome-dismissed-v1';
+
+  const APP_WELCOME_DIALOG_HTML =
+    '<div class="app-welcome-dialog">' +
+    '<button type="button" id="app-welcome-close" class="app-welcome-close" aria-label="Bezárás">×</button>' +
+    '<div class="app-welcome-dialog__scroll">' +
+    '<h2 id="app-welcome-title" class="app-welcome-title">Hogyan működik?</h2>' +
+    '<p id="app-welcome-lead" class="app-welcome-lead">A Holistic Search Engine a beállított mutatók alapján keresi meg a számodra legjobban illő magyar települést. Az alábbi lépések segítenek az induláshoz.</p>' +
+    '<ol class="app-welcome-steps">' +
+    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">1</span><strong>Fontos helyek</strong></div><p>Kapcsold be a kártyát a jobb oldali kapcsolóval. Add meg a települést (név vagy térkép gomb), majd állítsd a sugarat.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--switch" title="Bekapcsolás"></span><span class="app-welcome-glyph app-welcome-glyph--pin material-symbols-outlined">pin_drop</span></div></li>' +
+    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">2</span><strong>Mutatók</strong></div><p>Kapcsold be a számodra fontos mutatókat. A felső csúszka a kívánt érték, az alsó a fontosság (0 = nem számít, max = maximális).</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--switch"></span><span class="app-welcome-glyph app-welcome-glyph--slider"></span></div></li>' +
+    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">3</span><strong>Keresés</strong></div><p>Nyomd meg a láblécben az „A tökéletes helyed keresése” gombot. Utána a csúszkák módosítására automatikusan újrakeres.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--search">A tökéletes helyed keresése</span></div></li>' +
+    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">4</span><strong>Eredmény és térkép</strong></div><p>Jobb oldalon megjelenik a találat, a részletek és a távolságok. A térképen piros jelölő mutatja a települést; keresés után a tökéletes hely hőtérkép (H) bekapcsolható.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--edge">›</span><span class="app-welcome-glyph app-welcome-glyph--heat">H</span></div></li>' +
+    '<li class="app-welcome-step"><div class="app-welcome-step__head"><span class="app-welcome-step__num" aria-hidden="true">5</span><strong>Fejléc gombok</strong></div><p><strong>S</strong> = szóló nézet törlése · kapcsoló ikon = összes mutató be/ki · <strong>i</strong> = használati útmutató · ‹ = bal panel becsukása.</p><div class="app-welcome-glyphs" aria-hidden="true"><span class="app-welcome-glyph app-welcome-glyph--letter">S</span><span class="app-welcome-glyph app-welcome-glyph--ico material-symbols-outlined">toggle_on</span><span class="app-welcome-glyph app-welcome-glyph--letter">i</span><span class="app-welcome-glyph app-welcome-glyph--edge">‹</span></div></li>' +
+    '</ol>' +
+    '<button type="button" id="app-welcome-ok" class="app-welcome-ok">Értem, kezdjük</button>' +
+    '</div></div>';
+
+  function syncWelcomeOverlayContentIfStale(overlayEl) {
+    if (!overlayEl) return;
+    if (overlayEl.querySelectorAll('.app-welcome-step').length >= 5) return;
+    overlayEl.innerHTML = APP_WELCOME_DIALOG_HTML;
+    appWelcomeModalEventsBound = false;
+  }
+
   const elements = {
     mapContainer: null,
     searchBtn: null,
@@ -275,12 +302,16 @@
     paramCategoriesHost: null,
     paramClearAllSoloBtn: null,
     paramToggleAllBtn: null,
-    paramRestoreBaselineBtn: null,
+    appHowtoBtn: null,
+    appHowtoBtnMobile: null,
     feedbackPanel: null,
     feedbackPanelInner: null,
     firstSearchHintOverlay: null,
     firstSearchHintCloseBtn: null,
     firstSearchHintProceedBtn: null,
+    appWelcomeOverlay: null,
+    appWelcomeCloseBtn: null,
+    appWelcomeOkBtn: null,
     strictParamsOverlay: null,
     strictParamsTitle: null,
     strictParamsMessage: null,
@@ -311,7 +342,8 @@
     elements.paramCategoriesHost = document.getElementById('param-categories-host');
     elements.paramClearAllSoloBtn = document.getElementById('param-clear-all-solo-btn');
     elements.paramToggleAllBtn = document.getElementById('param-toggle-all-btn');
-    elements.paramRestoreBaselineBtn = document.getElementById('param-restore-baseline-btn');
+    elements.appHowtoBtn = document.getElementById('app-howto-btn');
+    elements.appHowtoBtnMobile = document.getElementById('app-howto-btn-mobile');
     elements.feedbackPanel = document.getElementById('feedback-panel');
     elements.feedbackPanelInner = elements.feedbackPanel
       ? elements.feedbackPanel.querySelector('.feedback-panel__inner')
@@ -319,6 +351,16 @@
     elements.firstSearchHintOverlay = document.getElementById('first-search-hint-overlay');
     elements.firstSearchHintCloseBtn = document.getElementById('first-search-hint-close');
     elements.firstSearchHintProceedBtn = document.getElementById('first-search-hint-proceed');
+    elements.appWelcomeOverlay = document.getElementById('app-welcome-overlay');
+    elements.appWelcomeCloseBtn = document.getElementById('app-welcome-close');
+    elements.appWelcomeOkBtn = document.getElementById('app-welcome-ok');
+    if (!elements.appWelcomeOverlay) {
+      elements.appWelcomeOverlay = mountAppWelcomeOverlayIfMissing();
+      if (elements.appWelcomeOverlay) {
+        elements.appWelcomeCloseBtn = document.getElementById('app-welcome-close');
+        elements.appWelcomeOkBtn = document.getElementById('app-welcome-ok');
+      }
+    }
     elements.strictParamsOverlay = document.getElementById('strict-params-overlay');
     elements.strictParamsTitle = document.getElementById('strict-params-title');
     elements.strictParamsMessage = document.getElementById('strict-params-message');
@@ -649,6 +691,164 @@
         if (e.target === ov) closeFirstSearchHintModal();
       });
     }
+  }
+
+  /** @type {boolean} */
+  let appWelcomeModalEventsBound = false;
+
+  function mountAppWelcomeOverlayIfMissing() {
+    const anchor = document.getElementById('strict-params-overlay');
+    const mountParent = anchor && anchor.parentNode ? anchor.parentNode : document.body;
+    const wrap = document.createElement('div');
+    wrap.id = 'app-welcome-overlay';
+    wrap.className = 'app-welcome-overlay';
+    wrap.hidden = true;
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.setAttribute('aria-labelledby', 'app-welcome-title');
+    wrap.setAttribute('aria-describedby', 'app-welcome-lead');
+    wrap.innerHTML = APP_WELCOME_DIALOG_HTML;
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(wrap, anchor);
+    } else {
+      mountParent.appendChild(wrap);
+    }
+    return wrap;
+  }
+
+  function resolveAppWelcomeOverlay() {
+    var existing = document.getElementById('app-welcome-overlay');
+    if (existing) {
+      syncWelcomeOverlayContentIfStale(existing);
+      elements.appWelcomeOverlay = existing;
+    } else {
+      elements.appWelcomeOverlay = mountAppWelcomeOverlayIfMissing();
+    }
+    if (elements.appWelcomeOverlay) {
+      elements.appWelcomeCloseBtn = document.getElementById('app-welcome-close');
+      elements.appWelcomeOkBtn = document.getElementById('app-welcome-ok');
+      ensureAppWelcomeModalEventsBound();
+    }
+    return elements.appWelcomeOverlay;
+  }
+
+  function ensureAppWelcomeModalEventsBound() {
+    if (appWelcomeModalEventsBound) return;
+    const ov = elements.appWelcomeOverlay;
+    const closeBtn = elements.appWelcomeCloseBtn;
+    const okBtn = elements.appWelcomeOkBtn;
+    if (!ov) return;
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeAppWelcomeModal();
+      });
+    }
+    if (okBtn) {
+      okBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeAppWelcomeModal();
+      });
+    }
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) closeAppWelcomeModal();
+    });
+    appWelcomeModalEventsBound = true;
+  }
+
+  function closeAppWelcomeModal() {
+    const ov = resolveAppWelcomeOverlay();
+    if (ov) {
+      ov.setAttribute('hidden', '');
+      ov.setAttribute('aria-hidden', 'true');
+    }
+    if (!document.documentElement.classList.contains('is-touch')) {
+      try {
+        localStorage.setItem(APP_WELCOME_STORAGE_KEY, '1');
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (pendingMobileWelcomeThenGeo) {
+      pendingMobileWelcomeThenGeo = false;
+      const slot = mobileGeoAutoOpenSlot;
+      mobileGeoAutoOpenSlot = null;
+      if (slot && shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn(slot)) {
+        window.setTimeout(function () {
+          openMobileGeoEditorIfNeeded(slot);
+        }, 120);
+      }
+    }
+  }
+
+  function openAppWelcomeModal() {
+    const ov = resolveAppWelcomeOverlay();
+    if (!ov) return;
+    ov.removeAttribute('hidden');
+    ov.setAttribute('aria-hidden', 'false');
+    const scrollEl = ov.querySelector('.app-welcome-dialog__scroll');
+    function resetWelcomeScroll() {
+      if (scrollEl) scrollEl.scrollTop = 0;
+    }
+    resetWelcomeScroll();
+    window.requestAnimationFrame(function () {
+      resetWelcomeScroll();
+    });
+  }
+
+  function maybeOpenAppWelcomeModal() {
+    if (isExhibitionMode()) return;
+    const ov = resolveAppWelcomeOverlay();
+    if (!ov) return;
+    if (
+      document.documentElement.classList.contains('is-touch') &&
+      !document.documentElement.classList.contains('app-started')
+    ) {
+      return;
+    }
+    if (!document.documentElement.classList.contains('is-touch')) {
+      try {
+        if (localStorage.getItem(APP_WELCOME_STORAGE_KEY) === '1') return;
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    window.requestAnimationFrame(function () {
+      openAppWelcomeModal();
+    });
+  }
+
+  function bindAppHowtoBtn(btn) {
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openAppWelcomeModal();
+    });
+  }
+
+  function syncMobileHowtoBtnUi() {
+    const topTools = document.getElementById('mobile-dock-top-tools');
+    const root = document.documentElement;
+    const isTouch = root.classList.contains('is-touch');
+    const started = root.classList.contains('app-started');
+    if (topTools) {
+      topTools.setAttribute('hidden', '');
+    }
+    if (isTouch && started) {
+      root.classList.add('mobile-howto-in-header');
+    } else {
+      root.classList.remove('mobile-howto-in-header');
+    }
+  }
+
+  function initAppHowtoBtn() {
+    bindAppHowtoBtn(elements.appHowtoBtn);
+    syncMobileHowtoBtnUi();
+  }
+
+  function initAppWelcomeModal() {
+    resolveAppWelcomeOverlay();
   }
 
   /** Mobilon paraméter-szerkesztés: teljes panel (ne alsó 1/3 térképes lap). */
@@ -1211,6 +1411,7 @@
       btn.setAttribute('hidden', '');
       btn.setAttribute('aria-hidden', 'true');
     }
+    syncMobileHowtoBtnUi();
   }
 
   function showMobileWinnerSheetEl(show) {
@@ -1460,8 +1661,8 @@
         key: key,
         isBand: false,
         label: paramLabelForDbKey(key),
-        wantText: formatIndexParamUiAtSliderValue(key, want),
-        gotText: formatCityInfoValueForParamKey(winningCity, key),
+        wantText: formatParamCompareNumber(want),
+        gotText: got != null ? formatParamCompareNumber(got) : '–',
         diffText: formatIndexDeviationPercent(want, got),
       });
     }
@@ -1498,8 +1699,8 @@
       stats.className = 'feedback-param-list__stats';
 
       [
-        { label: 'Célérték', value: row.wantText },
-        { label: 'Településérték', value: row.gotText },
+        { label: 'Cél', value: row.wantText },
+        { label: 'Település', value: row.gotText },
         { label: 'Eltérés', value: row.diffText },
       ].forEach(function (part) {
         const dt = document.createElement('dt');
@@ -1768,6 +1969,7 @@
     if (inGeoSetup) {
       if (openBtn) openBtn.setAttribute('aria-hidden', 'true');
       if (closeBtn) closeBtn.setAttribute('aria-hidden', 'true');
+      syncMobileHowtoBtnUi();
       return;
     }
     if (openBtn) {
@@ -1782,6 +1984,7 @@
       closeBtn.title = 'Paraméterek elrejtése';
       closeBtn.setAttribute('aria-label', 'Paraméterek elrejtése');
     }
+    syncMobileHowtoBtnUi();
   }
 
   function initMobileMapChrome() {
@@ -3483,6 +3686,38 @@
     return applyParameterInfoUiTextOverrides(uiParamId, result);
   }
 
+  function getGeoImportantPlaceUiConfigDefaults(slot) {
+    const placeNum = slot === 'a' ? '1.' : '2.';
+    return {
+      intro:
+        placeNum +
+        ' fontos hely (szűrő). Válaszd ki a központ települését névvel vagy a térképen; ' +
+        'a keresés csak a beállított körön belüli településeket veszi figyelembe.',
+      cityLabel: 'Település',
+      radiusLabel: 'Keresési kör',
+      leftHint: 'Kisebb kör',
+      rightHint: 'Nagyobb kör',
+    };
+  }
+
+  function resolveGeoImportantPlaceUiConfig(slot) {
+    const uiParamId = infoDbKeyForGeoSlot(slot);
+    const out = getGeoImportantPlaceUiConfigDefaults(slot);
+    const row = getParameterInfoRowForUiParam(uiParamId);
+    if (!row) return out;
+    const rovid = pickParameterInfoOptionalText(row, ['rovid_leiras']);
+    if (rovid) out.intro = rovid;
+    const s1n = pickParameterInfoOptionalText(row, ['szlider1_megnevezes']);
+    if (s1n) out.cityLabel = s1n;
+    const s1b = pickParameterInfoOptionalText(row, ['szlider1_bal']);
+    if (s1b) out.leftHint = s1b;
+    const s1j = pickParameterInfoOptionalText(row, ['szlider1_jobb']);
+    if (s1j) out.rightHint = s1j;
+    const s2n = pickParameterInfoOptionalText(row, ['szlider2_megnevezes']);
+    if (s2n) out.radiusLabel = s2n;
+    return out;
+  }
+
   function appendParamValueIntro(parent, intro) {
     if (!parent || !intro) return;
     const p = document.createElement('p');
@@ -3822,6 +4057,10 @@
       return '–';
     }
     return String(Math.round(sportag)) + NBSP + 'sportág\n' + String(Math.round(letes)) + NBSP + 'létesítmény';
+  }
+
+  function formatGeoRadiusForUi(km) {
+    return formatKmForUi(km);
   }
 
   function formatKmForUi(km) {
@@ -4936,14 +5175,16 @@
 
   function syncGeoRadiusLabels() {
     if (elements.geoRadiusA) {
-      const v = Math.round(parseFloat(elements.geoRadiusA.value) || 0);
-      elements.geoRadiusA.setAttribute('aria-valuetext', v + ' km');
-      if (elements.geoRadiusAVal) elements.geoRadiusAVal.textContent = String(v);
+      const v = parseFloat(elements.geoRadiusA.value) || 0;
+      const t = formatKmForUi(v);
+      elements.geoRadiusA.setAttribute('aria-valuetext', t);
+      if (elements.geoRadiusAVal) elements.geoRadiusAVal.textContent = t;
     }
     if (elements.geoRadiusB) {
-      const v = Math.round(parseFloat(elements.geoRadiusB.value) || 0);
-      elements.geoRadiusB.setAttribute('aria-valuetext', v + ' km');
-      if (elements.geoRadiusBVal) elements.geoRadiusBVal.textContent = String(v);
+      const v = parseFloat(elements.geoRadiusB.value) || 0;
+      const t = formatKmForUi(v);
+      elements.geoRadiusB.setAttribute('aria-valuetext', t);
+      if (elements.geoRadiusBVal) elements.geoRadiusBVal.textContent = t;
     }
     updateImportantPlaceCircles();
   }
@@ -6686,9 +6927,6 @@
     weightWrap.appendChild(wStack);
     mountWeightSliderUi(weightWrap, wStack, variantSliderUi);
 
-    if (variantSliderUi && variantSliderUi.valueLabel) {
-      itemBody.insertBefore(createParamSliderLabel(variantSliderUi.valueLabel), stack);
-    }
     if (variantSliderUi) {
       appendParamRangeHints(stack, variantSliderUi.leftHint, variantSliderUi.rightHint);
     }
@@ -7383,9 +7621,6 @@
     } else {
       valueStack = buildParamRangeRowWithExtrema(input, step, r.min, r.max);
     }
-    if (sliderUi && sliderUi.valueLabel) {
-      itemBody.appendChild(createParamSliderLabel(sliderUi.valueLabel));
-    }
     itemBody.appendChild(valueStack);
     if (sliderUi) {
       appendParamRangeHints(valueStack, sliderUi.leftHint, sliderUi.rightHint);
@@ -7667,10 +7902,13 @@
     itemBody.id = bodyId;
     itemBody.className = 'param-item__body';
 
+    const geoUi = resolveGeoImportantPlaceUiConfig(slot);
+    appendParamValueIntro(itemBody, geoUi.intro);
+
     const cityLab = document.createElement('label');
     cityLab.className = 'control-label control-label-sub';
     cityLab.setAttribute('for', 'geo-city-input-' + slot);
-    cityLab.textContent = 'Település (adatbázis)';
+    cityLab.textContent = geoUi.cityLabel;
 
     const acWrap = document.createElement('div');
     acWrap.className = 'geo-autocomplete-wrap';
@@ -7685,7 +7923,7 @@
     inp.placeholder = 'Kezd el gépelni…';
     inp.autocomplete = 'off';
     inp.spellcheck = false;
-    inp.setAttribute('aria-label', titleLabel + ' — település');
+    inp.setAttribute('aria-label', titleLabel + ' — ' + geoUi.cityLabel);
 
     const pickBtn = document.createElement('button');
     pickBtn.type = 'button';
@@ -7711,11 +7949,6 @@
     itemBody.appendChild(cityLab);
     itemBody.appendChild(acWrap);
 
-    const radLab = document.createElement('label');
-    radLab.className = 'control-label control-label-sub';
-    radLab.setAttribute('for', 'geo-radius-' + slot);
-    radLab.textContent = 'Sugár (km)';
-
     const rInput = document.createElement('input');
     rInput.type = 'range';
     rInput.className = 'slider';
@@ -7724,12 +7957,11 @@
     rInput.max = '500';
     rInput.step = '1';
     rInput.value = '50';
-    rInput.setAttribute('aria-label', titleLabel + ' — sugár (km)');
+    rInput.setAttribute('aria-label', titleLabel + ' — sugár');
 
     const stack = buildParamRangeRowWithExtrema(rInput, 1, 0, 500, formatKmForUi);
     bindParamRangeTrackSeek(rInput);
 
-    itemBody.appendChild(radLab);
     itemBody.appendChild(stack);
 
     wrap.appendChild(headRow);
@@ -9061,6 +9293,7 @@
     if (elements.mapContainer) elements.mapContainer.classList.remove('map-picking-cursor');
     if (elements.mapPickingBanner) elements.mapPickingBanner.hidden = true;
     updatePickButtonActive();
+    syncMobileHowtoBtnUi();
     if (map) map.resize();
     if (mobileGeoSetupSlot) {
       setMobileMapView(true, { forGeoEditor: true });
@@ -9151,6 +9384,7 @@
     }
     document.documentElement.classList.add('map-picking');
     if (elements.mapContainer) elements.mapContainer.classList.add('map-picking-cursor');
+    syncMobileHowtoBtnUi();
     window.scrollTo(0, 0);
     if (map) {
       map.resize();
@@ -9556,7 +9790,7 @@
   }
 
   // ===========================================================================
-  // Találat-hőtérkép (choropleth a települési poligonokon, plasma színskála)
+  // Tökéletes hely hőtérkép (choropleth a települési poligonokon, plasma színskála)
   // ===========================================================================
   /** @type {boolean} A felhasználó által bekapcsolt-e a hőtérkép réteg. */
   let heatmapEnabled = false;
@@ -9855,8 +10089,8 @@
       btn.classList.toggle('feedback-panel__edge-tab--on', heatmapEnabled);
       btn.setAttribute('aria-pressed', heatmapEnabled ? 'true' : 'false');
       btn.title = heatmapEnabled
-        ? 'Találat-hőtérkép kikapcsolása'
-        : 'Találat-hőtérkép bekapcsolása';
+        ? 'Tökéletes hely hőtérkép kikapcsolása'
+        : 'Tökéletes hely hőtérkép bekapcsolása';
     }
     const legend = document.getElementById('heatmap-legend');
     if (legend) {
@@ -10401,6 +10635,7 @@
     }
 
     elements.startOverlay.classList.add('start-overlay--hidden');
+    syncMobileHowtoBtnUi();
 
     setTimeout(function () {
       if (elements.startOverlay) {
@@ -10409,8 +10644,15 @@
       if (map) {
         map.resize();
       }
-      if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && elements.geoActiveA) {
-        openMobileGeoEditorIfNeeded('a');
+      if (document.documentElement.classList.contains('is-touch')) {
+        pendingMobileWelcomeThenGeo =
+          shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && !geoSlotReady('a');
+        openAppWelcomeModal();
+      } else {
+        maybeOpenAppWelcomeModal();
+        if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a') && elements.geoActiveA) {
+          openMobileGeoEditorIfNeeded('a');
+        }
       }
     }, 500);
   }
@@ -10734,6 +10976,9 @@
     initHeatmapToggle();
     initWinnerInfoToggle();
     initFirstSearchHintModal();
+    initAppWelcomeModal();
+    initAppHowtoBtn();
+    maybeOpenAppWelcomeModal();
     initStrictParamsModal();
     initMobileGeoSheet();
     initMobileGeoKeyboardGuard();
@@ -10793,14 +11038,6 @@
       syncHeaderAllParamsToggleBtnUi();
     }
 
-    if (elements.paramRestoreBaselineBtn) {
-      elements.paramRestoreBaselineBtn.addEventListener('click', function () {
-        if (elements.paramCategoriesHost) {
-          restoreParamSlidersFromBaseline(elements.paramCategoriesHost);
-        }
-      });
-    }
-
     /* Pin gomb: startPick csak bindMobileGeoCardEditorTriggers-ben (createImportantPlaceCard). */
 
     if (elements.geoCityInputA) {
@@ -10851,6 +11088,15 @@
       }
       if (
         e.key === 'Escape' &&
+        elements.appWelcomeOverlay &&
+        !elements.appWelcomeOverlay.hasAttribute('hidden')
+      ) {
+        e.preventDefault();
+        closeAppWelcomeModal();
+        return;
+      }
+      if (
+        e.key === 'Escape' &&
         elements.strictParamsOverlay &&
         !elements.strictParamsOverlay.hasAttribute('hidden')
       ) {
@@ -10896,11 +11142,12 @@
     bindParamInfoWraps(document.getElementById('sidebar-main'));
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      init();
-    });
-  } else {
+  function bootApp() {
     init();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootApp);
+  } else {
+    bootApp();
   }
 })();

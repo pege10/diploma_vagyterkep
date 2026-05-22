@@ -140,6 +140,12 @@ body {
   margin-left: 10px;
 }
 
+.sidebar-dock__mobile-top-tools {
+  display: none;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
 .sidebar-dock.sidebar-dock--collapsed .sidebar-dock__collapse-pill--expand {
   display: inline-flex;
 }
@@ -269,6 +275,17 @@ body {
   font-size: 0.58rem;
   font-weight: 700;
   line-height: 1;
+}
+
+.sidebar-header__cluster-cell--info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-right: 2.5px solid var(--hdr-cluster-divider);
 }
 
 .sidebar-header__cluster-letter {
@@ -554,6 +571,50 @@ body {
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
+.param-info-btn--head:hover,
+.param-info-btn--head:focus-visible {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  outline: none;
+}
+
+/* Használati útmutató (i) — fejléc / mobil: csak fekete betű, nincs doboz */
+.app-howto-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-style: normal;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-shadow: none;
+}
+
+.app-howto-btn:hover,
+.app-howto-btn:focus,
+.app-howto-btn:focus-visible,
+.app-howto-btn:active {
+  background: transparent;
+  color: #fff;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
 .param-solo-btn--head:hover,
 .param-solo-btn--head:focus-visible {
   background: var(--ink);
@@ -696,6 +757,266 @@ body {
 .first-search-hint-proceed:focus-visible {
   background: #fff;
   color: var(--ink);
+}
+
+/* Első megnyitás: használati útmutató (ugyanaz a réteg mint a strict-params / first-search-hint) */
+.app-welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1900002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-welcome-overlay[hidden] {
+  display: none !important;
+}
+
+.app-welcome-dialog {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.2);
+  text-align: left;
+  overflow: hidden;
+}
+
+.app-welcome-dialog__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 24px 20px 20px;
+  border-radius: 10px;
+}
+
+.app-welcome-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.4rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-welcome-close:hover,
+.app-welcome-close:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
+}
+
+.app-welcome-close:focus {
+  outline: none;
+}
+
+.app-welcome-title {
+  margin: 0 32px 10px 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.app-welcome-lead {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.app-welcome-steps {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.app-welcome-step {
+  padding: 12px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.app-welcome-step:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.app-welcome-step__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.app-welcome-step__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.app-welcome-step p {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.app-welcome-glyphs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-welcome-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-welcome-glyph--switch {
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  position: relative;
+}
+
+.app-welcome-glyph--switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.app-welcome-glyph--pin {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.app-welcome-glyph--slider {
+  width: 72px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #ddd 0%, #ddd 45%, var(--ink) 45%, var(--ink) 55%, #ddd 55%);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.app-welcome-glyph--search {
+  padding: 5px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  max-width: 140px;
+}
+
+.app-welcome-glyph--edge {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.app-welcome-glyph--heat {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.app-welcome-glyph--letter {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.app-welcome-glyph--ico {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.95rem;
+}
+
+.app-welcome-ok {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-app);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-welcome-ok:hover,
+.app-welcome-ok:focus-visible {
+  background: #222;
 }
 
 /* Túl szűk paraméterek – nincs találat */
@@ -1711,6 +2032,10 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   position: relative;
 }
 
+.param-item--geo-place .param-slider-stack {
+  margin-top: 14px;
+}
+
 .geo-suggest-list {
   position: absolute;
   left: 0;
@@ -1749,21 +2074,6 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   margin-bottom: 8px;
   min-width: 0;
   flex-shrink: 0;
-}
-
-.param-restore-baseline-btn {
-  font-weight: 600;
-  color: var(--ink-soft);
-  background: #fff;
-  border-color: var(--line-strong);
-}
-
-.param-restore-baseline-btn:hover,
-.param-restore-baseline-btn:focus-visible {
-  color: var(--ink);
-  border-color: var(--ink);
-  background: rgba(0, 0, 0, 0.03);
-  outline: none;
 }
 
 .param-random-btn--wide {
@@ -2284,7 +2594,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 }
 
 .param-band-intro {
-  margin: 0 0 10px;
+  margin: 0 0 22px;
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--ink-soft);
@@ -3668,6 +3978,70 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     align-self: flex-start;
   }
 
+  html.is-touch #mobile-dock-top-tools {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open) .sidebar-dock__mobile-top-tools:not([hidden]) {
+    display: inline-flex;
+    position: fixed;
+    z-index: 201;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    gap: 8px;
+    align-items: center;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open) .sidebar-dock__mobile-top-tools .sidebar-dock__collapse-pill--expand:not([hidden]) {
+    display: inline-flex !important;
+    position: static;
+    margin: 0;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+  }
+
+  html.is-touch.app-started.mobile-map-view .sidebar-dock__mobile-top-tools .sidebar-dock__collapse-pill--expand[hidden],
+  html.is-touch.app-started.map-picking .sidebar-dock__mobile-top-tools .sidebar-dock__collapse-pill--expand {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  html.is-touch .sidebar-dock__mobile-howto-btn {
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    border: 2.5px solid var(--ink);
+    border-radius: 4px;
+    background: #fff !important;
+    color: var(--ink) !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html.is-touch .sidebar-dock__mobile-top-tools .sidebar-dock__collapse-pill--expand {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  html.is-touch .sidebar-dock__mobile-howto-btn:hover,
+  html.is-touch .sidebar-dock__mobile-howto-btn:focus,
+  html.is-touch .sidebar-dock__mobile-howto-btn:focus-visible,
+  html.is-touch .sidebar-dock__mobile-howto-btn:active {
+    background: #fff !important;
+    color: var(--ink) !important;
+    border-color: var(--ink);
+  }
+
   html.is-touch .sidebar-dock .sidebar {
     flex: 1 1 auto;
     min-width: 0;
@@ -3708,6 +4082,37 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   html.is-touch .param-solo-wrap--head {
     display: none !important;
     pointer-events: none !important;
+  }
+
+  html.is-touch:not(.app-started) .sidebar-header__cluster-cell--info {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  html.is-touch.app-started .sidebar-header__cluster-cell--info {
+    display: inline-flex !important;
+    pointer-events: auto !important;
+  }
+
+  html.is-touch.app-started .sidebar-header .app-howto-btn {
+    color: #fff !important;
+    border: 2.5px solid var(--ink);
+    border-radius: 4px;
+    background: #0a0a0a !important;
+    width: 26px;
+    height: 26px;
+    font-size: 0.68rem;
+    box-shadow: none;
+  }
+
+  html.is-touch.app-started .sidebar-header .app-howto-btn:hover,
+  html.is-touch.app-started .sidebar-header .app-howto-btn:focus,
+  html.is-touch.app-started .sidebar-header .app-howto-btn:focus-visible,
+  html.is-touch.app-started .sidebar-header .app-howto-btn:active {
+    color: #fff !important;
+    background: #0a0a0a !important;
+    border-color: var(--ink);
+    outline: none;
   }
 
   html.is-touch .param-global-toolbar {
@@ -3842,16 +4247,6 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
     pointer-events: auto !important;
     z-index: 10 !important;
     visibility: visible !important;
-  }
-
-  html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open):not(.mobile-winner-sheet-open):not(.mobile-geo-setup) .sidebar-dock__collapse-pill--expand {
-    display: inline-flex !important;
-    position: fixed;
-    z-index: 200;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    left: 12px;
-    margin: 0;
-    top: auto;
   }
 
   /* Vissza a paraméterekhez (bal felső) */
@@ -4196,6 +4591,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
   html.is-touch.app-started.map-picking #feedback-panel,
   html.is-touch.app-started.map-picking #heatmap-legend,
+  html.is-touch.app-started.map-picking #app-welcome-overlay,
   html.is-touch.app-started.map-picking #first-search-hint-overlay,
   html.is-touch.app-started.map-picking #strict-params-overlay {
     display: none !important;
