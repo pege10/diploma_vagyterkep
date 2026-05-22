@@ -5034,8 +5034,10 @@ html.is-touch .dual-range-thumb:active {
   font-size: 0.85rem;
   font-weight: 400;
   text-transform: none;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
   color: rgba(255, 255, 255, 0.55);
+  max-width: min(340px, 88vw);
 }
 
 .start-tap-hint {
