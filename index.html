@@ -20,7 +20,7 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=127">
+  <link rel="stylesheet" href="style.css?v=148">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
   <script>if('ontouchstart' in window||navigator.maxTouchPoints>0){document.documentElement.classList.add('is-touch');}</script>
 </head>
@@ -59,7 +59,7 @@
     </div>
 
     <div class="sidebar-footer" aria-label="Keresés és eredmény">
-      <button type="button" id="search-btn" class="search-btn">Tökéletes hely keresése</button>
+      <button type="button" id="search-btn" class="search-btn">A tökéletes helyed keresése</button>
       <div id="result-box" class="result-box" aria-live="polite"></div>
     </div>
     </aside>
@@ -81,9 +81,6 @@
       <button type="button" id="feedback-collapse-btn" class="feedback-panel__edge-tab" aria-expanded="true" title="Jobb panel elrejtése" aria-label="Jobb panel elrejtése">
         <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">›</span>
       </button>
-      <button type="button" id="heatmap-toggle-btn" class="feedback-panel__edge-tab feedback-panel__edge-tab--tool" aria-pressed="false" title="Találat-hőtérkép bekapcsolása" aria-label="Találat-hőtérkép be / ki">
-        <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">H</span>
-      </button>
       <button type="button" id="winner-info-toggle-btn" class="feedback-panel__edge-tab feedback-panel__edge-tab--tool" aria-pressed="false" title="Találat részletei (keresés után)" aria-label="Találat részletei a jobb panelen" disabled>
         <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">I</span>
       </button>
@@ -92,11 +89,18 @@
   </div>
 
   <div id="heatmap-legend" class="heatmap-legend" aria-hidden="true">
-    <div class="heatmap-legend__title">Találat-hőtérkép</div>
-    <div class="heatmap-legend__bar" aria-hidden="true"></div>
-    <div class="heatmap-legend__row">
-      <span>halvány egyezés</span>
-      <span>erős egyezés</span>
+    <div class="heatmap-legend__head">
+      <div class="heatmap-legend__title">Találat-hőtérkép</div>
+      <button type="button" id="heatmap-toggle-btn" class="heatmap-legend__toggle feedback-panel__edge-tab feedback-panel__edge-tab--tool" aria-pressed="false" title="Találat-hőtérkép bekapcsolása" aria-label="Találat-hőtérkép be / ki">
+        <span class="feedback-panel__edge-tab-glyph" aria-hidden="true">H</span>
+      </button>
+    </div>
+    <div class="heatmap-legend__body">
+      <div class="heatmap-legend__bar" aria-hidden="true"></div>
+      <div class="heatmap-legend__row">
+        <span>halvány egyezés</span>
+        <span>erős egyezés</span>
+      </div>
     </div>
   </div>
 
@@ -170,7 +174,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=190"></script>
+  <script src="app.js?v=210"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

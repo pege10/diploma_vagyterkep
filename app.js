@@ -161,6 +161,8 @@
 
   /** parameter_info.parameter_key (logikai azonosító, pl. forest_index) → tooltip szöveg */
   let parameterInfoByKey = {};
+  /** parameter_info teljes sor uiParamId (normalized) szerint — csúszka feliratok felülírásához */
+  let parameterInfoRowsByKey = {};
   /** Fontos hely kártyacímek — parameter_info geo_important_a / b megnevezes, ha van */
   let geoImportantPlaceTitle = { a: '', b: '' };
 
@@ -1234,24 +1236,450 @@
     if (map) setTimeout(function () { if (map) map.resize(); }, 120);
   }
 
-  function fillWinnerInfoContainer(container, city, matchPercent) {
-    if (!container || !city) return;
-    container.textContent = '';
-    const h2 = document.createElement('h2');
-    h2.className = 'feedback-panel__title feedback-panel__title--winner';
-    let title = 'Tökéletes hely · ' + cityName(city);
+  function buildFeedbackWinnerHeroEl(city, matchPercent) {
+    const wrap = document.createElement('div');
+    wrap.className = 'feedback-winner';
+
+    const row = document.createElement('div');
+    row.className = 'feedback-winner__row';
+    row.setAttribute('role', 'img');
+    row.setAttribute('aria-label', 'A tökéletes helyed: ' + cityName(city));
+
+    const title = document.createElement('span');
+    title.className = 'feedback-winner__title';
+    title.textContent = 'A tökéletes helyed';
+
+    const cityEl = document.createElement('span');
+    cityEl.className = 'feedback-winner__city';
+    cityEl.textContent = cityName(city) || '–';
+
+    row.appendChild(title);
+    row.appendChild(cityEl);
+    wrap.appendChild(row);
+
     if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
-      title += ' · ' + Math.round(Number(matchPercent)) + '% egyezés';
+      const pctBox = document.createElement('div');
+      pctBox.className = 'feedback-winner__match-box';
+      const pctNum = document.createElement('span');
+      pctNum.className = 'feedback-winner__match-pct';
+      pctNum.textContent = Math.round(Number(matchPercent)) + '%';
+      pctBox.appendChild(pctNum);
+      pctBox.appendChild(document.createTextNode(' egyezés'));
+      wrap.appendChild(pctBox);
     }
-    h2.textContent = title;
-    container.appendChild(h2);
-    appendCityInfoListToContainer(container, city);
+    appendFeedbackSettlementInfo(wrap, city);
+    return wrap;
   }
 
-  function renderMobileWinnerSheet(city, matchPercent) {
+  function settlementPanelTextField(city, key) {
+    if (!city || !key) return '';
+    const v = city[key];
+    return v != null && String(v).trim() !== '' ? String(v).trim() : '';
+  }
+
+  function formatPopulationCountNumber(n) {
+    if (n == null || !Number.isFinite(Number(n))) return '–';
+    return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function settlementPopulationOfCity(city) {
+    if (!city) return null;
+    const raw = city.population_2024 != null ? city.population_2024 : city.POPULATION_2024;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function settlementCountyLabel(city) {
+    const county = countyOfCity(city);
+    if (county) return county;
+    const name = cityName(city);
+    if (/\. kerület$/i.test(String(name))) return 'Budapest';
+    return '–';
+  }
+
+  function buildSettlementCountyLine(city) {
+    const name = cityName(city);
+    const isDistrict = /\. kerület$/i.test(String(name));
+    const countyLabel = isDistrict ? 'Budapest' : settlementCountyLabel(city);
+    return 'Megye: ' + countyLabel;
+  }
+
+  function buildSettlementPopulationLine(city) {
+    const pop = formatPopulationCountNumber(settlementPopulationOfCity(city));
+    return 'Lakosság: ' + pop + ' fő';
+  }
+
+  function settlementPanelDescriptionText(city) {
+    const fromDb = settlementPanelTextField(city, 'panel_leiras');
+    if (fromDb) return fromDb;
+    return (
+      'Ez a település változatos természeti és közösségi környezetet kínál a mindennapokhoz. ' +
+      'A helyi infrastruktúra és elérhető szolgáltatások sokféle élethelyzetben megfelelő alapot adnak. ' +
+      'A településre szabott, három mondatos leírást hamarosan a CityData adatbázisból töltjük be.'
+    );
+  }
+
+  /** Egyezés % alatt, vezetett távolságok fölött: település ismertető doboz (megye, lakosság, szöveg). */
+  function appendFeedbackSettlementInfo(wrap, city) {
+    if (!wrap || !city) return;
+
+    const block = document.createElement('div');
+    block.className = 'feedback-winner__settlement-info';
+
+    const descBox = document.createElement('div');
+    descBox.className = 'feedback-winner__settlement-desc-box';
+
+    const descHead = document.createElement('div');
+    descHead.className = 'feedback-winner__settlement-desc-head';
+    descHead.textContent = 'Település rövid ismertetője';
+    descBox.appendChild(descHead);
+
+    const meta = document.createElement('div');
+    meta.className = 'feedback-winner__settlement-meta';
+
+    const countyLine = document.createElement('p');
+    countyLine.className = 'feedback-winner__settlement-meta-line';
+    countyLine.textContent = buildSettlementCountyLine(city);
+
+    const popLine = document.createElement('p');
+    popLine.className = 'feedback-winner__settlement-meta-line';
+    popLine.textContent = buildSettlementPopulationLine(city);
+
+    meta.appendChild(countyLine);
+    meta.appendChild(popLine);
+    descBox.appendChild(meta);
+
+    const desc = document.createElement('p');
+    desc.className = 'feedback-winner__settlement-desc';
+    desc.textContent = settlementPanelDescriptionText(city);
+    descBox.appendChild(desc);
+
+    block.appendChild(descBox);
+    wrap.appendChild(block);
+  }
+
+  function formatParamCompareNumber(n) {
+    if (n == null || !Number.isFinite(n)) return '–';
+    return String(Math.round(n * 1000) / 1000);
+  }
+
+  /** Index mutató: |cél − település| / |cél| · 100 */
+  function formatIndexDeviationPercent(want, got) {
+    if (got == null || !Number.isFinite(got)) return 'nincs adat';
+    if (want == null || !Number.isFinite(want)) return '–';
+    const diff = Math.abs(want - got);
+    if (diff < 1e-9) return '0%';
+    if (Math.abs(want) < 1e-9) {
+      return formatParamCompareNumber(diff) + ' pont';
+    }
+    const pct = (diff / Math.abs(want)) * 100;
+    const rounded = Math.round(pct * 10) / 10;
+    return String(rounded) + '%';
+  }
+
+  /**
+   * Sávos mutató: eltérés a cél sáv (bandMin–bandMax) szélétől.
+   * @param {function(number): string} fmtUi
+   */
+  function formatBandDeviationText(gotIndex, bandMin, bandMax, fmtUi) {
+    if (gotIndex == null || !Number.isFinite(gotIndex)) return 'nincs adat';
+    const lo = Math.min(bandMin, bandMax);
+    const hi = Math.max(bandMin, bandMax);
+    if (gotIndex >= lo && gotIndex <= hi) return 'a sávban';
+    const dev = gotIndex < lo ? lo - gotIndex : gotIndex - hi;
+    const devText = fmtUi ? fmtUi(dev) : formatParamCompareNumber(dev);
+    return devText + ' a sávtól';
+  }
+
+  /**
+   * Keresésbe beleszámolt mutatók: címke, kívánt érték, település érték, eltérés.
+   * @returns {Array<{ key: string, label: string, wantText: string, gotText: string, diffText: string, isBand: boolean }>}
+   */
+  function buildSearchResultParamRows(winningCity, targets) {
+    const rows = [];
+    if (!winningCity || !targets || typeof targets !== 'object') return rows;
+
+    for (let i = 0; i < indexParamKeys.length; i++) {
+      const key = indexParamKeys[i];
+      const pack = targets[key];
+      if (!pack) continue;
+
+      if (pack.mode === 'band') {
+        const filterCol = pack.companionKey || key;
+        const parseValue = pack.parseValue || parseNumeric;
+        const bandCfg = getBandFilterConfigForDbKey(key);
+        const displayModel = bandCfg
+          ? createBandFilterDisplayModel(key, bandCfg)
+          : null;
+        const fmtUi = function (v) {
+          return formatBandFilterUiValue(
+            v,
+            bandCfg,
+            key,
+            pack.scaleMax,
+            displayModel
+          );
+        };
+        const gotIndex = filterCol ? parseValue(winningCity[filterCol]) : null;
+        const dispInfo = findCompanionInfoForIndexKey(key);
+        let gotText = '–';
+        if (dispInfo && dispInfo.pair) {
+          const parseFn = dispInfo.pair.parse || parseNumeric;
+          gotText = dispInfo.pair.formatPair(
+            parseFn(winningCity[dispInfo.pair.a]),
+            parseFn(winningCity[dispInfo.pair.b])
+          );
+        } else if (dispInfo && dispInfo.companionKey && dispInfo.format) {
+          const parseFn = dispInfo.parse || parseNumeric;
+          const dv = parseFn(winningCity[dispInfo.companionKey]);
+          gotText = dv != null ? dispInfo.format(dv) : '–';
+        } else if (gotIndex != null) {
+          gotText = fmtUi(gotIndex);
+        }
+        const diffText = formatBandDeviationText(
+          gotIndex,
+          pack.bandMin,
+          pack.bandMax,
+          fmtUi
+        );
+        rows.push({
+          key: key,
+          isBand: true,
+          label: paramLabelForDbKey(key),
+          wantText: fmtUi(pack.bandMin) + ' – ' + fmtUi(pack.bandMax),
+          gotText: gotText,
+          diffText: diffText,
+        });
+        continue;
+      }
+
+      if (pack.value == null) continue;
+      const want = pack.value;
+      const got = parseNumeric(winningCity[key]);
+      rows.push({
+        key: key,
+        isBand: false,
+        label: paramLabelForDbKey(key),
+        wantText: formatIndexParamUiAtSliderValue(key, want),
+        gotText: formatCityInfoValueForParamKey(winningCity, key),
+        diffText: formatIndexDeviationPercent(want, got),
+      });
+    }
+
+    return rows;
+  }
+
+  function appendFeedbackParamListToContainer(container, rows) {
+    if (!container) return;
+    if (!rows.length) {
+      const p = document.createElement('p');
+      p.className = 'feedback-param-list__empty';
+      p.textContent =
+        'Nincs bekapcsolt paraméter. Kapcsolj be legalább egyet a bal oldali panelen.';
+      container.appendChild(p);
+      return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'feedback-param-list';
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const item = document.createElement('li');
+      item.className = 'feedback-param-list__item';
+
+      const name = document.createElement('div');
+      name.className = 'feedback-param-list__name';
+      name.textContent = row.label;
+      name.title = row.key;
+      item.appendChild(name);
+
+      const stats = document.createElement('dl');
+      stats.className = 'feedback-param-list__stats';
+
+      [
+        { label: 'Célérték', value: row.wantText },
+        { label: 'Településérték', value: row.gotText },
+        { label: 'Eltérés', value: row.diffText },
+      ].forEach(function (part) {
+        const dt = document.createElement('dt');
+        dt.textContent = part.label;
+        dt.title = part.label;
+        const dd = document.createElement('dd');
+        dd.textContent = part.value;
+        stats.appendChild(dt);
+        stats.appendChild(dd);
+      });
+
+      item.appendChild(stats);
+      list.appendChild(item);
+    }
+
+    container.appendChild(list);
+  }
+
+  /** OSRM driving: minimum utazási idő (leggyorsabb út), nem legrövidebb távolság. */
+  const OSRM_DRIVING_ROUTE_BASE = 'https://router.project-osrm.org/route/v1/driving/';
+  const DRIVING_ROUTE_KIND_LABEL = 'leggyorsabb út';
+  const drivingDistanceCache = new Map();
+
+  async function fetchDrivingDistanceKm(fromLng, fromLat, toLng, toLat) {
+    const cacheKey =
+      fromLng.toFixed(5) +
+      ',' +
+      fromLat.toFixed(5) +
+      '>' +
+      toLng.toFixed(5) +
+      ',' +
+      toLat.toFixed(5);
+    if (drivingDistanceCache.has(cacheKey)) {
+      return drivingDistanceCache.get(cacheKey);
+    }
+    const url =
+      OSRM_DRIVING_ROUTE_BASE +
+      fromLng +
+      ',' +
+      fromLat +
+      ';' +
+      toLng +
+      ',' +
+      toLat +
+      '?overview=false&alternatives=false&steps=false';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('routing HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+      throw new Error('routing no route');
+    }
+    const km = data.routes[0].distance / 1000;
+    drivingDistanceCache.set(cacheKey, km);
+    return km;
+  }
+
+  function appendFeedbackDrivingDistancesHost(container, city) {
+    if (!container || !city) return;
+    const slots = [];
+    if (geoSlotReady('a')) {
+      slots.push({
+        slot: 'a',
+        label: geoImportantPlaceTitle.a || geoSlotDisplayName('a'),
+      });
+    }
+    if (geoSlotReady('b')) {
+      slots.push({
+        slot: 'b',
+        label: geoImportantPlaceTitle.b || geoSlotDisplayName('b'),
+      });
+    }
+    if (!slots.length) return;
+
+    const host = document.createElement('div');
+    host.className = 'feedback-driving-distances';
+    host.setAttribute('aria-live', 'polite');
+
+    const head = document.createElement('div');
+    head.className = 'feedback-driving-distances__head';
+
+    const titleLine = document.createElement('span');
+    titleLine.className = 'feedback-driving-distances__title-line';
+    titleLine.textContent = 'Távolság a fontos helyektől';
+
+    const subLine = document.createElement('span');
+    subLine.className = 'feedback-driving-distances__subtitle-line';
+    subLine.textContent = DRIVING_ROUTE_KIND_LABEL;
+
+    head.appendChild(titleLine);
+    head.appendChild(subLine);
+    host.appendChild(head);
+
+    const list = document.createElement('ul');
+    list.className = 'feedback-driving-distances__list';
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i];
+      const li = document.createElement('li');
+      li.className = 'feedback-driving-distances__item';
+      li.dataset.geoSlot = s.slot;
+      const lab = document.createElement('span');
+      lab.className = 'feedback-driving-distances__label';
+      lab.textContent = s.label;
+      const val = document.createElement('span');
+      val.className = 'feedback-driving-distances__val';
+      val.textContent = 'számítás…';
+      li.appendChild(lab);
+      li.appendChild(val);
+      list.appendChild(li);
+    }
+    host.appendChild(list);
+    container.appendChild(host);
+
+    loadFeedbackDrivingDistances(host, city, slots);
+  }
+
+  /** Fontos hely routing: a hozzárendelt település központja (nem a térképes pick pont). */
+  function geoImportantPlaceRoutingLatLng(slot) {
+    const st = geoSlotState[slot];
+    if (!st || !st.city) return null;
+    const lat = cityLat(st.city);
+    const lng = cityLng(st.city);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat: lat, lng: lng };
+  }
+
+  function loadFeedbackDrivingDistances(host, city, slots) {
+    const wLng = cityLng(city);
+    const wLat = cityLat(city);
+    if (!Number.isFinite(wLng) || !Number.isFinite(wLat)) {
+      host.querySelectorAll('.feedback-driving-distances__val').forEach(function (el) {
+        el.textContent = '–';
+      });
+      return;
+    }
+    slots.forEach(function (s) {
+      const from = geoImportantPlaceRoutingLatLng(s.slot);
+      const valEl = host.querySelector(
+        '.feedback-driving-distances__item[data-geo-slot="' + s.slot + '"] .feedback-driving-distances__val'
+      );
+      if (!valEl || !from) {
+        if (valEl) valEl.textContent = '–';
+        return;
+      }
+      fetchDrivingDistanceKm(from.lng, from.lat, wLng, wLat)
+        .then(function (km) {
+          valEl.textContent = formatKmForUi(km);
+        })
+        .catch(function () {
+          valEl.textContent = 'nem elérhető';
+        });
+    });
+  }
+
+  function fillWinnerInfoContainer(container, city, matchPercent, targets) {
+    if (!container || !city) return;
+    container.textContent = '';
+    container.appendChild(buildFeedbackWinnerHeroEl(city, matchPercent));
+    appendFeedbackDrivingDistancesHost(container, city);
+    const paramHost = document.createElement('div');
+    paramHost.className = 'feedback-param-list-host';
+    const resolvedTargets =
+      targets ||
+      (lastSearchFeedbackMeta && lastSearchFeedbackMeta.targets) ||
+      null;
+    appendFeedbackParamListToContainer(
+      paramHost,
+      buildSearchResultParamRows(city, resolvedTargets)
+    );
+    container.appendChild(paramHost);
+  }
+
+  function renderMobileWinnerSheet(city, matchPercent, targets) {
     if (!isTouchMobileAppStarted() || !elements.mobileWinnerSheetBody || !city) return;
     document.documentElement.classList.remove('mobile-param-panel-open');
-    fillWinnerInfoContainer(elements.mobileWinnerSheetBody, city, matchPercent);
+    fillWinnerInfoContainer(
+      elements.mobileWinnerSheetBody,
+      city,
+      matchPercent,
+      targets
+    );
     showMobileWinnerSheetEl(true);
     syncMobileMapBackBtn();
     syncMobileMapDockButtons();
@@ -1317,7 +1745,8 @@
             ) {
               renderMobileWinnerSheet(
                 lastSearchFeedbackMeta.winningCity,
-                lastSearchFeedbackMeta.matchPercent
+                lastSearchFeedbackMeta.matchPercent,
+                lastSearchFeedbackMeta.targets
               );
             }
           }
@@ -2248,7 +2677,12 @@
 
     const flexTitle =
       'Rugalmasság (0 = nincs korlát, ' + PARAM_WEIGHT_SLIDER_MAX + ' = szigorú sáv)';
-    const minutesLoHi = {
+    const flexSliderDefaults = {
+      flexLabel: 'Rugalmasság',
+      flexLeftHint: 'Laza',
+      flexRightHint: 'Szigorú',
+    };
+    const minutesLoHi = Object.assign({}, flexSliderDefaults, {
       invertScale: true,
       intro:
         'Elfogadható utazási idő tartomány. Balra a hosszabb, jobbra a rövidebb idő.',
@@ -2261,8 +2695,8 @@
       defaultMaxDelta: 30,
       scorePrefer: 'lower',
       flexTitle: flexTitle,
-    };
-    const indexBand = {
+    });
+    const indexBand = Object.assign({}, flexSliderDefaults, {
       invertScale: false,
       intro:
         'Elfogadható index tartomány. Balra az alacsonyabb, jobbra a magasabb érték.',
@@ -2275,7 +2709,7 @@
       defaultMaxDelta: null,
       scorePrefer: 'higher',
       flexTitle: flexTitle,
-    };
+    });
 
     let preset = null;
 
@@ -2411,7 +2845,7 @@
     }
 
     if (!preset) return null;
-    return enrichBandFilterConfig(dbKey, preset);
+    return applyParameterInfoUiTextOverrides(ent.id, enrichBandFilterConfig(dbKey, preset));
   }
 
   /** Sáv: utazási idő mutatóknál szűrés/perc oszlop; egyébként index (dbKey). */
@@ -2555,6 +2989,54 @@
       };
     }
     return null;
+  }
+
+  /** Index csúszka célérték → bal oldali panelen látható companion felirat (% / km / perc). */
+  function createIndexParamDisplayModel(indexKey) {
+    const info = findCompanionInfoForIndexKey(indexKey);
+    if (!info) return null;
+    const rng = sliderRanges[indexKey];
+    const step = rng && rng.step != null ? rng.step : 1;
+    if (info.pair) {
+      const parseFn = info.pair.parse || parseNumeric;
+      const mA = createIndexCompanionAverageModel(indexKey, info.pair.a, step, parseFn);
+      const mB = createIndexCompanionAverageModel(indexKey, info.pair.b, step, parseFn);
+      if (!mA || !mB) return null;
+      return {
+        formatAtIndex: function (ix) {
+          return info.pair.formatPair(
+            mA.valueAtSliderValue(ix),
+            mB.valueAtSliderValue(ix)
+          );
+        },
+      };
+    }
+    if (info.companionKey && info.format) {
+      const m = createIndexCompanionAverageModel(
+        indexKey,
+        info.companionKey,
+        step,
+        info.parse
+      );
+      if (!m) return null;
+      return {
+        formatAtIndex: function (ix) {
+          const v = m.valueAtSliderValue(ix);
+          return v != null ? info.format(v) : '–';
+        },
+      };
+    }
+    return null;
+  }
+
+  function formatIndexParamUiAtSliderValue(indexKey, indexValue) {
+    if (indexValue == null || !Number.isFinite(indexValue)) return '–';
+    const model = createIndexParamDisplayModel(indexKey);
+    if (model && model.formatAtIndex) {
+      const t = model.formatAtIndex(indexValue);
+      if (t != null && t !== '' && t !== '–') return t;
+    }
+    return formatParamCompareNumber(indexValue);
   }
 
   function formatBandFilterUiValue(indexVal, cfg, indexKey, scaleMax, displayModel) {
@@ -2903,89 +3385,102 @@
   function getValueSliderUiConfig(uiParamId) {
     if (!uiParamId || isUiParamDisabled(uiParamId)) return null;
     const base = Object.assign({}, DEFAULT_WEIGHT_SLIDER_UI);
+    let result = null;
     switch (uiParamId) {
       case 'forest_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt erdőlefedettségi index (3 km). Szűrés: index; a szélső értékek: átlagos erdőarány (%).',
           valueLabel: 'Kívánt index',
           leftHint: 'Kevesebb erdő',
           rightHint: 'Több erdő',
         });
+        break;
       case 'water_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt vízfelület-index (3 km). Szűrés: index; a szélső értékek: átlagos vízarány (%).',
           valueLabel: 'Kívánt index',
           leftHint: 'Kevesebb víz',
           rightHint: 'Több víz',
         });
+        break;
       case 'terrain_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt hegyvidéki karakter index (3 km). Szűrés: index; a szélső értékek: átlagos lejtés (°).',
           valueLabel: 'Kívánt index',
           leftHint: 'Laposabb',
           rightHint: 'Hegyesebb',
         });
+        break;
       case 'senior_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt arány a 65 év felettieknek. Szűrés: index; a szélső értékek: népességarány (%).',
           valueLabel: 'Kívánt index',
           leftHint: 'Fiatalabb',
           rightHint: 'Idősebb',
         });
+        break;
       case 'sleeping_city_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt alvóváros index – mennyire kiszolgált a település a környező nagyvárosok felől.',
           valueLabel: 'Kívánt index',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
+        break;
       case 'turism_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro: 'Kívánt turizmus index (0–100).',
           valueLabel: 'Kívánt index',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
+        break;
       case 'primary_school_proximity_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt iskolaválaszték index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
           valueLabel: 'Kívánt index',
           leftHint: 'Távolabb',
           rightHint: 'Közelebb',
         });
+        break;
       case 'high_school_proximity_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt gimnázium-elérhetőség index. Szűrés: index; felirat: távolság (km). Válaszd ki az iskola típusát.',
           valueLabel: 'Kívánt index',
           leftHint: 'Távolabb',
           rightHint: 'Közelebb',
         });
+        break;
       case 'real_estate_price_grow_5yrs_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt áremelkedés index (5 év). Szűrés: index; felirat: %. Válaszd ki az ingatlan típusát.',
           valueLabel: 'Kívánt index',
           leftHint: 'Alacsonyabb',
           rightHint: 'Magasabb',
         });
+        break;
       case 'real_estate_price_avg5mth_index':
-        return Object.assign(base, {
+        result = Object.assign(base, {
           intro:
             'Kívánt ingatlanár-szint index. Szűrés: index; felirat: Ft/m². Válaszd ki az ingatlan típusát.',
           valueLabel: 'Kívánt index',
           leftHint: 'Olcsóbb',
           rightHint: 'Drágább',
         });
+        break;
       default:
-        return null;
+        result = null;
     }
+    if (!result) return null;
+    return applyParameterInfoUiTextOverrides(uiParamId, result);
   }
 
   function appendParamValueIntro(parent, intro) {
@@ -3795,12 +4290,12 @@
     const wrap = document.createElement('div');
     wrap.className = 'map-win-marker';
     wrap.setAttribute('role', 'img');
-    wrap.setAttribute('aria-label', 'Tökéletes hely: ' + (cityName || ''));
+    wrap.setAttribute('aria-label', 'A tökéletes helyed: ' + (cityName || ''));
     const stack = document.createElement('div');
     stack.className = 'map-win-marker__stack';
     const title = document.createElement('span');
     title.className = 'map-win-marker__title';
-    title.textContent = 'Tökéletes hely';
+    title.textContent = 'A tökéletes helyed';
     const city = document.createElement('span');
     city.className = 'map-win-marker__city';
     city.textContent = cityName || '–';
@@ -5130,8 +5625,13 @@
 
   function paramLabelForDbKey(dbKey) {
     const ent = getUiParamEntryForDbKey(dbKey);
-    if (!ent || !ent.megnevezes) return shortLabelForKey(dbKey);
-    return ent.megnevezes;
+    if (ent && ent.megnevezes) return ent.megnevezes;
+    if (ent) {
+      const row = getParameterInfoRowForUiParam(ent.id);
+      const lab = row ? pickParameterInfoMegnevezes(row) : '';
+      if (lab) return lab;
+    }
+    return shortLabelForKey(dbKey);
   }
 
   function columnDisplayLabel(dbKey) {
@@ -5360,7 +5860,7 @@
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     btn.title = hasMeta
       ? active
-        ? 'Tökéletes hely mutatói vissza a panelben'
+        ? 'A tökéletes helyed mutatói vissza a panelben'
         : 'Találat részletei megnyitása'
       : 'Találat részletei (előbb keress)';
   }
@@ -5377,10 +5877,16 @@
         : lastSearchFeedbackMeta && lastSearchFeedbackMeta.matchPercent != null
           ? lastSearchFeedbackMeta.matchPercent
           : null;
-    fillWinnerInfoContainer(inner, city, pct);
+    const resolvedTargets =
+      opts && opts.targets != null
+        ? opts.targets
+        : lastSearchFeedbackMeta && lastSearchFeedbackMeta.targets
+          ? lastSearchFeedbackMeta.targets
+          : null;
+    fillWinnerInfoContainer(inner, city, pct, resolvedTargets);
     if (isTouchMobileAppStarted()) {
       if (opts && opts.showMobileWinnerSheet) {
-        renderMobileWinnerSheet(city, pct);
+        renderMobileWinnerSheet(city, pct, resolvedTargets);
       }
       return;
     }
@@ -6009,7 +6515,7 @@
     itemBody.id = bodyId;
     itemBody.className = 'param-item__body';
 
-    const variantSliderUi = getValueSliderUiConfig(uiParamId);
+    const variantSliderUi = resolveSliderUiConfig(uiParamId);
     if (variantSliderUi && variantSliderUi.intro) {
       appendParamValueIntro(itemBody, variantSliderUi.intro);
     }
@@ -6212,13 +6718,20 @@
     return wrap;
   }
 
-  function appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, flexTitle) {
+  function appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, cfg) {
+    const flexTitle = cfg && cfg.flexTitle ? cfg.flexTitle : '';
+    const flexLabelText =
+      cfg && cfg.flexLabel ? cfg.flexLabel : 'Rugalmasság';
+    const flexLeft =
+      cfg && cfg.flexLeftHint ? cfg.flexLeftHint : 'Laza';
+    const flexRight =
+      cfg && cfg.flexRightHint ? cfg.flexRightHint : 'Szigorú';
     const weightWrap = document.createElement('div');
     weightWrap.className = 'param-item__weight';
 
     const flexLabel = document.createElement('span');
     flexLabel.className = 'param-band-slider-label';
-    flexLabel.textContent = 'Rugalmasság';
+    flexLabel.textContent = flexLabelText;
 
     const flexInput = document.createElement('input');
     flexInput.type = 'range';
@@ -6233,7 +6746,7 @@
     flexInput.value = String(PARAM_BAND_FLEX_DEFAULT);
 
     const flexStack = buildParamRangeRowWithExtrema(flexInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
-    appendParamRangeHints(flexStack, 'Laza', 'Szigorú');
+    appendParamRangeHints(flexStack, flexLeft, flexRight);
 
     weightWrap.appendChild(flexLabel);
     weightWrap.appendChild(flexStack);
@@ -6410,7 +6923,7 @@
     };
     mountBandDualRangeOnBlock(bandBlock, key, sliderIdNum, labelText, cfg, onBandChange);
 
-    appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, cfg.flexTitle);
+    appendBandFilterFlexBlock(itemBody, key, sliderIdNum, labelText, cfg);
 
     wrap.appendChild(headRow);
     wrap.appendChild(itemBody);
@@ -6664,7 +7177,7 @@
       variantMap[defaultVariantId].indexKey,
       sliderIdNum,
       labelText,
-      firstCfg ? firstCfg.flexTitle : ''
+      firstCfg || null
     );
 
     applyVariantBand(wrap, defaultVariantId, segmentBtns, segTrack, segmentIndexMap);
@@ -6761,7 +7274,7 @@
     itemBody.className = 'param-item__body';
 
     const uiParamEnt = getUiParamEntryForDbKey(key);
-    const sliderUi = uiParamEnt ? getValueSliderUiConfig(uiParamEnt.id) : null;
+    const sliderUi = uiParamEnt ? resolveSliderUiConfig(uiParamEnt.id) : null;
     if (sliderUi && sliderUi.intro) {
       appendParamValueIntro(itemBody, sliderUi.intro);
     }
@@ -7578,6 +8091,93 @@
     return '';
   }
 
+  function getParameterInfoRowForUiParam(uiParamId) {
+    if (!uiParamId) return null;
+    const kn = normalizeParameterInfoTableKey(uiParamId);
+    if (!kn || !parameterInfoRowsByKey[kn]) return null;
+    return parameterInfoRowsByKey[kn];
+  }
+
+  function pickParameterInfoOptionalText(row, fieldNames) {
+    if (!row || typeof row !== 'object' || !fieldNames || !fieldNames.length) return '';
+    for (let i = 0; i < fieldNames.length; i++) {
+      const name = fieldNames[i];
+      if (!Object.prototype.hasOwnProperty.call(row, name)) continue;
+      const v = row[name];
+      if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  }
+
+  /**
+   * parameter_info CSV/tábla → panel szövegek (fallback: app.js beégetett értékek).
+   * @param {string} uiParamId
+   * @param {Record<string, string>} cfg
+   */
+  function applyParameterInfoUiTextOverrides(uiParamId, cfg) {
+    if (!cfg || !uiParamId) return cfg;
+    const row = getParameterInfoRowForUiParam(uiParamId);
+    if (!row) return cfg;
+    const out = Object.assign({}, cfg);
+    const rovid = pickParameterInfoOptionalText(row, ['rovid_leiras']);
+    if (rovid) out.intro = rovid;
+    const s1n = pickParameterInfoOptionalText(row, ['szlider1_megnevezes']);
+    if (s1n) {
+      if (Object.prototype.hasOwnProperty.call(out, 'valueLabel')) out.valueLabel = s1n;
+      if (Object.prototype.hasOwnProperty.call(out, 'bandLabel')) out.bandLabel = s1n;
+    }
+    const s1b = pickParameterInfoOptionalText(row, ['szlider1_bal']);
+    if (s1b) out.leftHint = s1b;
+    const s1j = pickParameterInfoOptionalText(row, ['szlider1_jobb']);
+    if (s1j) out.rightHint = s1j;
+    const s2n = pickParameterInfoOptionalText(row, ['szlider2_megnevezes']);
+    if (s2n) {
+      if (Object.prototype.hasOwnProperty.call(out, 'weightLabel')) out.weightLabel = s2n;
+      if (Object.prototype.hasOwnProperty.call(out, 'flexLabel')) out.flexLabel = s2n;
+    }
+    const s2b = pickParameterInfoOptionalText(row, ['szlider2_bal']);
+    if (s2b) {
+      if (Object.prototype.hasOwnProperty.call(out, 'weightLeftHint')) out.weightLeftHint = s2b;
+      if (Object.prototype.hasOwnProperty.call(out, 'flexLeftHint')) out.flexLeftHint = s2b;
+    }
+    const s2j = pickParameterInfoOptionalText(row, ['szlider2_jobb']);
+    if (s2j) {
+      if (Object.prototype.hasOwnProperty.call(out, 'weightRightHint')) out.weightRightHint = s2j;
+      if (Object.prototype.hasOwnProperty.call(out, 'flexRightHint')) out.flexRightHint = s2j;
+    }
+    return out;
+  }
+
+  /** Csak parameter_info-ból (pl. diploma_index — nincs beégetett getValueSliderUiConfig). */
+  function getParameterInfoSliderUiFallbackFromDb(uiParamId) {
+    const row = getParameterInfoRowForUiParam(uiParamId);
+    if (!row) return null;
+    const rovid = pickParameterInfoOptionalText(row, ['rovid_leiras']);
+    const s1n = pickParameterInfoOptionalText(row, ['szlider1_megnevezes']);
+    const s1b = pickParameterInfoOptionalText(row, ['szlider1_bal']);
+    const s1j = pickParameterInfoOptionalText(row, ['szlider1_jobb']);
+    const s2n = pickParameterInfoOptionalText(row, ['szlider2_megnevezes']);
+    const s2b = pickParameterInfoOptionalText(row, ['szlider2_bal']);
+    const s2j = pickParameterInfoOptionalText(row, ['szlider2_jobb']);
+    if (!rovid && !s1n && !s1b && !s1j && !s2n && !s2b && !s2j) return null;
+    const out = Object.assign({}, DEFAULT_WEIGHT_SLIDER_UI);
+    if (rovid) out.intro = rovid;
+    if (s1n) out.valueLabel = s1n;
+    if (s1b) out.leftHint = s1b;
+    if (s1j) out.rightHint = s1j;
+    if (s2n) out.weightLabel = s2n;
+    if (s2b) out.weightLeftHint = s2b;
+    if (s2j) out.weightRightHint = s2j;
+    return out;
+  }
+
+  function resolveSliderUiConfig(uiParamId) {
+    if (!uiParamId) return null;
+    const builtIn = getValueSliderUiConfig(uiParamId);
+    if (builtIn) return builtIn;
+    return getParameterInfoSliderUiFallbackFromDb(uiParamId);
+  }
+
   function pickParameterInfoAdatforrasOk(row) {
     if (!row || typeof row !== 'object') return '';
     const direct = row.adatforras_ok || row.adatforras;
@@ -7667,6 +8267,7 @@
         return;
       }
       parameterInfoByKey = {};
+      parameterInfoRowsByKey = {};
       geoImportantPlaceTitle = { a: '', b: '' };
       if (!Array.isArray(data)) return;
       if (data.length === 0) {
@@ -7677,6 +8278,12 @@
         return;
       }
       applyParameterInfoMegnevezesFromRows(data);
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const k = pickParameterInfoRowKey(row);
+        const kn = normalizeParameterInfoTableKey(k);
+        if (kn) parameterInfoRowsByKey[kn] = row;
+      }
       for (let g = 0; g < data.length; g++) {
         const gRow = data[g];
         const gk = pickParameterInfoRowKey(gRow);
@@ -7903,7 +8510,7 @@
 
   function onParamSoloButtonClick(btn) {
     if (!sliderAutoSearchActive) {
-      btn.title = 'Előbb futtasd a „Tökéletes hely keresése” funkciót.';
+      btn.title = 'Előbb nyomd meg az „A tökéletes helyed keresése” gombot.';
       return;
     }
     const card = btn.closest('.param-item');
@@ -9230,9 +9837,21 @@
     );
   }
 
+  function isHeatmapUiAvailable() {
+    return shouldRevealSearchSolutionToUser() && !!lastSearchFeedbackMeta;
+  }
+
   function syncHeatmapToggleUi() {
+    const available = isHeatmapUiAvailable();
+    if (!available && heatmapEnabled) {
+      heatmapEnabled = false;
+      setHeatmapLayerVisibility(false);
+      clearHeatmapFeatureStates();
+      closeCityInfoPopup();
+    }
     const btn = document.getElementById('heatmap-toggle-btn');
     if (btn) {
+      btn.hidden = !available;
       btn.classList.toggle('feedback-panel__edge-tab--on', heatmapEnabled);
       btn.setAttribute('aria-pressed', heatmapEnabled ? 'true' : 'false');
       btn.title = heatmapEnabled
@@ -9241,8 +9860,9 @@
     }
     const legend = document.getElementById('heatmap-legend');
     if (legend) {
-      legend.classList.toggle('heatmap-legend--visible', heatmapEnabled);
-      legend.setAttribute('aria-hidden', heatmapEnabled ? 'false' : 'true');
+      legend.classList.toggle('heatmap-legend--available', available);
+      legend.classList.toggle('heatmap-legend--on', heatmapEnabled);
+      legend.setAttribute('aria-hidden', available ? 'false' : 'true');
     }
   }
 
@@ -9362,6 +9982,10 @@
       longitude: lng,
       lat: lat,
       lng: lng,
+      panel_adatok: row.panel_adatok,
+      panel_rovid_szoveg: row.panel_rovid_szoveg,
+      panel_leiras: row.panel_leiras,
+      population_2024: row.population_2024,
     };
   }
 
@@ -9506,7 +10130,7 @@
       citiesData.length +
       ' település · ' +
       indexParamKeys.length +
-      ' mutató. Állítsd a csúszkákat, majd nyomd meg a „Tökéletes hely keresése” gombot — utána minden csúszka módosításra újra keres.';
+      ' mutató. Állítsd a csúszkákat, majd nyomd meg az „A tökéletes helyed keresése” gombot — utána minden csúszka módosításra újra keres.';
     if (loadWarnings && loadWarnings.length) {
       status += ' (Figyelmeztetés: ' + loadWarnings.join('; ') + ')';
     }
@@ -9515,6 +10139,7 @@
 
   async function fetchAllParameters() {
     lastSearchFeedbackMeta = null;
+    syncHeatmapToggleUi();
     hideFeedbackPanel();
     elements.resultBox.textContent = 'Települések betöltése…';
     try {
@@ -9595,6 +10220,7 @@
       lastSearchFeedbackMeta = null;
       rightPanelMode = null;
       syncWinnerInfoToggleUi();
+      syncHeatmapToggleUi();
       hideMobileWinnerSheet();
       hideFeedbackPanel();
       return;
@@ -9627,6 +10253,7 @@
         matchPercent: matchPercent,
       };
       syncWinnerInfoToggleUi();
+      void setHeatmapEnabled(true);
       renderWinnerInfoInRightPanel(winningCity, matchPercent, {
         showMobileWinnerSheet: !!(meta && meta.flyMapToResult),
       });
@@ -9819,6 +10446,7 @@
       removeWinningMarker();
       lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
+      syncHeatmapToggleUi();
       syncHeatmapWithActiveParams();
       ensureMobileFullParamPanelForEditing();
       openStrictParamsModal({
@@ -9833,12 +10461,6 @@
 
     if (heatmapEnabled) {
       updateHeatmapFromTargets(targets);
-    } else if (result && shouldRevealSearchSolutionToUser()) {
-      try {
-        await setHeatmapEnabled(true);
-      } catch (e) {
-        console.warn('Hőtérkép bekapcsolás keresés után:', e);
-      }
     }
 
     if (result) {
@@ -9898,6 +10520,7 @@
       removeWinningMarker();
       lastSearchFeedbackMeta = null;
       hideFeedbackPanel();
+      syncHeatmapToggleUi();
       if (layoutAnchor && scroller && Number.isFinite(anchorY)) {
         applySidebarScrollAnchorAfterLayout(layoutAnchor, scroller, anchorY);
       }
@@ -10122,6 +10745,7 @@
     syncMobileMapDockButtons();
     initParamInfoTooltips();
     initMap();
+    await fetchParameterInfoMap();
     buildImportantPlacesPanel();
     initImportantPlaceElements();
     if (document.documentElement.classList.contains('app-started') && shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a')) {
@@ -10263,7 +10887,6 @@
       if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    await fetchParameterInfoMap();
     const geoPreload = ensureGeoIndexed().catch(function (err) {
       console.warn('Település-határok előtöltés:', err);
     });

@@ -1,5 +1,3 @@
-parameter_key,ui_definicio
-forest_index,Ide tedd az erdőlefedettség mutató UI szövegét (parameter_info / Supabase).
-water_index,Ide a vízfelület lefedettség magyarázata.
-geo_important_a,Ide az 1. fontos hely kártya magyarázata.
-geo_important_b,Ide a 2. fontos hely kártya magyarázata.
+parameter_key,megnevezes,ui_definicio,rovid_leiras,szlider1_megnevezes,szlider1_bal,szlider1_jobb,szlider2_megnevezes,szlider2_bal,szlider2_jobb,adatforras_ok,adatforras_link
+forest_index,,,"Kívánt erdőlefedettségi index (3 km). Szűrés: index; a szélső értékek: átlagos erdőarány (%).",Kívánt index,Kevesebb erdő,Több erdő,Fontosság a keresésben,Nem számít,Maximális,,
+airpollution_index,,,"Elfogadható légszennyezettségi index (3 km). Szűrés: index pont; magasabb index = erősebb szennyezés.",Elfogadható tartomány,Tisztább,Szennyezettebb,Rugalmasság,Laza,Szigorú,,
