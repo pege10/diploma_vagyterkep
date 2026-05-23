@@ -1,7 +1,7 @@
 {
   "name": "Holistic Search Engine",
   "short_name": "Holistic",
-  "description": "Holistic Search Engine — település kereső",
+  "description": "Találd meg a számodra legtökéletesebb magyarországi települést, a leginkább hozzád passzoló hangulatot, a valós adatbázisokra épülő paraméterek alapján.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

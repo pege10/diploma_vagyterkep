@@ -29,6 +29,8 @@
   --mobile-floating-sheet-inset: 12px;
   --mobile-floating-sheet-radius: 8px;
   --mobile-floating-sheet-map-gap: 8px;
+  --app-vh: 100vh;
+  --app-vh: 100dvh;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -68,9 +70,15 @@ body {
   overflow: hidden;
 }
 
+html.is-touch,
+html.is-touch body {
+  min-height: var(--app-vh);
+  height: var(--app-vh);
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: var(--app-vh);
   background: #0a0a0a;
 }
 
@@ -81,7 +89,6 @@ body {
   inset: 0;
   z-index: 0;
   width: 100%;
-  height: 100vh;
 }
 
 /* ── Bal panel dokkoló: keskeny fül, panel becsukható balra ─ */
@@ -4437,6 +4444,9 @@ html.is-touch .dual-range-thumb:active {
     display: flex !important;
     position: fixed;
     inset: 0;
+    width: 100%;
+    min-height: var(--app-vh);
+    height: var(--app-vh);
     z-index: 10000;
     background: #000;
     align-items: center;
@@ -4491,7 +4501,7 @@ html.is-touch .dual-range-thumb:active {
     left: 0 !important;
     right: 0 !important;
     max-height: none !important;
-    min-height: 100dvh !important;
+    min-height: var(--app-vh) !important;
     height: auto !important;
     z-index: 140 !important;
   }
@@ -4499,8 +4509,8 @@ html.is-touch .dual-range-thumb:active {
   html.is-touch.app-started:not(.mobile-map-view) .sidebar-dock .sidebar {
     top: 0 !important;
     bottom: 0 !important;
-    max-height: 100dvh !important;
-    min-height: 100dvh !important;
+    max-height: var(--app-vh) !important;
+    min-height: var(--app-vh) !important;
     height: auto !important;
     border-radius: 0 !important;
     border-top: none !important;
@@ -5514,6 +5524,9 @@ html.exhibition-mode:not(.exhibition-mode--revealed) #heatmap-legend {
   display: none;
   position: fixed;
   inset: 0;
+  width: 100%;
+  min-height: var(--app-vh);
+  height: var(--app-vh);
   z-index: 100001;
   background: #0a0a0a;
   color: #fff;

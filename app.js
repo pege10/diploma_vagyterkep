@@ -3073,6 +3073,34 @@
     } catch (_) {}
   }
 
+  /** iOS Safari / PWA: a 100vh gyakran rövidebb a látható képernyőnél — px magasság a visualViewport-ból. */
+  function syncMobileAppViewportHeight() {
+    if (!document.documentElement.classList.contains('is-touch')) return;
+    const vv = window.visualViewport;
+    const h = vv && vv.height ? Math.round(vv.height) : Math.round(window.innerHeight);
+    if (h > 0) {
+      document.documentElement.style.setProperty('--app-vh', h + 'px');
+    }
+    if (map) {
+      requestAnimationFrame(function () {
+        if (map) map.resize();
+      });
+    }
+  }
+
+  function initMobileAppViewportHeight() {
+    if (!document.documentElement.classList.contains('is-touch')) return;
+    syncMobileAppViewportHeight();
+    window.addEventListener('resize', syncMobileAppViewportHeight);
+    window.addEventListener('orientationchange', function () {
+      window.setTimeout(syncMobileAppViewportHeight, 120);
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncMobileAppViewportHeight);
+      window.visualViewport.addEventListener('scroll', syncMobileAppViewportHeight);
+    }
+  }
+
   function initPortraitOrientationLock() {
     if (!document.documentElement.classList.contains('is-touch')) return;
     tryLockPortraitOrientation();
@@ -11297,6 +11325,7 @@
 
     requestFullscreen();
     tryLockPortraitOrientation();
+    syncMobileAppViewportHeight();
 
     document.documentElement.classList.add('app-started', 'mobile-map-view');
     syncMobileMapDockButtons();
@@ -11654,6 +11683,7 @@
     initMobileWinnerSheetDrag();
     initMobileRangeFocusRingFix();
     initMobileGeoKeyboardGuard();
+    initMobileAppViewportHeight();
     initPortraitOrientationLock();
     initMobileMapChrome();
     if (isTouchMobileAppStarted()) {
