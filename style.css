@@ -3110,12 +3110,19 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   width: var(--range-thumb-hit);
   height: var(--range-thumb-hit);
   margin-top: calc((5px - var(--range-thumb-hit)) / 2);
+  border: none;
   border-radius: 50%;
-  border: calc((var(--range-thumb-hit) - var(--range-thumb-visual)) / 2) solid transparent;
-  background-color: #fff;
-  background-clip: padding-box;
+  background: transparent;
+  background-image: radial-gradient(
+    circle,
+    #fff 0,
+    #fff calc(var(--range-thumb-visual) / 2 - 2px),
+    var(--ink) calc(var(--range-thumb-visual) / 2 - 2px),
+    var(--ink) calc(var(--range-thumb-visual) / 2),
+    transparent calc(var(--range-thumb-visual) / 2 + 0.5px)
+  );
   cursor: pointer;
-  box-shadow: 0 0 0 2px #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
   transition: box-shadow 0.2s;
 }
 
@@ -3139,14 +3146,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-item__body input[type='range']::-moz-range-thumb,
 .param-sliders-host .slider::-moz-range-thumb {
   box-sizing: border-box;
-  width: var(--range-thumb-hit);
-  height: var(--range-thumb-hit);
+  width: var(--range-thumb-visual);
+  height: var(--range-thumb-visual);
   border-radius: 50%;
-  border: calc((var(--range-thumb-hit) - var(--range-thumb-visual)) / 2) solid transparent;
-  background-color: #fff;
-  background-clip: padding-box;
+  border: 2px solid var(--ink);
+  background: #fff;
   cursor: pointer;
-  box-shadow: 0 0 0 2px #0a0a0a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 }
 
 /* Érintős eszköz: nincs kék fókusz- / tap-kiemelés a csúszkákon és környékükön */
