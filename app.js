@@ -1,6 +1,31 @@
 (function () {
   'use strict';
 
+  // #region agent log
+  function agentDebugLog(location, message, data, hypothesisId) {
+    const entry = {
+      sessionId: '05bb3e',
+      location: location,
+      message: message,
+      data: data || {},
+      hypothesisId: hypothesisId || '',
+      timestamp: Date.now(),
+    };
+    try {
+      const key = 'debug_05bb3e_logs';
+      const prev = JSON.parse(sessionStorage.getItem(key) || '[]');
+      prev.push(entry);
+      if (prev.length > 40) prev.splice(0, prev.length - 40);
+      sessionStorage.setItem(key, JSON.stringify(prev));
+    } catch (_) {}
+    fetch('http://127.0.0.1:7598/ingest/f36e7d0f-bedf-4fb0-b013-2bbc8de09021', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '05bb3e' },
+      body: JSON.stringify(entry),
+    }).catch(function () {});
+  }
+  // #endregion
+
   /**
    * Település-határok: `fetch()` a file:// protokollnál (dupla kattintásos index.html) böngészőben
    * blokkolva van — ezért a JSON egy .js bundle-ben töltődik (window.__…), ami file:// alatt is működik.
@@ -1758,10 +1783,27 @@
       return;
     }
     requestAnimationFrame(function () {
-      const h = Math.ceil(sheet.getBoundingClientRect().height);
+      const visibleH = getMobileVisibleHeightPx();
+      const maxSheetH = Math.round(visibleH * getMobileGeoSheetMaxFraction());
+      const rawH = Math.ceil(sheet.getBoundingClientRect().height);
+      const h = Math.min(rawH > 0 ? rawH : 0, maxSheetH);
       if (h > 0) {
         root.style.setProperty('--mobile-geo-sheet-height', h + 'px');
+        sheet.style.maxHeight = maxSheetH + 'px';
       }
+      const mapEl = elements.mapContainer;
+      // #region agent log
+      agentDebugLog('app.js:syncMobileGeoSheetLayout', 'geo sheet layout', {
+        visibleH: visibleH,
+        maxSheetH: maxSheetH,
+        rawSheetH: rawH,
+        appliedSheetH: h,
+        mapClientH: mapEl ? mapEl.clientHeight : 0,
+        innerHeight: window.innerHeight,
+        vvHeight: window.visualViewport ? window.visualViewport.height : null,
+        standalone: isStandaloneDisplayMode(),
+      }, 'H3');
+      // #endregion
       if (map) map.resize();
     });
   }
@@ -2725,6 +2767,7 @@
     document.documentElement.classList.remove('mobile-geo-setup', 'mobile-geo-keyboard', 'mobile-geo-input-focused');
     document.documentElement.style.removeProperty('--mobile-vv-bottom');
     document.documentElement.style.removeProperty('--mobile-geo-sheet-height');
+    if (elements.mobileGeoSheet) elements.mobileGeoSheet.style.removeProperty('max-height');
     document.documentElement.removeAttribute('data-geo-setup-slot');
     showMobileGeoSheetEl(false);
 
@@ -3074,37 +3117,58 @@
     } catch (_) {}
   }
 
-  /** iOS Safari / PWA: stabil látható magasság + visualViewport pozíció a fixed elemekhez. */
-  function getMobileAppViewportHeightPx() {
+  function isStandaloneDisplayMode() {
+    try {
+      if (window.navigator.standalone === true) return true;
+      if (window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  /** Látható magasság: PWA-ban innerHeight, Safari lapban visualViewport. */
+  function getMobileVisibleHeightPx() {
     const innerH = window.innerHeight;
-    const clientH = document.documentElement.clientHeight;
     const vv = window.visualViewport;
-    if (vv && vv.height > 0) {
-      const vvTotal = Math.round(vv.height + Math.max(0, vv.offsetTop || 0));
-      return Math.max(vvTotal, innerH, clientH || 0);
-    }
-    return Math.max(clientH || 0, innerH);
+    if (isStandaloneDisplayMode()) return Math.round(innerH);
+    if (vv && vv.height > 0) return Math.round(vv.height);
+    return Math.round(innerH);
+  }
+
+  /** Kis képernyőn kisebb fontos-hely lap (max. arány a látható magasságból). */
+  function getMobileGeoSheetMaxFraction() {
+    const h = getMobileVisibleHeightPx();
+    if (h <= 620) return 0.42;
+    if (h <= 740) return 0.46;
+    return 0.52;
+  }
+
+  /** iOS: látható magasság → --app-vh (alsó panelek, max-height). */
+  function getMobileAppViewportHeightPx() {
+    return getMobileVisibleHeightPx();
   }
 
   function syncMobileAppViewportHeight() {
     if (!document.documentElement.classList.contains('is-touch')) return;
-    const root = document.documentElement;
     const h = getMobileAppViewportHeightPx();
+    const root = document.documentElement;
     if (h > 0) {
       root.style.setProperty('--app-vh', h + 'px');
     }
-    const vv = window.visualViewport;
-    if (vv && vv.height > 0) {
-      root.style.setProperty('--app-vv-offset-top', Math.round(Math.max(0, vv.offsetTop || 0)) + 'px');
-      root.style.setProperty('--app-vv-offset-left', Math.round(Math.max(0, vv.offsetLeft || 0)) + 'px');
-      root.style.setProperty('--app-vv-width', Math.round(vv.width) + 'px');
-      root.style.setProperty('--app-vv-height', Math.round(vv.height) + 'px');
-    } else if (h > 0) {
-      root.style.setProperty('--app-vv-offset-top', '0px');
-      root.style.setProperty('--app-vv-offset-left', '0px');
-      root.style.setProperty('--app-vv-width', '100%');
-      root.style.setProperty('--app-vv-height', h + 'px');
-    }
+    const mapEl = elements.mapContainer;
+    const bodyRect = document.body.getBoundingClientRect();
+    // #region agent log
+    agentDebugLog('app.js:syncMobileAppViewportHeight', 'viewport sync', {
+      appVh: h,
+      innerHeight: window.innerHeight,
+      clientHeight: root.clientHeight,
+      vvHeight: window.visualViewport ? window.visualViewport.height : null,
+      vvOffsetTop: window.visualViewport ? window.visualViewport.offsetTop : null,
+      standalone: isStandaloneDisplayMode(),
+      bodyHeight: Math.round(bodyRect.height),
+      mapClientH: mapEl ? mapEl.clientHeight : 0,
+    }, 'H2');
+    // #endregion
     if (map) {
       requestAnimationFrame(function () {
         if (map) map.resize();

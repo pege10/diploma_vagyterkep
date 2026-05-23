@@ -23,7 +23,7 @@
   --mobile-winner-sheet-peek: 120px;
   --mobile-winner-sheet-height: var(--mobile-winner-sheet-expanded);
   /* Fontos hely szerkesztő: tartalomhoz igazodó magasság (JS: --mobile-geo-sheet-height) */
-  --mobile-geo-sheet-max: min(52vh, 400px);
+  --mobile-geo-sheet-max: min(52dvh, calc(var(--app-vh, 100dvh) * 0.52), 400px);
   --mobile-geo-sheet-height: auto;
   /* Mobilon: lebegő lap a térkép fölött (nem ér a képernyő széléig) */
   --mobile-floating-sheet-inset: 12px;
@@ -31,10 +31,6 @@
   --mobile-floating-sheet-map-gap: 8px;
   --app-vh: 100vh;
   --app-vh: 100dvh;
-  --app-vv-offset-top: 0px;
-  --app-vv-offset-left: 0px;
-  --app-vv-width: 100%;
-  --app-vv-height: 100dvh;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -83,16 +79,12 @@ html.is-touch {
 
 html.is-touch body {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  height: var(--app-vh, 100dvh);
-  min-height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
 }
 
 body {
@@ -109,15 +101,7 @@ body {
   inset: 0;
   z-index: 0;
   width: 100%;
-}
-
-html.is-touch #map-container.map-container {
-  top: var(--app-vv-offset-top, 0px);
-  left: var(--app-vv-offset-left, 0px);
-  right: auto;
-  bottom: auto;
-  width: var(--app-vv-width, 100%);
-  height: var(--app-vv-height, var(--app-vh, 100dvh));
+  height: 100%;
 }
 
 /* ── Bal panel dokkoló: keskeny fül, panel becsukható balra ─ */
@@ -1129,12 +1113,9 @@ html.is-touch #map-container.map-container {
 }
 
 html.is-touch .app-welcome-overlay {
-  top: var(--app-vv-offset-top, 0px);
-  left: var(--app-vv-offset-left, 0px);
-  right: auto;
-  bottom: auto;
-  width: var(--app-vv-width, 100%);
-  height: var(--app-vv-height, var(--app-vh, 100dvh));
+  inset: 0;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   padding:
     max(12px, env(safe-area-inset-top, 0px))
@@ -1149,7 +1130,7 @@ html.is-touch .app-welcome-overlay {
 html.is-touch .app-welcome-dialog {
   width: 100%;
   max-height: calc(
-    var(--app-vv-height, var(--app-vh, 100dvh))
+    100%
     - max(12px, env(safe-area-inset-top, 0px))
     - max(12px, env(safe-area-inset-bottom, 0px))
     - 24px
@@ -4488,12 +4469,9 @@ html.is-touch .dual-range-thumb:active {
   html.is-touch .start-overlay {
     display: flex !important;
     position: fixed;
-    top: var(--app-vv-offset-top, 0px);
-    left: var(--app-vv-offset-left, 0px);
-    right: auto;
-    bottom: auto;
-    width: var(--app-vv-width, 100%);
-    height: var(--app-vv-height, var(--app-vh, 100dvh));
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 10000;
     background: #000;
     align-items: center;
@@ -4828,12 +4806,15 @@ html.is-touch .dual-range-thumb:active {
     z-index: 144;
     flex-direction: column;
     height: auto;
-    max-height: calc(100dvh - 2 * var(--mobile-floating-sheet-inset) - 8px);
+    max-height: min(
+      var(--mobile-geo-sheet-max),
+      calc(var(--app-vh, 100dvh) - 2 * var(--mobile-floating-sheet-inset) - 8px)
+    );
     background: var(--paper);
     border: 2px solid var(--ink);
     border-radius: var(--mobile-floating-sheet-radius);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
-    overflow: visible;
+    overflow: hidden;
   }
 
   html.is-touch.mobile-geo-setup .mobile-geo-sheet {
@@ -4883,8 +4864,11 @@ html.is-touch .dual-range-thumb:active {
   }
 
   .mobile-geo-sheet__card-host {
-    flex: 0 0 auto;
-    overflow: visible;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 10px 14px 4px;
   }
 
@@ -4989,8 +4973,9 @@ html.is-touch .dual-range-thumb:active {
   /* Stabil pozíció: lebegő lap, billentyűzetkor felfelé csúszik (nem ugrál). */
   html.is-touch.mobile-geo-setup .mobile-geo-sheet {
     bottom: calc(var(--mobile-floating-sheet-inset) + var(--mobile-vv-bottom, 0px));
-    max-height: calc(
-      100dvh - var(--mobile-vv-bottom, 0px) - 2 * var(--mobile-floating-sheet-inset) - 8px
+    max-height: min(
+      var(--mobile-geo-sheet-max),
+      calc(var(--app-vh, 100dvh) - var(--mobile-vv-bottom, 0px) - 2 * var(--mobile-floating-sheet-inset) - 8px)
     );
     transition: bottom 120ms ease-out;
   }
@@ -5146,6 +5131,45 @@ html.is-touch .dual-range-thumb:active {
 
   html.is-touch .mobile-geo-sheet__btn {
     font-size: 0.94rem;
+  }
+
+  /* iPhone SE / alacsony képernyő: kisebb fontos-hely lap, több térkép */
+  @media (max-height: 700px) {
+    html.is-touch {
+      font-size: 100%;
+    }
+
+    html.is-touch .mobile-geo-sheet {
+      --mobile-floating-sheet-inset: 8px;
+    }
+
+    html.is-touch .mobile-geo-sheet__card-host {
+      padding: 8px 12px 2px;
+    }
+
+    html.is-touch .mobile-geo-sheet__card-host .param-item--geo-editing .param-item__toggle {
+      padding: 8px 0 6px;
+    }
+
+    html.is-touch .mobile-geo-sheet__card-host .param-item--geo-editing .param-item__body {
+      padding-top: 4px;
+      gap: 8px;
+    }
+
+    html.is-touch .mobile-geo-sheet__card-host .param-item--geo-editing .ref-line {
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+
+    html.is-touch .mobile-geo-sheet__actions {
+      padding: 8px 12px 10px;
+      gap: 8px;
+    }
+
+    html.is-touch .mobile-geo-sheet__btn {
+      padding: 10px 10px;
+      font-size: 0.8rem;
+    }
   }
 
   html.is-touch .start-tap-hint {
