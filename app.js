@@ -2532,12 +2532,18 @@
     openMobileGeoEditorIfNeeded(slot);
   }
 
-  /** Főpanelen érintés / fókusz: csak a fontos-hely panel kerül a térkép fölé. */
-  function openMobileGeoEditorIfNeeded(slot, focusTarget) {
+  /** Főpanelen: fontos-hely lap — térkép csak szándékosan (csúszka / térkép gomb). */
+  function openMobileGeoEditorIfNeeded(slot, focusTarget, opts) {
     if (!shouldUseMobileGeoEditor() || (slot !== 'a' && slot !== 'b')) return;
     if (!isGeoPlaceSwitchOn(slot)) return;
+    const showMap = !!(opts && opts.showMap);
     const alreadyOpen = mobileGeoSetupSlot === slot;
-    if (!alreadyOpen) enterMobileGeoSetup(slot);
+    if (!alreadyOpen) {
+      enterMobileGeoSetup(slot, { showMap: showMap });
+    } else if (showMap) {
+      setMobileMapView(true, { forGeoEditor: true });
+      showMobileGeoSheetEl(true);
+    }
     if (focusTarget && typeof focusTarget.focus === 'function') {
       window.setTimeout(function () {
         try {
@@ -2550,34 +2556,59 @@
   }
 
   function bindMobileGeoCardEditorTriggers(wrap, slot, inp, pickBtn, rInput) {
-    function openEditor(focusEl) {
-      openMobileGeoEditorIfNeeded(slot, focusEl || inp || null);
+    let sliderMapTimer = null;
+
+    function hideGeoSuggestList() {
+      if (!inp) return;
+      const acWrap = inp.closest('.geo-autocomplete-wrap');
+      const list = acWrap && acWrap.querySelector('.geo-suggest-list');
+      const geoCard = acWrap && acWrap.closest('.param-item--geo-place');
+      if (list) list.hidden = true;
+      if (geoCard) geoCard.classList.remove('param-item--geo-suggest-open');
     }
-    wrap.addEventListener(
-      'touchstart',
-      function (e) {
-        if (!shouldUseMobileGeoEditor()) return;
-        if (!isGeoPlaceSwitchOn(slot)) return;
-        if (e.target.closest('.param-item__ios-switch')) return;
-        if (e.target.closest('.param-item__toggle')) return;
-        openEditor(e.target.closest('input, button.pick-map-btn') || inp);
-      },
-      { capture: true, passive: true }
-    );
+
+    function clearSliderMapTimer() {
+      if (sliderMapTimer) {
+        clearTimeout(sliderMapTimer);
+        sliderMapTimer = null;
+      }
+    }
+
+    function scheduleMapFromSlider() {
+      clearSliderMapTimer();
+      sliderMapTimer = window.setTimeout(function () {
+        sliderMapTimer = null;
+        if (!shouldUseMobileGeoEditor() || !isGeoPlaceSwitchOn(slot)) return;
+        if (mobileGeoSetupSlot === slot) {
+          setMobileMapView(true, { forGeoEditor: true });
+          showMobileGeoSheetEl(true);
+        } else {
+          openMobileGeoEditorIfNeeded(slot, null, { showMap: true });
+        }
+      }, 500);
+    }
+
+    function openSheetWithoutMap(focusEl) {
+      openMobileGeoEditorIfNeeded(slot, focusEl || null, { showMap: false });
+    }
+
     if (inp) {
       inp.addEventListener('focus', function () {
-        openEditor(inp);
+        openSheetWithoutMap(inp);
       });
       inp.addEventListener('click', function (e) {
         e.stopPropagation();
-        openEditor(inp);
+        if (typeof inp._geoSuggestAllowOpen === 'function') inp._geoSuggestAllowOpen();
+        openSheetWithoutMap(inp);
       });
     }
     if (pickBtn) {
       let pickBtnTouchHandledAt = 0;
       function onPickMapBtn(e) {
         e.stopPropagation();
-        openEditor(pickBtn);
+        hideGeoSuggestList();
+        clearSliderMapTimer();
+        openMobileGeoEditorIfNeeded(slot, pickBtn, { showMap: true });
         startPick(slot === 'a' ? 'geoA' : 'geoB');
       }
       pickBtn.addEventListener(
@@ -2597,12 +2628,25 @@
       });
     }
     if (rInput) {
-      rInput.addEventListener('touchstart', function () {
-        openEditor(rInput);
-      }, { passive: true });
-      rInput.addEventListener('focus', function () {
-        openEditor(rInput);
-      });
+      rInput.addEventListener(
+        'pointerdown',
+        function (e) {
+          if (!shouldUseMobileGeoEditor() || !isGeoPlaceSwitchOn(slot)) return;
+          e.stopPropagation();
+          hideGeoSuggestList();
+          if (inp && document.activeElement === inp) {
+            try {
+              inp.blur();
+            } catch (_) {}
+          }
+          openSheetWithoutMap(null);
+          scheduleMapFromSlider();
+        },
+        { passive: true }
+      );
+      rInput.addEventListener('pointerup', clearSliderMapTimer, { passive: true });
+      rInput.addEventListener('pointercancel', clearSliderMapTimer, { passive: true });
+      rInput.addEventListener('touchcancel', clearSliderMapTimer, { passive: true });
     }
   }
 
@@ -2671,10 +2715,12 @@
     updatePickButtonActive();
   }
 
-  function enterMobileGeoSetup(slot) {
+  function enterMobileGeoSetup(slot, opts) {
     if (!shouldUseMobileGeoEditor() || (slot !== 'a' && slot !== 'b')) return;
     if (mobileGeoSetupSlot === slot) return;
     if (mobileGeoSetupSlot) exitMobileGeoSetup(true);
+
+    const showMap = !!(opts && opts.showMap);
 
     const card = getGeoPlaceCardEl(slot);
     if (!card) return;
@@ -2712,7 +2758,11 @@
     showMobileGeoSheetEl(true);
     hideMobileWinnerSheet();
     document.documentElement.classList.remove('mobile-geo-keyboard');
-    setMobileMapView(true, { forGeoEditor: true });
+    if (showMap) {
+      setMobileMapView(true, { forGeoEditor: true });
+    } else {
+      setMobileMapView(false);
+    }
     disableMobileGeoAutoPick();
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
@@ -3124,6 +3174,29 @@
       if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
     } catch (_) {}
     return false;
+  }
+
+  /**
+   * iOS (iPhone / iPad / iPod) detektálás. iPadOS 13+ Mac UA-t küld,
+   * ezért érintőképességet is figyelünk. Cél: Fullscreen API hiányát
+   * felismerni Safari lap módban.
+   */
+  function isIOSDevice() {
+    try {
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      if (/iPad|iPhone|iPod/i.test(ua)) return true;
+      // iPadOS 13+ Mac-ként jelentkezik be, de van touch
+      if (platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  /** Igaz, ha iOS-es Safari lapban vagyunk (NEM kezdőképernyős PWA). */
+  function isIOSSafariNonStandalone() {
+    if (!isIOSDevice()) return false;
+    if (isStandaloneDisplayMode()) return false;
+    return true;
   }
 
   /** Látható magasság: PWA-ban innerHeight, Safari lapban visualViewport. */
@@ -3770,7 +3843,7 @@
       intro:
         'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
       uiDef:
-        'Szubjektív távolságkorlát: megadsz egy települést és egy sugarat (km). A keresés csak azokat a helyeket tartja meg, amelyek a körön belül vannak.\n\nNincs külső adatforrás – a te preferenciád alapján szűr.',
+        'Megadsz egy kiinduló települést és egy maximális távolságot (km). A keresés csak a körön belüli településeket tartja meg — a te preferenciád szerint, külső adatbázis nélkül.',
       cityLabel: 'Település érték',
       radiusLabel: 'Sugár (km)',
       leftHint: 'Kisebb kör',
@@ -3780,7 +3853,7 @@
       intro:
         'Válaszd ki a települést, amitől nem költöznél messzebb egy bizonyos körön belül (pl. család, munkahely).',
       uiDef:
-        'Szubjektív távolságkorlát: megadsz egy települést és egy sugarat (km). A keresés csak azokat a helyeket tartja meg, amelyek a körön belül vannak.\n\nNincs külső adatforrás – a te preferenciád alapján szűr.',
+        'Megadsz egy kiinduló települést és egy maximális távolságot (km). A keresés csak a körön belüli településeket tartja meg — a te preferenciád szerint, külső adatbázis nélkül.',
       cityLabel: 'Település érték',
       radiusLabel: 'Sugár (km)',
       leftHint: 'Kisebb kör',
@@ -8543,10 +8616,18 @@
     const list = acWrap.querySelector('.geo-suggest-list');
     if (!list) return;
     const geoCard = acWrap.closest('.param-item--geo-place');
+    let suggestListAllowed = false;
 
     function syncGeoSuggestOverflow() {
       if (geoCard) geoCard.classList.toggle('param-item--geo-suggest-open', !list.hidden);
     }
+
+    function allowAndRenderSuggestions() {
+      suggestListAllowed = true;
+      renderSuggestions();
+    }
+
+    inp._geoSuggestAllowOpen = allowAndRenderSuggestions;
 
     function hideListSoon() {
       window.setTimeout(function () {
@@ -8610,17 +8691,25 @@
       e.preventDefault();
     });
 
-    inp.addEventListener('input', renderSuggestions);
+    inp.addEventListener('input', allowAndRenderSuggestions);
+    inp.addEventListener('click', function (e) {
+      e.stopPropagation();
+      allowAndRenderSuggestions();
+    });
     inp.addEventListener('focus', function () {
-      renderSuggestions();
+      if (suggestListAllowed) {
+        renderSuggestions();
+      } else {
+        list.hidden = true;
+        syncGeoSuggestOverflow();
+      }
       if (shouldUseMobileGeoEditor() && document.documentElement.classList.contains('mobile-geo-setup')) {
-        // Gépelés közben a térképes auto-pick legyen kikapcsolva, hogy ne ugorjon be
-        // a "Nem sikerült beazonosítani a települést" üzenet véletlen koppintástól.
         disableMobileGeoAutoPick();
         scrollMobileGeoInputIntoView(inp);
       }
     });
     inp.addEventListener('blur', function () {
+      suggestListAllowed = false;
       hideListSoon();
     });
     document.addEventListener('click', function (e) {
@@ -10163,7 +10252,7 @@
     if (pickMode) endPick();
 
     if (shouldUseMobileGeoEditor()) {
-      openMobileGeoEditorIfNeeded(slot);
+      openMobileGeoEditorIfNeeded(slot, null, { showMap: true });
     }
 
     if (elements.geoCityInputA) elements.geoCityInputA.blur();
@@ -11409,11 +11498,72 @@
     } catch (_) {}
   }
 
+  /**
+   * iOS Safari nem támogatja a Fullscreen API-t általános elemekre,
+   * csak a kezdőképernyőhöz hozzáadás után, standalone PWA módban
+   * működik a böngészősáv nélküli nézet. Lapnézetben ezzel a
+   * scrollTo trükkel próbáljuk eltüntetni a Safari címsorát, hogy
+   * minél nagyobb látható terület legyen.
+   */
+  function nudgeIOSAddressBarHide() {
+    if (!isIOSSafariNonStandalone()) return;
+    try {
+      window.scrollTo(0, 1);
+      setTimeout(function () {
+        try { window.scrollTo(0, 0); } catch (_) {}
+      }, 80);
+    } catch (_) {}
+  }
+
+  /**
+   * iOS Safari lapnézetben az indító overlay-en megjelenik egy
+   * „Hozzáadás a kezdőképernyőhöz” útmutató — csak így érhető el
+   * valódi teljes képernyős nézet. A felhasználó dönthet úgy is,
+   * hogy mégis a böngészőben folytatja.
+   */
+  function showIOSAddToHomeScreenHintInline() {
+    const ios = document.getElementById('start-ios-hint');
+    const def = document.getElementById('start-tap-hint-default');
+    if (!elements.startOverlay) return false;
+    if (!ios) return false;
+    if (ios.dataset.shown === '1') return true;
+    if (def) {
+      def.setAttribute('hidden', '');
+      def.setAttribute('aria-hidden', 'true');
+    }
+    ios.removeAttribute('hidden');
+    ios.setAttribute('aria-hidden', 'false');
+    ios.dataset.shown = '1';
+    // Ne ugorjon vissza az overlay-szintű click → újra-elindítás
+    // (a felhasználó csak a gombbal léphessen tovább).
+    elements.startOverlay.dataset.iosWaiting = '1';
+    return true;
+  }
+
   function dismissStartOverlay() {
     if (!elements.startOverlay || document.documentElement.classList.contains('app-started')) return;
 
+    // iOS Safari (nem standalone): a Fullscreen API nem támogatott
+    // általános elemekre. Első koppintásra felajánljuk a kezdőképernyőhöz
+    // adást — csak ezzel működik a valódi teljes képernyős nézet.
+    // A `iosBypass` jelzi, ha a felhasználó a „Most folytatom..." gombbal
+    // mégis a böngészőben szeretne maradni.
+    if (isIOSSafariNonStandalone() && !elements.startOverlay.dataset.iosBypass) {
+      if (elements.startOverlay.dataset.iosWaiting === '1') {
+        // A hint már látszik — ne tegyünk semmit, várjuk a felhasználó gombnyomását
+        // (vagy a kezdőképernyőre adást és újraindítást).
+        return;
+      }
+      if (showIOSAddToHomeScreenHintInline()) {
+        // URL bar elrejtése: scroll trükk
+        nudgeIOSAddressBarHide();
+        return;
+      }
+    }
+
     requestFullscreen();
     tryLockPortraitOrientation();
+    nudgeIOSAddressBarHide();
     syncMobileAppViewportHeight();
 
     document.documentElement.classList.add('app-started', 'mobile-map-view');
@@ -11908,11 +12058,35 @@
       elements.startOverlay.addEventListener(
         'touchend',
         function (e) {
+          // iOS Safari hint közben csak a "Most folytatom..." gombbal lépjen tovább
+          if (elements.startOverlay.dataset.iosWaiting === '1') {
+            const t = e.target;
+            if (t && (t.closest && t.closest('#start-ios-continue-btn'))) {
+              return; // hagyjuk a gomb saját click handlerét
+            }
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           dismissStartOverlay();
         },
         { passive: false }
       );
+
+      const iosContinueBtn = document.getElementById('start-ios-continue-btn');
+      if (iosContinueBtn) {
+        const continueAnyway = function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (e && e.preventDefault) e.preventDefault();
+          if (elements.startOverlay) {
+            elements.startOverlay.dataset.iosBypass = '1';
+            elements.startOverlay.dataset.iosWaiting = '0';
+          }
+          dismissStartOverlay();
+        };
+        iosContinueBtn.addEventListener('click', continueAnyway);
+        iosContinueBtn.addEventListener('touchend', continueAnyway, { passive: false });
+      }
     }
 
     document.addEventListener('fullscreenchange', function () {

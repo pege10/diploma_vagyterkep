@@ -29,6 +29,8 @@
   --mobile-floating-sheet-inset: 12px;
   --mobile-floating-sheet-radius: 8px;
   --mobile-floating-sheet-map-gap: 8px;
+  --range-thumb-visual: 18px;
+  --range-thumb-hit: 44px;
   --app-vh: 100vh;
   --app-vh: 100dvh;
 }
@@ -68,6 +70,7 @@ body {
   height: 100%;
   font-family: var(--font-app);
   overflow: hidden;
+  color-scheme: dark;
 }
 
 html.is-touch {
@@ -92,6 +95,19 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   background: #0a0a0a;
+}
+
+/* Google / olvasók: ugyanaz a leírás, mint a meta description (nem rejtett szövegcsalás). */
+.site-seo-intro {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Map full-screen — sidebar borítja / homályosítja mögötte */
@@ -2668,9 +2684,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   padding-top: 28px;
   position: relative;
   /* Megegyezik a param-item range input track / thumb geometriájával (24px magas input, 5px sáv). */
-  --param-range-track-top: calc(28px + 9.5px);
+  --param-range-track-top: calc(28px + 19.5px);
   --param-range-track-height: 5px;
-  --param-range-thumb-top: calc(28px + 3px);
+  --param-range-thumb-top: calc(28px + 13px);
 }
 
 .param-slider-stack--forest,
@@ -2776,7 +2792,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   flex: 1 1 100%;
   width: 100%;
   min-width: 0;
-  height: 52px;
+  height: 72px;
   cursor: pointer;
   touch-action: none;
 }
@@ -2808,14 +2824,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .dual-range-thumb {
   position: absolute;
   top: var(--param-range-thumb-top);
-  width: 18px;
-  height: 18px;
+  width: var(--range-thumb-hit);
+  height: var(--range-thumb-hit);
   margin: 0;
   padding: 0;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  border: none;
+  background: transparent;
+  box-shadow: none;
   transform: translateX(-50%);
   cursor: grab;
   z-index: 5;
@@ -2823,7 +2838,22 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   box-sizing: border-box;
 }
 
-.dual-range-thumb:hover {
+.dual-range-thumb::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--range-thumb-visual);
+  height: var(--range-thumb-visual);
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.dual-range-thumb:hover::after {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
@@ -3044,12 +3074,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 24px;
+  height: var(--range-thumb-hit);
   border-radius: 3px;
   background: transparent;
   outline: none;
   margin-top: 2px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .param-item__body .param-range-thumb-wrap input[type='range'] {
@@ -3076,14 +3107,15 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-sliders-host .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  margin-top: -6.5px;
+  width: var(--range-thumb-hit);
+  height: var(--range-thumb-hit);
+  margin-top: calc((5px - var(--range-thumb-hit)) / 2);
   border-radius: 50%;
-  background: #fff;
+  border: calc((var(--range-thumb-hit) - var(--range-thumb-visual)) / 2) solid transparent;
+  background-color: #fff;
+  background-clip: padding-box;
   cursor: pointer;
-  border: 2px solid #0a0a0a;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 2px #0a0a0a;
   transition: box-shadow 0.2s;
 }
 
@@ -3107,13 +3139,14 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-item__body input[type='range']::-moz-range-thumb,
 .param-sliders-host .slider::-moz-range-thumb {
   box-sizing: border-box;
-  width: 18px;
-  height: 18px;
+  width: var(--range-thumb-hit);
+  height: var(--range-thumb-hit);
   border-radius: 50%;
-  background: #fff;
+  border: calc((var(--range-thumb-hit) - var(--range-thumb-visual)) / 2) solid transparent;
+  background-color: #fff;
+  background-clip: padding-box;
   cursor: pointer;
-  border: 2px solid #0a0a0a;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 2px #0a0a0a;
 }
 
 /* Érintős eszköz: nincs kék fókusz- / tap-kiemelés a csúszkákon és környékükön */
@@ -4506,6 +4539,36 @@ html.is-touch .dual-range-thumb:active {
     padding: 28px 24px;
   }
 
+  /* iOS Safari: ha aktív a kezdőképernyőhöz adás hint, gördíthető legyen
+     kisebb iPhone-okon is (címsor miatt rövidebb a viewport) */
+  html.is-touch .start-overlay {
+    max-height: var(--app-vh, 100dvh);
+  }
+
+  html.is-touch .start-overlay .start-content {
+    margin: auto;
+  }
+
+  html.is-touch .start-ios-hint {
+    margin-top: 4px;
+    padding: 14px 14px 12px;
+    gap: 10px;
+  }
+
+  html.is-touch .start-ios-hint__lead {
+    font-size: 0.86rem;
+  }
+
+  html.is-touch .start-ios-hint__steps {
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+
+  html.is-touch .start-ios-continue-btn {
+    font-size: 0.82rem;
+    padding: 9px 16px;
+  }
+
   html.is-touch .start-subtitle {
     color: rgba(255, 255, 255, 0.42);
   }
@@ -5263,6 +5326,92 @@ html.is-touch .dual-range-thumb:active {
     opacity: 1;
     transform: translateY(-3px);
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   iOS Safari (nem standalone) – „Hozzáadás a kezdőképernyőhöz” útmutató.
+   Csak akkor jelenik meg, ha az app.js kapcsolja be (start-ios-hint).
+   ───────────────────────────────────────────────────────────────────── */
+.start-ios-hint[hidden] {
+  display: none !important;
+}
+
+.start-ios-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  padding: 18px 18px 16px;
+  max-width: min(360px, 92vw);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.86);
+  text-align: left;
+}
+
+.start-ios-hint__lead {
+  margin: 0;
+  font-family: var(--font-app);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
+}
+
+.start-ios-hint__steps {
+  margin: 0;
+  padding: 0 0 0 1.1em;
+  font-family: var(--font-app);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.start-ios-hint__steps li {
+  padding-left: 2px;
+}
+
+.start-ios-hint__share {
+  display: inline-block;
+  vertical-align: -5px;
+  margin: 0 4px;
+  color: #60a5fa;
+}
+
+.start-ios-hint__steps strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.start-ios-continue-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--font-app);
+  font-size: 0.86rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.start-ios-continue-btn:hover,
+.start-ios-continue-btn:focus,
+.start-ios-continue-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+  outline: none;
 }
 
 /* Sorszám overlay */
