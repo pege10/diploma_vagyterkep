@@ -24,9 +24,9 @@
 
   <link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=198">
+  <link rel="stylesheet" href="style.css?v=199">
   <!-- Touch érzékelés: class kerül a html elemre MIELŐTT a CSS renderelődik, nincs FOUC -->
-  <script>(function(){if(!('ontouchstart' in window)&&!navigator.maxTouchPoints)return;var r=document.documentElement;r.classList.add('is-touch');function s(){var v=window.visualViewport,h=v&&v.height?Math.round(v.height+Math.max(0,v.offsetTop||0)):0;if(!h)h=Math.round(r.clientHeight||window.innerHeight);if(h>0)r.style.setProperty('--app-vh',h+'px');}s();window.addEventListener('resize',s);window.addEventListener('orientationchange',function(){setTimeout(s,150);});window.addEventListener('pageshow',s);if(window.visualViewport){window.visualViewport.addEventListener('resize',s);window.visualViewport.addEventListener('scroll',s);}})();</script>
+  <script>(function(){if(!('ontouchstart' in window)&&!navigator.maxTouchPoints)return;var r=document.documentElement;r.classList.add('is-touch');function s(){var v=window.visualViewport,innerH=window.innerHeight,clientH=r.clientHeight,h=0;if(v&&v.height>0){h=Math.round(v.height+Math.max(0,v.offsetTop||0));r.style.setProperty('--app-vv-offset-top',Math.round(Math.max(0,v.offsetTop||0))+'px');r.style.setProperty('--app-vv-offset-left',Math.round(Math.max(0,v.offsetLeft||0))+'px');r.style.setProperty('--app-vv-width',Math.round(v.width)+'px');r.style.setProperty('--app-vv-height',Math.round(v.height)+'px');}if(!h)h=Math.round(clientH||innerH);h=Math.max(h,innerH,clientH||0);if(h>0){r.style.setProperty('--app-vh',h+'px');if(!v||!v.height){r.style.setProperty('--app-vv-offset-top','0px');r.style.setProperty('--app-vv-offset-left','0px');r.style.setProperty('--app-vv-width','100%');r.style.setProperty('--app-vv-height',h+'px');}}}s();window.addEventListener('resize',s);window.addEventListener('orientationchange',function(){setTimeout(s,150);});window.addEventListener('pageshow',s);if(window.visualViewport){window.visualViewport.addEventListener('resize',s);window.visualViewport.addEventListener('scroll',s);}})();</script>
 </head>
 <body>
   <div class="sidebar-dock" id="sidebar-dock">
@@ -190,7 +190,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=275"></script>
+  <script src="app.js?v=276"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

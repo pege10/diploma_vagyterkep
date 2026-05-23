@@ -949,6 +949,7 @@
     const variant = opts && opts.variant === 'full' ? 'full' : 'brief';
     const ov = resolveAppWelcomeOverlay();
     if (!ov) return;
+    syncMobileAppViewportHeight();
     applyWelcomeDialogContent(ov, variant);
     ov.removeAttribute('hidden');
     ov.setAttribute('aria-hidden', 'false');
@@ -3073,22 +3074,36 @@
     } catch (_) {}
   }
 
-  /** iOS Safari / PWA: stabil látható magasság (visualViewport + offsetTop, clientHeight fallback). */
+  /** iOS Safari / PWA: stabil látható magasság + visualViewport pozíció a fixed elemekhez. */
   function getMobileAppViewportHeightPx() {
+    const innerH = window.innerHeight;
+    const clientH = document.documentElement.clientHeight;
     const vv = window.visualViewport;
     if (vv && vv.height > 0) {
-      return Math.round(vv.height + Math.max(0, vv.offsetTop || 0));
+      const vvTotal = Math.round(vv.height + Math.max(0, vv.offsetTop || 0));
+      return Math.max(vvTotal, innerH, clientH || 0);
     }
-    const clientH = document.documentElement.clientHeight;
-    if (clientH > 0) return clientH;
-    return Math.round(window.innerHeight);
+    return Math.max(clientH || 0, innerH);
   }
 
   function syncMobileAppViewportHeight() {
     if (!document.documentElement.classList.contains('is-touch')) return;
+    const root = document.documentElement;
     const h = getMobileAppViewportHeightPx();
     if (h > 0) {
-      document.documentElement.style.setProperty('--app-vh', h + 'px');
+      root.style.setProperty('--app-vh', h + 'px');
+    }
+    const vv = window.visualViewport;
+    if (vv && vv.height > 0) {
+      root.style.setProperty('--app-vv-offset-top', Math.round(Math.max(0, vv.offsetTop || 0)) + 'px');
+      root.style.setProperty('--app-vv-offset-left', Math.round(Math.max(0, vv.offsetLeft || 0)) + 'px');
+      root.style.setProperty('--app-vv-width', Math.round(vv.width) + 'px');
+      root.style.setProperty('--app-vv-height', Math.round(vv.height) + 'px');
+    } else if (h > 0) {
+      root.style.setProperty('--app-vv-offset-top', '0px');
+      root.style.setProperty('--app-vv-offset-left', '0px');
+      root.style.setProperty('--app-vv-width', '100%');
+      root.style.setProperty('--app-vv-height', h + 'px');
     }
     if (map) {
       requestAnimationFrame(function () {

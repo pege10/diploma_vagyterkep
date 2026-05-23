@@ -31,6 +31,10 @@
   --mobile-floating-sheet-map-gap: 8px;
   --app-vh: 100vh;
   --app-vh: 100dvh;
+  --app-vv-offset-top: 0px;
+  --app-vv-offset-left: 0px;
+  --app-vv-width: 100%;
+  --app-vv-height: 100dvh;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -71,15 +75,24 @@ body {
 }
 
 html.is-touch {
-  min-height: 100%;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  height: 100%;
+  height: -webkit-fill-available;
+  background: #0a0a0a;
+  overflow: hidden;
 }
 
 html.is-touch body {
-  min-height: 100%;
-  min-height: 100dvh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  height: var(--app-vh, 100dvh);
   min-height: -webkit-fill-available;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -96,6 +109,15 @@ body {
   inset: 0;
   z-index: 0;
   width: 100%;
+}
+
+html.is-touch #map-container.map-container {
+  top: var(--app-vv-offset-top, 0px);
+  left: var(--app-vv-offset-left, 0px);
+  right: auto;
+  bottom: auto;
+  width: var(--app-vv-width, 100%);
+  height: var(--app-vv-height, var(--app-vh, 100dvh));
 }
 
 /* ── Bal panel dokkoló: keskeny fül, panel becsukható balra ─ */
@@ -1107,24 +1129,41 @@ body {
 }
 
 html.is-touch .app-welcome-overlay {
-  padding: 12px 14px;
-  align-items: center;
+  top: var(--app-vv-offset-top, 0px);
+  left: var(--app-vv-offset-left, 0px);
+  right: auto;
+  bottom: auto;
+  width: var(--app-vv-width, 100%);
+  height: var(--app-vv-height, var(--app-vh, 100dvh));
+  box-sizing: border-box;
+  padding:
+    max(12px, env(safe-area-inset-top, 0px))
+    max(14px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px))
+    max(14px, env(safe-area-inset-left, 0px));
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
 }
 
 html.is-touch .app-welcome-dialog {
   width: 100%;
-  max-height: none;
+  max-height: calc(
+    var(--app-vv-height, var(--app-vh, 100dvh))
+    - max(12px, env(safe-area-inset-top, 0px))
+    - max(12px, env(safe-area-inset-bottom, 0px))
+    - 24px
+  );
+  flex-shrink: 0;
 }
 
 html.is-touch .app-welcome-dialog__scroll {
-  overflow: hidden;
-  padding: 18px 16px 16px;
-}
-
-html.is-touch .app-welcome-overlay[data-welcome-variant='full'] .app-welcome-dialog__scroll {
+  overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(100dvh - 24px);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 18px 16px 16px;
 }
 
@@ -4263,14 +4302,7 @@ html.is-touch .dual-range-thumb:active {
     display: none !important;
   }
 
-  html.is-touch body {
-    display: block;
-    overflow: hidden;
-  }
-
   html.is-touch #map-container.map-container {
-    position: fixed;
-    inset: 0;
     z-index: 0;
   }
 
@@ -4456,8 +4488,12 @@ html.is-touch .dual-range-thumb:active {
   html.is-touch .start-overlay {
     display: flex !important;
     position: fixed;
-    inset: 0;
-    width: 100%;
+    top: var(--app-vv-offset-top, 0px);
+    left: var(--app-vv-offset-left, 0px);
+    right: auto;
+    bottom: auto;
+    width: var(--app-vv-width, 100%);
+    height: var(--app-vv-height, var(--app-vh, 100dvh));
     z-index: 10000;
     background: #000;
     align-items: center;
