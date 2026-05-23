@@ -2257,6 +2257,8 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border: 1px solid var(--ink);
   border-radius: 4px;
   background: #fff;
+  color: var(--ink);
+  color-scheme: light;
   max-height: min(52vh, 420px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -2684,9 +2686,9 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   padding-top: 28px;
   position: relative;
   /* Megegyezik a param-item range input track / thumb geometriájával (24px magas input, 5px sáv). */
-  --param-range-track-top: calc(28px + 19.5px);
+  --param-range-track-top: calc(28px + 9.5px);
   --param-range-track-height: 5px;
-  --param-range-thumb-top: calc(28px + 13px);
+  --param-range-thumb-top: calc(28px + 3px);
 }
 
 .param-slider-stack--forest,
@@ -2792,7 +2794,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   flex: 1 1 100%;
   width: 100%;
   min-width: 0;
-  height: 72px;
+  height: 52px;
   cursor: pointer;
   touch-action: none;
 }
@@ -2823,7 +2825,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 
 .dual-range-thumb {
   position: absolute;
-  top: var(--param-range-thumb-top);
+  top: calc(var(--param-range-thumb-top) + var(--range-thumb-visual) / 2);
   width: var(--range-thumb-hit);
   height: var(--range-thumb-hit);
   margin: 0;
@@ -2831,7 +2833,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   border: none;
   background: transparent;
   box-shadow: none;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   cursor: grab;
   z-index: 5;
   touch-action: none;
@@ -3074,7 +3076,7 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: var(--range-thumb-hit);
+  height: 24px;
   border-radius: 3px;
   background: transparent;
   outline: none;
@@ -3107,21 +3109,13 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-sliders-host .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   box-sizing: border-box;
-  width: var(--range-thumb-hit);
-  height: var(--range-thumb-hit);
-  margin-top: calc((5px - var(--range-thumb-hit)) / 2);
-  border: none;
+  width: var(--range-thumb-visual);
+  height: var(--range-thumb-visual);
+  margin-top: -6.5px;
   border-radius: 50%;
-  background: transparent;
-  background-image: radial-gradient(
-    circle,
-    #fff 0,
-    #fff calc(var(--range-thumb-visual) / 2 - 2px),
-    var(--ink) calc(var(--range-thumb-visual) / 2 - 2px),
-    var(--ink) calc(var(--range-thumb-visual) / 2),
-    transparent calc(var(--range-thumb-visual) / 2 + 0.5px)
-  );
+  background: #fff;
   cursor: pointer;
+  border: 2px solid #0a0a0a;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
   transition: box-shadow 0.2s;
 }
@@ -3146,13 +3140,34 @@ label.segment-motor-car:has(.segment-motor-input:checked) {
 .param-item__body input[type='range']::-moz-range-thumb,
 .param-sliders-host .slider::-moz-range-thumb {
   box-sizing: border-box;
-  width: var(--range-thumb-visual);
-  height: var(--range-thumb-visual);
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid var(--ink);
   background: #fff;
   cursor: pointer;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* Érintés: láthatatlan fogómező a 18px-es golyó körül (kinézet változatlan). */
+.param-range-thumb-hit {
+  position: absolute;
+  width: var(--range-thumb-hit);
+  height: var(--range-thumb-hit);
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  z-index: 4;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.param-range-thumb-hit:active {
+  cursor: grabbing;
 }
 
 /* Érintős eszköz: nincs kék fókusz- / tap-kiemelés a csúszkákon és környékükön */
@@ -3208,7 +3223,7 @@ html.is-touch .dual-range-thumb:focus,
 html.is-touch .dual-range-thumb:focus-visible,
 html.is-touch .dual-range-thumb:active {
   outline: none;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
 }
 
 .param-sliders-host code {
@@ -3539,6 +3554,8 @@ html.is-touch .dual-range-thumb:active {
     border: 1px solid var(--ink);
     border-radius: 4px;
     background: #fff;
+    color: var(--ink);
+    color-scheme: light;
     overflow: hidden;
   }
 
@@ -3820,6 +3837,7 @@ html.is-touch .dual-range-thumb:active {
   font-weight: 700;
   margin-bottom: 8px;
   line-height: 1.3;
+  color: var(--ink);
   overflow-wrap: break-word;
   word-break: normal;
 }
@@ -3848,6 +3866,7 @@ html.is-touch .dual-range-thumb:active {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
+  color: var(--ink);
   text-align: right;
   overflow-wrap: anywhere;
   word-break: normal;
@@ -4720,6 +4739,8 @@ html.is-touch .dual-range-thumb:active {
     height: var(--mobile-winner-sheet-height, var(--mobile-winner-sheet-expanded));
     max-height: var(--mobile-winner-sheet-expanded);
     background: var(--paper);
+    color: var(--ink);
+    color-scheme: light;
     border: 2px solid var(--ink);
     border-radius: var(--mobile-floating-sheet-radius);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);

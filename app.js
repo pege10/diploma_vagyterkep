@@ -3286,6 +3286,29 @@
 
   /** Egyezzen a CSS ::-webkit-slider-thumb szélességével / magasságával. */
   var PARAM_RANGE_THUMB_SIZE_PX = 18;
+  /** Láthatatlan érintő-fogómező (csak mobilon, kinézet változatlan). */
+  var PARAM_RANGE_THUMB_HIT_SIZE_PX = 44;
+
+  function rangeInputValueFromClientX(slider, clientX) {
+    if (!slider) return NaN;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const sRect = slider.getBoundingClientRect();
+    const thumb = PARAM_RANGE_THUMB_SIZE_PX;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min || sRect.width <= thumb) return NaN;
+    const usable = sRect.width - thumb;
+    let t = (clientX - sRect.left - thumb / 2) / usable;
+    t = Math.max(0, Math.min(1, t));
+    let raw = min + t * (max - min);
+    const stepAttr = slider.getAttribute('step');
+    if (stepAttr != null && stepAttr !== '' && stepAttr !== 'any') {
+      const step = parseFloat(stepAttr);
+      if (Number.isFinite(step) && step > 0) {
+        raw = Math.round(raw / step) * step;
+      }
+    }
+    return Math.max(min, Math.min(max, raw));
+  }
 
   /**
    * Hüvelykujj középpontja → buborék `left` px a .slider-wrap-hoz képest (nem %-ban, így nincs kerekítési eltérés).
@@ -3314,17 +3337,93 @@
   }
 
   /**
+   * Mobilon: 44px-es láthatatlan fogómező a 18px-es golyó körül (a natív thumb kinézete változatlan).
+   */
+  function bindParamRangeThumbTouchHit(slider, wrap, onThumbMoved) {
+    if (!document.documentElement.classList.contains('is-touch')) return null;
+    if (!slider || !wrap || wrap.classList.contains('dual-range-wrap')) return null;
+    const pad = document.createElement('div');
+    pad.className = 'param-range-thumb-hit';
+    pad.setAttribute('aria-hidden', 'true');
+    wrap.insertBefore(pad, slider);
+
+    function positionHitPad() {
+      const x = rangeInputThumbBubbleLeftPx(slider, wrap);
+      const sRect = slider.getBoundingClientRect();
+      const wRect = wrap.getBoundingClientRect();
+      if (!Number.isFinite(x) || sRect.height <= 0) return;
+      const cy = sRect.top + sRect.height / 2 - wRect.top;
+      pad.style.left = Math.max(0, x) + 'px';
+      pad.style.top = cy + 'px';
+    }
+
+    function applyValueFromClientX(clientX) {
+      const next = rangeInputValueFromClientX(slider, clientX);
+      if (!Number.isFinite(next)) return;
+      slider.value = String(next);
+      if (typeof onThumbMoved === 'function') onThumbMoved();
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    pad.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      try {
+        pad.setPointerCapture(e.pointerId);
+      } catch (_) {}
+      applyValueFromClientX(e.clientX);
+      function onMove(ev) {
+        if (ev.pointerId !== e.pointerId) return;
+        applyValueFromClientX(ev.clientX);
+      }
+      function onEnd(ev) {
+        if (ev.pointerId !== e.pointerId) return;
+        pad.removeEventListener('pointermove', onMove);
+        pad.removeEventListener('pointerup', onEnd);
+        pad.removeEventListener('pointercancel', onEnd);
+        try {
+          pad.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+        slider.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      pad.addEventListener('pointermove', onMove);
+      pad.addEventListener('pointerup', onEnd);
+      pad.addEventListener('pointercancel', onEnd);
+    });
+
+    return { positionHitPad: positionHitPad, pad: pad };
+  }
+
+  /**
    * Buborék a hüvelykujj középpontja fölött. `wrap` = .slider-wrap szülő (position:relative).
    * @param {(sl: HTMLInputElement) => string} getBubbleText
    */
   function bindSliderThumbBubble(slider, bubble, wrap, getBubbleText) {
     if (!slider || !bubble || !wrap || !getBubbleText) return;
+    var thumbHit = bindParamRangeThumbTouchHit(slider, wrap);
+    var sliderGeomLogged = false;
     function applyBubblePosition() {
       const x = rangeInputThumbBubbleLeftPx(slider, wrap);
       if (Number.isFinite(x)) {
         bubble.style.left = Math.max(0, x) + 'px';
       }
       bubble.style.transform = 'translateX(-50%)';
+      if (thumbHit) thumbHit.positionHitPad();
+      // #region agent log
+      if (!sliderGeomLogged) {
+        sliderGeomLogged = true;
+        const sRect = slider.getBoundingClientRect();
+        const wRect = wrap.getBoundingClientRect();
+        agentDebugLog('app.js:bindSliderThumbBubble', 'slider geom', {
+          sliderHeight: Math.round(sRect.height),
+          thumbSizePx: PARAM_RANGE_THUMB_SIZE_PX,
+          hitSizePx: PARAM_RANGE_THUMB_HIT_SIZE_PX,
+          bubbleLeft: Number.isFinite(x) ? Math.round(x) : null,
+          hasTouchHitPad: !!thumbHit,
+          runId: 'post-fix',
+        }, 'A');
+      }
+      // #endregion
     }
     function place() {
       window.requestAnimationFrame(function () {
