@@ -3073,11 +3073,20 @@
     } catch (_) {}
   }
 
-  /** iOS Safari / PWA: a 100vh gyakran rövidebb a látható képernyőnél — px magasság a visualViewport-ból. */
+  /** iOS Safari / PWA: stabil látható magasság (visualViewport + offsetTop, clientHeight fallback). */
+  function getMobileAppViewportHeightPx() {
+    const vv = window.visualViewport;
+    if (vv && vv.height > 0) {
+      return Math.round(vv.height + Math.max(0, vv.offsetTop || 0));
+    }
+    const clientH = document.documentElement.clientHeight;
+    if (clientH > 0) return clientH;
+    return Math.round(window.innerHeight);
+  }
+
   function syncMobileAppViewportHeight() {
     if (!document.documentElement.classList.contains('is-touch')) return;
-    const vv = window.visualViewport;
-    const h = vv && vv.height ? Math.round(vv.height) : Math.round(window.innerHeight);
+    const h = getMobileAppViewportHeightPx();
     if (h > 0) {
       document.documentElement.style.setProperty('--app-vh', h + 'px');
     }
@@ -3093,8 +3102,9 @@
     syncMobileAppViewportHeight();
     window.addEventListener('resize', syncMobileAppViewportHeight);
     window.addEventListener('orientationchange', function () {
-      window.setTimeout(syncMobileAppViewportHeight, 120);
+      window.setTimeout(syncMobileAppViewportHeight, 150);
     });
+    window.addEventListener('pageshow', syncMobileAppViewportHeight);
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', syncMobileAppViewportHeight);
       window.visualViewport.addEventListener('scroll', syncMobileAppViewportHeight);
@@ -11321,7 +11331,7 @@
   }
 
   function dismissStartOverlay() {
-    if (!elements.startOverlay) return;
+    if (!elements.startOverlay || document.documentElement.classList.contains('app-started')) return;
 
     requestFullscreen();
     tryLockPortraitOrientation();
@@ -11816,6 +11826,14 @@
 
     if (elements.startOverlay) {
       elements.startOverlay.addEventListener('click', dismissStartOverlay);
+      elements.startOverlay.addEventListener(
+        'touchend',
+        function (e) {
+          e.preventDefault();
+          dismissStartOverlay();
+        },
+        { passive: false }
+      );
     }
 
     document.addEventListener('fullscreenchange', function () {
