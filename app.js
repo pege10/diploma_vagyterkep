@@ -75,7 +75,7 @@
   function getBestCityFindAllowedColumns() {
     if (bestCityFindAllowedCols) return bestCityFindAllowedCols;
     bestCityFindAllowedCols = new Set(
-      'ID,settlement_name,CITYDATA_County,CITYDATA_PostalCode,CITYDATA_SettlementType,CITYDATA_Latitude,CITYDATA_Longitude,FOREST_INDEX_puffer_area_km2,FOREST_INDEX_forest_area_km2,FOREST_INDEX_forest_ratio,FOREST_INDEX_forest_index,WATER_INDEX_puffer_area_km2,WATER_INDEX_water_area_km2,WATER_INDEX_water_ratio,WATER_INDEX_water_index,TERRAIN_INDEX_puffer_m2,TERRAIN_INDEX_elev_mean,TERRAIN_INDEX_elev_min,TERRAIN_INDEX_elev_max,TERRAIN_INDEX_slope_mean,TERRAIN_INDEX_terrain_index,AIRPOLLUTION_INDEX_airpollution_index,BUDAPEST_CAR_TRAIN_INDEX_nearest_station,BUDAPEST_CAR_TRAIN_INDEX_car_to_station_min,BUDAPEST_CAR_TRAIN_INDEX_train_to_bp_min,BUDAPEST_CAR_TRAIN_INDEX_total_min,BUDAPEST_CAR_TRAIN_INDEX_budapest_car_train_index,BUDAPEST_CAR_TRAIN_INDEX_note,INTERNET_INDEX_avg_d_kbps,INTERNET_INDEX_avg_d_mbps,INTERNET_INDEX_tile_count,INTERNET_INDEX_internet_index,URBAN_MOBILITY_INDEX_tkv_forras,URBAN_MOBILITY_INDEX_gtfs_score,URBAN_MOBILITY_INDEX_teir_score,URBAN_MOBILITY_INDEX_tkv_score,URBAN_MOBILITY_INDEX_lakott_terulet_km2,URBAN_MOBILITY_INDEX_walk_score,URBAN_MOBILITY_INDEX_urban_mobility_index,TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye,TRANSPORT_FREQUENCY_INDEX_megye,TRANSPORT_FREQUENCY_INDEX_napi_jaratok,TRANSPORT_FREQUENCY_INDEX_pont,TRANSPORT_FREQUENCY_INDEX_transport_frequency_index,TRANSPORT_FREQUENCY_INDEX_modszer,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_perc,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_auto_index,BUDAPEST_ACCESS_INDEX_budapest_perc,BUDAPEST_ACCESS_INDEX_budapest_auto_index,CULTURAL_INDEX_kod,CULTURAL_INDEX_mozitermek_2024,CULTURAL_INDEX_szinhaz_2024,CULTURAL_INDEX_konyvtar_2023,CULTURAL_INDEX_reszt_mukvelodesi_2024,CULTURAL_INDEX_nepesseg_2024,CULTURAL_INDEX_mozi_score,CULTURAL_INDEX_szinhaz_score,CULTURAL_INDEX_konyvtar_score,CULTURAL_INDEX_aktivitas_score,CULTURAL_INDEX_cultural_index,GROCERIES_INDEX_lat,GROCERIES_INDEX_lon,GROCERIES_INDEX_legkozelebbi_uzlet_km,GROCERIES_INDEX_legkozelebbi_brand,GROCERIES_INDEX_unique_brandek_5km,GROCERIES_INDEX_brandek_5km_lista,GROCERIES_INDEX_s_base,GROCERIES_INDEX_s_variety,GROCERIES_INDEX_kisker_index,SPORT_INDEX_sportag_db,SPORT_INDEX_letesitmeny_db,SPORT_INDEX_sportag_index,SPORT_INDEX_letes_index,SPORT_INDEX_sport_index_nem_normalizalt,SPORT_INDEX_sport_index,GASTRO_INDEX_gasztro_db,GASTRO_INDEX_gasztro_index,SENIOR_INDEX_lakossag_osszesen,SENIOR_INDEX_fo_65_felett,SENIOR_INDEX_arany_65_felett,SENIOR_INDEX_senior_index,DIPLOMA_INDEX_lakossag_7_ev_felett_fo,DIPLOMA_INDEX_diplomasok_szama_fo,DIPLOMA_INDEX_diplomasok_aranya,DIPLOMA_INDEX_diploma_index,INGATLANPIAC_haz_emelkedes_pct,INGATLANPIAC_house_price_grow_5yrs_index,INGATLANPIAC_lakas_emelkedes_pct,INGATLANPIAC_flat_price_grow_5yrs_index,INGATLANPIAC_telek_emelkedes_pct,INGATLANPIAC_site_price_grow_5yrs_index,INGATLANPIAC_haz_atlag,INGATLANPIAC_house_avg_index,INGATLANPIAC_lakas_atlag,INGATLANPIAC_flat_avg_index,INGATLANPIAC_telek_atlag,INGATLANPIAC_site_avg_index,SLEEPING_CITY_INDEX_sleeping_city_index,SLEEPING_CITY_INDEX_kijaro_arany_nyers,JOBS_INDEX_jobs_index,JOBS_INDEX_munkalehetoseg_arany_nyers,TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo,TURISM_INDEX_turism_index,SCHOOL_PROXIMITY_INDEX_alt_sima_0km,SCHOOL_PROXIMITY_INDEX_alt_sima_0km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_5km,SCHOOL_PROXIMITY_INDEX_alt_sima_5km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_10km,SCHOOL_PROXIMITY_INDEX_alt_sima_10km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_15km,SCHOOL_PROXIMITY_INDEX_alt_sima_15km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_20km,SCHOOL_PROXIMITY_INDEX_alt_sima_20km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_25km,SCHOOL_PROXIMITY_INDEX_alt_sima_25km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_30km,SCHOOL_PROXIMITY_INDEX_alt_sima_30km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_35km,SCHOOL_PROXIMITY_INDEX_alt_sima_35km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_40km,SCHOOL_PROXIMITY_INDEX_alt_sima_40km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_45km,SCHOOL_PROXIMITY_INDEX_alt_sima_45km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_50km,SCHOOL_PROXIMITY_INDEX_alt_sima_50km_nevek,SCHOOL_PROXIMITY_INDEX_alt_sima_index,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_alt_0km,SCHOOL_PROXIMITY_INDEX_alt_alt_0km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_5km,SCHOOL_PROXIMITY_INDEX_alt_alt_5km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_10km,SCHOOL_PROXIMITY_INDEX_alt_alt_10km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_15km,SCHOOL_PROXIMITY_INDEX_alt_alt_15km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_20km,SCHOOL_PROXIMITY_INDEX_alt_alt_20km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_25km,SCHOOL_PROXIMITY_INDEX_alt_alt_25km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_30km,SCHOOL_PROXIMITY_INDEX_alt_alt_30km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_35km,SCHOOL_PROXIMITY_INDEX_alt_alt_35km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_40km,SCHOOL_PROXIMITY_INDEX_alt_alt_40km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_45km,SCHOOL_PROXIMITY_INDEX_alt_alt_45km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_50km,SCHOOL_PROXIMITY_INDEX_alt_alt_50km_nevek,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_sima_0km,SCHOOL_PROXIMITY_INDEX_gim_sima_0km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_5km,SCHOOL_PROXIMITY_INDEX_gim_sima_5km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_10km,SCHOOL_PROXIMITY_INDEX_gim_sima_10km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_15km,SCHOOL_PROXIMITY_INDEX_gim_sima_15km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_20km,SCHOOL_PROXIMITY_INDEX_gim_sima_20km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_25km,SCHOOL_PROXIMITY_INDEX_gim_sima_25km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_30km,SCHOOL_PROXIMITY_INDEX_gim_sima_30km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_35km,SCHOOL_PROXIMITY_INDEX_gim_sima_35km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_40km,SCHOOL_PROXIMITY_INDEX_gim_sima_40km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_45km,SCHOOL_PROXIMITY_INDEX_gim_sima_45km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_50km,SCHOOL_PROXIMITY_INDEX_gim_sima_50km_nevek,SCHOOL_PROXIMITY_INDEX_gim_sima_index,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_alt_0km,SCHOOL_PROXIMITY_INDEX_gim_alt_0km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_5km,SCHOOL_PROXIMITY_INDEX_gim_alt_5km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_10km,SCHOOL_PROXIMITY_INDEX_gim_alt_10km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_15km,SCHOOL_PROXIMITY_INDEX_gim_alt_15km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_20km,SCHOOL_PROXIMITY_INDEX_gim_alt_20km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_25km,SCHOOL_PROXIMITY_INDEX_gim_alt_25km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_30km,SCHOOL_PROXIMITY_INDEX_gim_alt_30km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_35km,SCHOOL_PROXIMITY_INDEX_gim_alt_35km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_40km,SCHOOL_PROXIMITY_INDEX_gim_alt_40km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_45km,SCHOOL_PROXIMITY_INDEX_gim_alt_45km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_50km,SCHOOL_PROXIMITY_INDEX_gim_alt_50km_nevek,SCHOOL_PROXIMITY_INDEX_gim_alt_index,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev'.split(',')
+      'ID,settlement_name,CITYDATA_County,CITYDATA_PostalCode,CITYDATA_SettlementType,CITYDATA_Latitude,CITYDATA_Longitude,FOREST_INDEX_puffer_area_km2,FOREST_INDEX_forest_area_km2,FOREST_INDEX_forest_ratio,FOREST_INDEX_forest_index,WATER_INDEX_puffer_area_km2,WATER_INDEX_water_area_km2,WATER_INDEX_water_ratio,WATER_INDEX_water_index,TERRAIN_INDEX_puffer_m2,TERRAIN_INDEX_elev_mean,TERRAIN_INDEX_elev_min,TERRAIN_INDEX_elev_max,TERRAIN_INDEX_slope_mean,TERRAIN_INDEX_terrain_index,AIRPOLLUTION_INDEX_airpollution_index,BUDAPEST_CAR_TRAIN_INDEX_nearest_station,BUDAPEST_CAR_TRAIN_INDEX_car_to_station_min,BUDAPEST_CAR_TRAIN_INDEX_train_to_bp_min,BUDAPEST_CAR_TRAIN_INDEX_total_min,BUDAPEST_CAR_TRAIN_INDEX_budapest_car_train_index,BUDAPEST_CAR_TRAIN_INDEX_note,INTERNET_INDEX_avg_d_kbps,INTERNET_INDEX_avg_d_mbps,INTERNET_INDEX_tile_count,INTERNET_INDEX_internet_index,URBAN_MOBILITY_INDEX_tkv_forras,URBAN_MOBILITY_INDEX_gtfs_score,URBAN_MOBILITY_INDEX_teir_score,URBAN_MOBILITY_INDEX_tkv_score,URBAN_MOBILITY_INDEX_lakott_terulet_km2,URBAN_MOBILITY_INDEX_walk_score,URBAN_MOBILITY_INDEX_urban_mobility_index,TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye,TRANSPORT_FREQUENCY_INDEX_megye,TRANSPORT_FREQUENCY_INDEX_napi_jaratok,TRANSPORT_FREQUENCY_INDEX_pont,TRANSPORT_FREQUENCY_INDEX_transport_frequency_index,TRANSPORT_FREQUENCY_INDEX_modszer,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_perc,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_auto_index,BUDAPEST_ACCESS_INDEX_budapest_perc,BUDAPEST_ACCESS_INDEX_budapest_auto_index,CULTURAL_INDEX_kod,CULTURAL_INDEX_mozitermek_2024,CULTURAL_INDEX_szinhaz_2024,CULTURAL_INDEX_konyvtar_2023,CULTURAL_INDEX_reszt_mukvelodesi_2024,CULTURAL_INDEX_nepesseg_2024,CULTURAL_INDEX_mozi_score,CULTURAL_INDEX_szinhaz_score,CULTURAL_INDEX_konyvtar_score,CULTURAL_INDEX_aktivitas_score,CULTURAL_INDEX_cultural_index,GROCERIES_INDEX_lat,GROCERIES_INDEX_lon,GROCERIES_INDEX_legkozelebbi_uzlet_km,GROCERIES_INDEX_legkozelebbi_brand,GROCERIES_INDEX_unique_brandek_5km,GROCERIES_INDEX_brandek_5km_lista,GROCERIES_INDEX_s_base,GROCERIES_INDEX_s_variety,GROCERIES_INDEX_kisker_index,SPORT_INDEX_sportag_db,SPORT_INDEX_letesitmeny_db,SPORT_INDEX_sportag_index,SPORT_INDEX_letes_index,SPORT_INDEX_sport_index_nem_normalizalt,SPORT_INDEX_sport_index,GASTRO_INDEX_gasztro_db,GASTRO_INDEX_gasztro_index,SENIOR_INDEX_lakossag_osszesen,SENIOR_INDEX_fo_65_felett,SENIOR_INDEX_arany_65_felett,SENIOR_INDEX_senior_index,DIPLOMA_INDEX_lakossag_7_ev_felett_fo,DIPLOMA_INDEX_diplomasok_szama_fo,DIPLOMA_INDEX_diplomasok_aranya,DIPLOMA_INDEX_diploma_index,INGATLANPIAC_haz_emelkedes_pct,INGATLANPIAC_house_price_grow_5yrs_index,INGATLANPIAC_lakas_emelkedes_pct,INGATLANPIAC_flat_price_grow_5yrs_index,INGATLANPIAC_telek_emelkedes_pct,INGATLANPIAC_site_price_grow_5yrs_index,INGATLANPIAC_haz_atlag,INGATLANPIAC_house_avg_index,INGATLANPIAC_lakas_atlag,INGATLANPIAC_flat_avg_index,INGATLANPIAC_telek_atlag,INGATLANPIAC_site_avg_index,SLEEPING_CITY_INDEX_sleeping_city_index,SLEEPING_CITY_INDEX_kijaro_arany_nyers,JOBS_INDEX_jobs_index,JOBS_INDEX_munkalehetoseg_arany_nyers,TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo,TURISM_INDEX_turism_index,SCHOOL_PROXIMITY_INDEX_alt_sima_index,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_alt_index,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_sima_index,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_alt_index,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev'.split(',')
     );
     return bestCityFindAllowedCols;
   }
@@ -3568,7 +3568,22 @@
         def.id === 'alternativ' ? 'alternatív iskola' : 'állami iskola';
       rows.push({ label: 'Oktatás típusa', value: eduType });
     }
+    // Ingatlan variant: megmutatjuk a kiválasztott ingatlantípust
+    const ingatlanTypeLabel = ingatlanVariantLabelForIndexKey(indexKey);
+    if (ingatlanTypeLabel) {
+      rows.push({ label: 'Ingatlantípus', value: ingatlanTypeLabel });
+    }
     return rows;
+  }
+
+  /** Az aktív ingatlan index kulcsból visszaadja a kiválasztott ingatlantípus nevét. */
+  function ingatlanVariantLabelForIndexKey(indexKey) {
+    if (!indexKey) return null;
+    const lk = indexKey.toLowerCase();
+    if (lk.indexOf('house_price_grow') !== -1 || lk.indexOf('house_avg') !== -1) return 'ház';
+    if (lk.indexOf('flat_price_grow') !== -1 || lk.indexOf('flat_avg') !== -1) return 'lakás';
+    if (lk.indexOf('site_price_grow') !== -1 || lk.indexOf('site_avg') !== -1) return 'telek';
+    return null;
   }
 
   function schoolCompanionNameKey(companionKmKey) {
@@ -11513,17 +11528,176 @@
     bestCityFindInsertKeys = keys;
   }
 
+  /**
+   * UI param ID → best_city_finds param_label oszlop neve.
+   * Minden paramétercsoporthoz egy TEXT oszlop tárolja a megnevezes szöveget.
+   * (Iskola és ingatlan esetén két param osztja ugyanazt a DB-prefixet → külön alprefix.)
+   */
+  var UI_PARAM_LABEL_COLUMN = {
+    forest_index:                      'FOREST_INDEX_param_label',
+    water_index:                       'WATER_INDEX_param_label',
+    terrain_index:                     'TERRAIN_INDEX_param_label',
+    airpollution_index:                'AIRPOLLUTION_INDEX_param_label',
+    budapest_car_train_index:          'BUDAPEST_CAR_TRAIN_INDEX_param_label',
+    internet_index:                    'INTERNET_INDEX_param_label',
+    urban_mobility_index:              'URBAN_MOBILITY_INDEX_param_label',
+    transport_frequency_index:         'TRANSPORT_FREQUENCY_INDEX_param_label',
+    district_seat_access_index:        'DISTRICT_SEAT_ACCESS_INDEX_param_label',
+    budapest_access_index:             'BUDAPEST_ACCESS_INDEX_param_label',
+    cultural_index:                    'CULTURAL_INDEX_param_label',
+    groceries_index:                   'GROCERIES_INDEX_param_label',
+    sport_index:                       'SPORT_INDEX_param_label',
+    gastro_index:                      'GASTRO_INDEX_param_label',
+    senior_index:                      'SENIOR_INDEX_param_label',
+    diploma_index:                     'DIPLOMA_INDEX_param_label',
+    primary_school_proximity_index:    'SCHOOL_PROXIMITY_INDEX_alt_param_label',
+    high_school_proximity_index:       'SCHOOL_PROXIMITY_INDEX_gim_param_label',
+    real_estate_price_grow_5yrs_index: 'INGATLANPIAC_grow_param_label',
+    real_estate_price_avg5mth_index:   'INGATLANPIAC_avg_param_label',
+    sleeping_city_index:               'SLEEPING_CITY_INDEX_param_label',
+    jobs_index:                        'JOBS_INDEX_param_label',
+    turism_index:                      'TURISM_INDEX_param_label',
+  };
+
+  /**
+   * Beolvassa a DOM-ból az aktív variant kiválasztásokat (iskola, ingatlan).
+   * Visszaadja: { primarySchool, gymnasium, ingatlanGrow, ingatlanAvg }
+   * ahol az értékek pl. 'allami' | 'alternativ' | 'haz' | 'lakas' | 'telek' | null
+   */
+  function collectVariantSelections() {
+    var result = { primarySchool: null, gymnasium: null, ingatlanGrow: null, ingatlanAvg: null };
+    var host = elements.paramCategoriesHost;
+    if (!host) return result;
+    host.querySelectorAll('.param-item--school-variant, .param-item--ingatlan-variant').forEach(function (card) {
+      var vm = card._ingVariantMap;
+      var av = card._ingActiveVariant;
+      if (!vm || !av) return;
+      // Iskola kártyák: vm.allami.indexKey alapján azonosítjuk a típust
+      if (vm.allami && vm.allami.indexKey) {
+        var ik = vm.allami.indexKey;
+        if (ik.indexOf('alt_sima') !== -1) {
+          result.primarySchool = av; // általános iskola
+        } else if (ik.indexOf('gim_sima') !== -1) {
+          result.gymnasium = av; // gimnázium
+        }
+      // Ingatlan kártyák: vm.haz.indexKey alapján azonosítjuk (grow vs avg)
+      } else if (vm.haz && vm.haz.indexKey) {
+        var ik2 = vm.haz.indexKey;
+        if (ik2.indexOf('house_price_grow') !== -1) {
+          result.ingatlanGrow = av; // 5 éves áremelkedés
+        } else if (ik2.indexOf('house_avg') !== -1) {
+          result.ingatlanAvg = av; // jelenlegi ár
+        }
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Megmondja, hogy egy adott oszlopkulcsot el kell-e hagyni a Supabase-mentésből
+   * mert a nem-választott varianthoz tartozik (iskola vagy ingatlan típus).
+   */
+  function shouldNullVariantColumn(key, vs) {
+    var lk = key.toLowerCase();
+    // Általános iskola: alt_sima = állami, alt_alt = alternatív
+    if (vs.primarySchool) {
+      if (lk.indexOf('school_proximity_index_alt_sima') !== -1 && vs.primarySchool !== 'allami') return true;
+      if (lk.indexOf('school_proximity_index_alt_alt') !== -1 && vs.primarySchool !== 'alternativ') return true;
+    }
+    // Gimnázium: gim_sima = állami, gim_alt = alternatív
+    if (vs.gymnasium) {
+      if (lk.indexOf('school_proximity_index_gim_sima') !== -1 && vs.gymnasium !== 'allami') return true;
+      if (lk.indexOf('school_proximity_index_gim_alt') !== -1 && vs.gymnasium !== 'alternativ') return true;
+    }
+    // Ingatlan 5 éves áremelkedés
+    if (vs.ingatlanGrow) {
+      var growCols = {
+        haz:   ['ingatlanpiac_haz_emelkedes_pct', 'ingatlanpiac_house_price_grow_5yrs_index'],
+        lakas: ['ingatlanpiac_lakas_emelkedes_pct', 'ingatlanpiac_flat_price_grow_5yrs_index'],
+        telek: ['ingatlanpiac_telek_emelkedes_pct', 'ingatlanpiac_site_price_grow_5yrs_index'],
+      };
+      for (var gvid in growCols) {
+        if (gvid !== vs.ingatlanGrow && growCols[gvid].indexOf(lk) !== -1) return true;
+      }
+    }
+    // Ingatlan jelenlegi átlagár
+    if (vs.ingatlanAvg) {
+      var avgCols = {
+        haz:   ['ingatlanpiac_haz_atlag', 'ingatlanpiac_house_avg_index'],
+        lakas: ['ingatlanpiac_lakas_atlag', 'ingatlanpiac_flat_avg_index'],
+        telek: ['ingatlanpiac_telek_atlag', 'ingatlanpiac_site_avg_index'],
+      };
+      for (var avid in avgCols) {
+        if (avid !== vs.ingatlanAvg && avgCols[avid].indexOf(lk) !== -1) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Egy DB oszlopnévből kiszedi az uppercase csoport-prefixet.
+   * Pl. 'FOREST_INDEX_forest_ratio' → 'FOREST_INDEX_'
+   *     'BUDAPEST_CAR_TRAIN_INDEX_total_min' → 'BUDAPEST_CAR_TRAIN_INDEX_'
+   *     'INGATLANPIAC_haz_atlag' → 'INGATLANPIAC_'
+   * Ha az egész kulcs csupa nagybetű (pl. 'ID'), null-t ad vissza (speciális eset).
+   */
+  function columnGroupPrefix(key) {
+    if (!key) return null;
+    var parts = key.split('_');
+    var prefixParts = [];
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p && p === p.toUpperCase() && /^[A-Z]/.test(p)) {
+        prefixParts.push(p);
+      } else {
+        break;
+      }
+    }
+    if (!prefixParts.length || prefixParts.length === parts.length) return null;
+    return prefixParts.join('_') + '_';
+  }
+
   function buildBestCityFindRow(winningCity, matchPercent) {
     if (!bestCityFindInsertKeys) rebuildBestCityFindInsertKeys();
     const row = {};
     const keys = bestCityFindInsertKeys || Object.keys(winningCity);
+    var vs = collectVariantSelections();
+
+    // Aktív paraméter kártyák oszlop-prefixei (pl. 'FOREST_INDEX_', 'WATER_INDEX_', ...)
+    var activePrefixes = new Set();
+    activePrefixes.add('CITYDATA_'); // alap metadata mindig kell
+    var activeParams = collectActiveParamKeysFromDom();
+    for (var ai = 0; ai < activeParams.length; ai++) {
+      var prefix = columnGroupPrefix(activeParams[ai].key);
+      if (prefix) activePrefixes.add(prefix);
+    }
+
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       if (!isBestCityFindDataColumn(key)) continue;
+      if (shouldNullVariantColumn(key, vs)) continue;
+      // Metadata oszlopok mindig bekerülnek; a többit prefix alapján szűrjük
+      var alwaysInclude = key === 'ID' || key === 'settlement_name';
+      if (!alwaysInclude) {
+        var colPrefix = columnGroupPrefix(key);
+        if (!colPrefix || !activePrefixes.has(colPrefix)) continue;
+      }
       if (Object.prototype.hasOwnProperty.call(winningCity, key)) {
         row[key] = winningCity[key];
       }
     }
+
+    // Aktív paraméterek megnevezes szövegének mentése a param_label oszlopokba
+    for (var pi = 0; pi < activeParams.length; pi++) {
+      var pkey = activeParams[pi].key;
+      var pent = getUiParamEntryForDbKey(pkey);
+      if (!pent) continue;
+      var labelCol = UI_PARAM_LABEL_COLUMN[pent.id];
+      if (!labelCol) continue;
+      var labelText = (pent.megnevezes) ? pent.megnevezes : paramLabelForDbKey(pkey);
+      row[labelCol] = labelText;
+    }
+
     row.match_score =
       matchPercent != null && Number.isFinite(Number(matchPercent))
         ? Math.round(Number(matchPercent) * 10) / 10
