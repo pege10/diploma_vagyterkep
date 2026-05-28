@@ -3399,6 +3399,12 @@ html.is-touch .dual-range-thumb:active {
   display: none !important;
 }
 
+/* Találat részletei (I): gomb rejtve, kód megmarad app.js-ben / DOM-ban. */
+#winner-info-toggle-btn {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 @media (min-width: 920px) {
   .feedback-panel:not([hidden]) {
     position: fixed;
@@ -3464,11 +3470,6 @@ html.is-touch .dual-range-thumb:active {
     padding: 12px 8px 0 0;
   }
 
-  /* I gomb: kód megmarad, UI egyelőre rejtve */
-  #winner-info-toggle-btn {
-    display: none !important;
-  }
-
   .feedback-panel__edge-tab {
     flex-shrink: 0;
     width: 22px;
@@ -3527,10 +3528,10 @@ html.is-touch .dual-range-thumb:active {
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
-    padding: 20px var(--feedback-panel-side) 22px 0;
+    padding: 20px var(--feedback-panel-side) 22px 12px;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     -webkit-overflow-scrolling: touch;
   }
 }
@@ -3596,9 +3597,9 @@ html.is-touch .dual-range-thumb:active {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  margin: 10px auto 0;
+  margin: 10px 0 0;
   width: 100%;
-  max-width: 320px;
+  max-width: 100%;
 }
 
 .feedback-winner__row {
@@ -3804,10 +3805,10 @@ html.is-touch .dual-range-thumb:active {
 }
 
 .feedback-param-list-host {
-  margin: 32px auto 0;
+  margin: 32px 0 0;
   padding-top: 0;
   width: 100%;
-  max-width: 320px;
+  max-width: 100%;
   text-align: left;
 }
 
@@ -3932,6 +3933,27 @@ html.is-touch .dual-range-thumb:active {
   width: 100%;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Index mutatók tábla: szinte teljes panel magasság */
+@media (min-width: 920px) {
+  .feedback-table-wrap--index {
+    min-height: calc(var(--app-vh, 100vh) - 200px);
+  }
+}
+
+/* Preferált érték oszlop: szűkebb, sortöréssel */
+.feedback-table-wrap--index .feedback-table th:nth-child(2),
+.feedback-table-wrap--index .feedback-table td:nth-child(2) {
+  white-space: normal;
+  word-break: normal;
+  max-width: 66px;
+  min-width: 0;
+}
+
+/* Heatmap legenda rejtve, ha az I-panel nyitva van */
+body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-legend {
+  display: none !important;
 }
 
 .feedback-table {

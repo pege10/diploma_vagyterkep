@@ -65,6 +65,8 @@
 
   const SUPABASE_TABLE_CITY_DATA = 'city_data';
   const SUPABASE_BEST_CITY_FINDS_TABLE = 'best_city_finds';
+  /** Kiállítás (exhibition mód): külön tábla — holisticsearch.space/exhibition/ URL-ről mentett találatok. */
+  const SUPABASE_BEST_CITY_FINDS_EXHIBITION_TABLE = 'best_city_finds_exhibition';
   /** Kiállítás: TouchDesigner / felfedés jel (boolean) — UPDATE → Realtime a telefonon. */
   const BEST_CITY_FIND_TD_TRIGGERED_COL = 'td_triggered';
   const PARAMETER_INFO_TABLE = 'parameter_info';
@@ -3056,7 +3058,7 @@
       const patch = {};
       patch[BEST_CITY_FIND_TD_TRIGGERED_COL] = true;
       const { error } = await supabase
-        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .from(SUPABASE_BEST_CITY_FINDS_EXHIBITION_TABLE)
         .update(patch)
         .eq('id', findId);
       if (error) {
@@ -3071,7 +3073,7 @@
     if (!isExhibitionMode() || findId == null || exhibitionSolutionRevealed) return;
     try {
       const { data, error } = await supabase
-        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .from(SUPABASE_BEST_CITY_FINDS_EXHIBITION_TABLE)
         .select(BEST_CITY_FIND_TD_TRIGGERED_COL)
         .eq('id', findId)
         .maybeSingle();
@@ -3140,7 +3142,7 @@
         {
           event: 'UPDATE',
           schema: 'public',
-          table: SUPABASE_BEST_CITY_FINDS_TABLE,
+          table: SUPABASE_BEST_CITY_FINDS_EXHIBITION_TABLE,
         },
         onExhibitionBestCityFindUpdate
       )
@@ -7139,6 +7141,10 @@
     const inner = elements.feedbackPanelInner;
     if (!inner || !city) return;
     rightPanelMode = 'winner-info';
+    if (elements.feedbackPanel) {
+      elements.feedbackPanel.style.removeProperty('--feedback-panel-width');
+      elements.feedbackPanel.classList.remove('feedback-panel--search-details');
+    }
     syncWinnerInfoToggleUi();
     const pct =
       matchPercent != null
@@ -7190,6 +7196,8 @@
     if (elements.feedbackPanel) {
       elements.feedbackPanel.setAttribute('hidden', '');
       elements.feedbackPanel.classList.remove('feedback-panel--collapsed');
+      elements.feedbackPanel.classList.remove('feedback-panel--search-details');
+      elements.feedbackPanel.style.removeProperty('--feedback-panel-width');
       const fbBtn = document.getElementById('feedback-collapse-btn');
       if (fbBtn) {
         fbBtn.setAttribute('aria-expanded', 'true');
@@ -7236,7 +7244,7 @@
       '_index mutatók (cél, település, |Δ|, fontosság w 0–10, w·|Δ|)';
 
     const wrapA = document.createElement('div');
-    wrapA.className = 'feedback-table-wrap';
+    wrapA.className = 'feedback-table-wrap feedback-table-wrap--index';
     const tableA = document.createElement('table');
     tableA.className = 'feedback-table';
 
@@ -7462,6 +7470,10 @@
     inner.appendChild(wrapB);
 
     rightPanelMode = 'search-details';
+    if (panel) {
+      panel.style.setProperty('--feedback-panel-width', 'min(680px, 62vw)');
+      panel.classList.add('feedback-panel--search-details');
+    }
     syncWinnerInfoToggleUi();
     openRightPanel();
   }
@@ -11711,22 +11723,25 @@
         return { id: null, error: 'nincs nyertes település' };
       }
       const row = buildBestCityFindRow(winningCity, matchPercent);
+      const targetTable = isExhibitionMode()
+        ? SUPABASE_BEST_CITY_FINDS_EXHIBITION_TABLE
+        : SUPABASE_BEST_CITY_FINDS_TABLE;
       const { data, error } = await supabase
-        .from(SUPABASE_BEST_CITY_FINDS_TABLE)
+        .from(targetTable)
         .insert(row)
         .select('id')
         .single();
 
       if (error) {
         const msg = error.message || String(error);
-        console.warn('Találat mentése (' + SUPABASE_BEST_CITY_FINDS_TABLE + '):', msg, error);
+        console.warn('Találat mentése (' + targetTable + '):', msg, error);
         return { id: null, error: msg };
       }
       const savedId = data?.id ?? null;
       if (savedId != null) {
         console.log(
           'Találat mentve:',
-          SUPABASE_BEST_CITY_FINDS_TABLE,
+          targetTable,
           '#' + savedId,
           row.settlement_name || cityName(winningCity)
         );

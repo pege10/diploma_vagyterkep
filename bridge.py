@@ -1,5 +1,5 @@
 """
-Real-time bridge: Supabase best_city_finds INSERT events -> physical plotter G-code.
+Real-time bridge: Supabase best_city_finds_exhibition INSERT events -> physical plotter G-code.
 Uses official supabase Python package. Run with: python bridge.py
 """
 
@@ -129,7 +129,7 @@ async def main():
 
         print()
         print("=" * 60)
-        print("NEW INSERT EVENT (best_city_finds)")
+        print("NEW INSERT EVENT (best_city_finds_exhibition)")
         print("=" * 60)
         print("  Település (settlement):", settlement)
         print("  GPS (lat, lng):         ({}, {})".format(lat, lng))
@@ -141,16 +141,16 @@ async def main():
         print("-" * 60)
         print()
 
-    channel = client.channel("best-city-finds-plotter")
+    channel = client.channel("best-city-finds-exhibition-plotter")
     channel.on_postgres_changes(
         event="INSERT",
         schema="public",
-        table="best_city_finds",
+        table="best_city_finds_exhibition",
         callback=on_insert,
     )
     await channel.subscribe()
 
-    print("Listening for INSERT events on table 'best_city_finds'...")
+    print("Listening for INSERT events on table 'best_city_finds_exhibition'...")
     print("(Press Ctrl+C to stop)")
     print()
 
