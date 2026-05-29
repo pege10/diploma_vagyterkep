@@ -5721,25 +5721,41 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   font-family: var(--font-app);
   width: 340px;
   max-width: 100%;
-  max-height: 60vh;
-  display: flex;
-  flex-direction: column;
 }
 
 .city-info__title {
-  padding: 8px 32px 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 36px 8px 12px;
   border-bottom: 1.5px solid var(--ink);
+}
+
+.city-info__name {
   font-weight: 800;
   font-size: 0.92rem;
   line-height: 1.2;
   letter-spacing: 0.01em;
   color: var(--ink);
+  flex: 1;
+  min-width: 0;
+}
+
+.city-info__match-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
 }
 
 .city-info__list {
   padding: 4px 12px 10px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  max-height: calc(65vh - 48px);
 }
 
 .city-info__row {
@@ -5758,8 +5774,16 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
 
 .city-info__label {
   color: var(--ink-soft);
-  flex: 1;
   line-height: 1.25;
+  flex: 1;
+}
+
+.city-info__val-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 2px;
 }
 
 .city-info__val {
@@ -5767,8 +5791,22 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   color: var(--ink);
   white-space: pre-wrap;
   text-align: right;
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.city-info__deviation {
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.city-info__deviation--ok {
+  color: #2a9d2a;
+}
+
+.city-info__deviation--off {
+  color: var(--ink-soft, #888);
 }
 
 .city-info__empty {
@@ -5776,6 +5814,54 @@ body:has(#feedback-panel:not([hidden]):not(.feedback-panel--collapsed))
   font-size: 0.74rem;
   color: var(--ink-soft);
   margin: 0;
+}
+
+/* Paraméter-kategória skeleton — oldalbetöltés alatt látszik, JS buildParamSliders() törli */
+@keyframes param-skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.param-group--skeleton {
+  gap: 0;
+  padding: 0;
+  flex-shrink: 0;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
+.param-group--skeleton .param-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 18px;
+  box-sizing: border-box;
+  border: none;
+  background: rgba(0, 0, 0, 0.045);
+  border-bottom: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.param-group--skeleton .param-group__chevron {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #e0e0e0 25%, #ececec 50%, #e0e0e0 75%);
+  background-size: 800px 100%;
+  animation: param-skeleton-shimmer 1.4s infinite linear;
+  opacity: 0.7;
+}
+
+.param-group--skeleton .param-group__title {
+  height: 16px;
+  width: 55%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e0e0e0 25%, #ececec 50%, #e0e0e0 75%);
+  background-size: 800px 100%;
+  animation: param-skeleton-shimmer 1.4s infinite linear;
 }
 
 /* Kiállítás (/exhibition/): cetli fázis — nincs megoldás a térképen */

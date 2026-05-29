@@ -3569,6 +3569,11 @@
       const eduType =
         def.id === 'alternativ' ? 'alternatív iskola' : 'állami iskola';
       rows.push({ label: 'Oktatás típusa', value: eduType });
+      const telepulesKey = schoolCompanionTelepulesKey(def.companionKey);
+      const telepulesNev = telepulesKey ? String(city[telepulesKey] || '').trim() : '';
+      if (telepulesNev) {
+        rows.push({ label: 'Település', value: telepulesNev });
+      }
     }
     // Ingatlan variant: megmutatjuk a kiválasztott ingatlantípust
     const ingatlanTypeLabel = ingatlanVariantLabelForIndexKey(indexKey);
@@ -3592,6 +3597,14 @@
     if (typeof companionKmKey !== 'string') return null;
     if (/_legkozelebbi_km$/i.test(companionKmKey)) {
       return companionKmKey.replace(/_legkozelebbi_km$/i, '_legkozelebbi_nev');
+    }
+    return null;
+  }
+
+  function schoolCompanionTelepulesKey(companionKmKey) {
+    if (typeof companionKmKey !== 'string') return null;
+    if (/_legkozelebbi_km$/i.test(companionKmKey)) {
+      return companionKmKey.replace(/_legkozelebbi_km$/i, '_legkozelebbi_telepules');
     }
     return null;
   }
@@ -10489,6 +10502,62 @@
     return Math.round(Math.max(0, Math.min(100, percent)));
   }
 
+  /** Igaz, ha van legalább egy nem-sávos (értékalapú) aktív paraméter a targets-ben. */
+  function hasNonBandTargets(targets) {
+    if (!targets) return false;
+    for (const k in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, k)) continue;
+      const pack = targets[k];
+      if (pack && pack.mode !== 'band' && pack.value != null) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Egyezési százalék számítása csak sávos (tól–ig) paraméterek esetén.
+   * Minden sávra: ha a város a sávon belül van → 100%, kívül → arányosan kevesebb.
+   * Visszaadja a sávok átlagát.
+   */
+  function computeBandOnlyMatchPercent(city, targets) {
+    if (!targets) return null;
+    let total = 0;
+    let count = 0;
+    for (const key in targets) {
+      if (!Object.prototype.hasOwnProperty.call(targets, key)) continue;
+      const pack = targets[key];
+      if (!pack || pack.mode !== 'band') continue;
+      const got = bandFilterValueForCity(city, pack);
+      if (got == null || !Number.isFinite(got)) continue;
+      const lo = Math.min(pack.bandMin, pack.bandMax);
+      const hi = Math.max(pack.bandMin, pack.bandMax);
+      if (got >= lo && got <= hi) {
+        total += 100;
+      } else {
+        const bandSpan = Math.max(1, hi - lo);
+        const outside = got < lo ? lo - got : got - hi;
+        total += Math.max(0, 100 - (outside / bandSpan) * 100);
+      }
+      count++;
+    }
+    if (count === 0) return null;
+    return Math.round(total / count);
+  }
+
+  /**
+   * Egyezési százalék kiszámítása egy adott városra az aktuális targets alapján.
+   * Használható a térkép popup-ban (nem csak a nyertes városhoz).
+   */
+  function computeMatchPercentForCity(city, targets) {
+    if (!city || !targets) return null;
+    if (hasNonBandTargets(targets)) {
+      const scored = computeCitySearchScore(city, targets);
+      if (scored.used === 0) return null;
+      const maxP = computeMaxPossibleDiff(targets);
+      return diffToMatchPercent(scored.sum, maxP);
+    }
+    return computeBandOnlyMatchPercent(city, targets);
+  }
+
   // ===========================================================================
   // Település-infó popup (térképre kattintáskor, heatmapen)
   // ===========================================================================
@@ -10667,7 +10736,38 @@
     return v == null ? '–' : String(Math.round(v));
   }
 
-  function buildCityInfoRows(city) {
+  /**
+   * Eltérés szövege egy adott paraméterhez (a keresési célértéktől / sávtól).
+   * Visszaadja: { text, type } ahol type = 'ok' | 'off'
+   */
+  function buildCityInfoDeviationText(city, key, pack) {
+    if (!pack) return null;
+
+    if (pack.mode === 'band') {
+      const got = bandFilterValueForCity(city, pack);
+      if (got == null || !Number.isFinite(got)) return null;
+      const lo = Math.min(pack.bandMin, pack.bandMax);
+      const hi = Math.max(pack.bandMin, pack.bandMax);
+      if (got >= lo && got <= hi) return { text: 'Eltérés: ✓ belül', type: 'ok' };
+      const outside = got < lo ? lo - got : got - hi;
+      const dir = got < lo ? '↓' : '↑';
+      const bandSpan = Math.max(1, hi - lo);
+      const outsidePct = Math.round((outside / bandSpan) * 100);
+      return { text: 'Eltérés: ' + dir + ' ' + outsidePct + '% kívül', type: 'off' };
+    }
+
+    // Értékalapú (index) paraméter
+    if (pack.value == null) return null;
+    const want = pack.value;
+    const got = parseNumeric(city[key]);
+    if (got == null) return null;
+    const diff = Math.round(got - want);
+    if (diff === 0) return { text: 'Eltérés: = egyezik', type: 'ok' };
+    const arrow = diff > 0 ? '↑' : '↓';
+    return { text: 'Eltérés: ' + arrow + ' ' + Math.abs(diff) + '%', type: 'off' };
+  }
+
+  function buildCityInfoRows(city, targets) {
     const rows = [];
     if (!city || !elements.paramCategoriesHost) return rows;
     const active = collectActiveParamKeysFromDom();
@@ -10678,31 +10778,51 @@
       const label = titleEl && titleEl.textContent
         ? titleEl.textContent.trim()
         : paramLabelForDbKey(key);
+      const pack = targets ? targets[key] : null;
+      const deviation = pack ? buildCityInfoDeviationText(city, key, pack) : null;
       rows.push({
         label: label,
         value: formatCityInfoValueForParamKey(city, key),
+        deviation: deviation,
       });
     }
     return rows;
   }
 
-  function buildCityInfoCardEl(city) {
+  function buildCityInfoCardEl(city, matchPercent, targets) {
     const wrap = document.createElement('div');
     wrap.className = 'city-info';
 
     const title = document.createElement('div');
     title.className = 'city-info__title';
-    title.textContent = cityName(city);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'city-info__name';
+    nameSpan.textContent = cityName(city);
+    title.appendChild(nameSpan);
+
+    if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
+      const pct = Math.round(Number(matchPercent));
+      const badge = document.createElement('span');
+      badge.className = 'city-info__match-badge';
+      badge.textContent = pct + '% egyezés';
+      const bgColor = plasmaColorForPercent(pct).replace('rgb(', 'rgba(').replace(')', ', 0.5)');
+      badge.style.background = bgColor;
+      // Sötét háttéren (lila/kék tartomány) fehér szöveg, világos háttéren fekete
+      badge.style.color = pct < 50 ? '#fff' : '#111';
+      title.appendChild(badge);
+    }
+
     wrap.appendChild(title);
 
     const listHost = document.createElement('div');
-    appendCityInfoListToContainer(listHost, city);
+    appendCityInfoListToContainer(listHost, city, targets);
     wrap.appendChild(listHost);
     return wrap;
   }
 
-  function appendCityInfoListToContainer(container, city) {
-    const rows = buildCityInfoRows(city);
+  function appendCityInfoListToContainer(container, city, targets) {
+    const rows = buildCityInfoRows(city, targets);
     if (rows.length === 0) {
       const p = document.createElement('p');
       p.className = 'city-info__empty';
@@ -10720,11 +10840,20 @@
       const lab = document.createElement('span');
       lab.className = 'city-info__label';
       lab.textContent = r.label;
+      row.appendChild(lab);
+      const valWrap = document.createElement('span');
+      valWrap.className = 'city-info__val-wrap';
       const val = document.createElement('span');
       val.className = 'city-info__val';
       val.textContent = r.value;
-      row.appendChild(lab);
-      row.appendChild(val);
+      valWrap.appendChild(val);
+      if (r.deviation) {
+        const dev = document.createElement('span');
+        dev.className = 'city-info__deviation city-info__deviation--' + r.deviation.type;
+        dev.textContent = r.deviation.text;
+        valWrap.appendChild(dev);
+      }
+      row.appendChild(valWrap);
       list.appendChild(row);
     }
     container.appendChild(list);
@@ -10749,7 +10878,12 @@
     if (!map || !city || !featureId) return;
     closeCityInfoPopup();
     setCityInfoSelection(featureId);
-    const el = buildCityInfoCardEl(city);
+    const targets = lastSearchFeedbackMeta && lastSearchFeedbackMeta.targets;
+    // A hőtérképen látható tényleges (relatív) színhez az eltárolt feature-state pct-et használjuk
+    const heatmapPct = (featureId != null && lastHeatmapFeaturePcts[featureId] != null)
+      ? lastHeatmapFeaturePcts[featureId]
+      : (targets ? computeMatchPercentForCity(city, targets) : null);
+    const el = buildCityInfoCardEl(city, heatmapPct, targets);
     cityInfoPopup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: false,
@@ -10807,6 +10941,39 @@
   let heatmapLayersPromise = null;
   /** @type {Set<string> | null} Az utoljára festett feature ID-k (a régi state-ek törléséhez). */
   let lastHeatmapPaintedIds = null;
+  /** featureId → relatív matchPercent (0–100), pontosan ahogy a hőtérképen látszik. */
+  let lastHeatmapFeaturePcts = {};
+
+  /**
+   * Plasma szín JavaScript interpolációval (azonos paletta mint a hőtérképen).
+   * @param {number} pct 0–100
+   * @returns {string} CSS rgb() szín
+   */
+  function plasmaColorForPercent(pct) {
+    const stops = [
+      [0,    [13,  8,   135]],
+      [12.5, [92,  1,   166]],
+      [25,   [156, 23,  158]],
+      [37.5, [204, 71,  120]],
+      [50,   [237, 121, 83]],
+      [62.5, [248, 148, 65]],
+      [75,   [253, 195, 40]],
+      [100,  [240, 249, 33]],
+    ];
+    const p = Math.max(0, Math.min(100, pct));
+    for (let i = 0; i < stops.length - 1; i++) {
+      const [s0, c0] = stops[i];
+      const [s1, c1] = stops[i + 1];
+      if (p >= s0 && p <= s1) {
+        const t = (p - s0) / (s1 - s0);
+        const r = Math.round(c0[0] + t * (c1[0] - c0[0]));
+        const g = Math.round(c0[1] + t * (c1[1] - c0[1]));
+        const b = Math.round(c0[2] + t * (c1[2] - c0[2]));
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+      }
+    }
+    return 'rgb(240,249,33)';
+  }
 
   /** plasma paletta (rossz illeszkedés → jó illeszkedés). 0 = sötétlila, 100 = sárga. */
   function buildPlasmaColorExpr() {
@@ -11032,6 +11199,7 @@
     // 3) régi state-ek tisztítása + új state-ek ráfestése
     clearOldStates();
     const nowPainted = new Set();
+    const newPcts = {};
     for (let i = 0; i < featureSums.length; i++) {
       const fs = featureSums[i];
       let pct = range > 0 ? 100 * (1 - (fs.sum - minSum) / range) : 100;
@@ -11041,8 +11209,10 @@
         { matchPercent: pct }
       );
       nowPainted.add(fs.id);
+      newPcts[fs.id] = pct;
     }
     lastHeatmapPaintedIds = nowPainted;
+    lastHeatmapFeaturePcts = newPcts;
 
     if (
       cityInfoSelectedFeatureId &&
@@ -11933,7 +12103,9 @@
 
     if (result) {
       const maxP = computeMaxPossibleDiff(targets);
-      const matchPercent = diffToMatchPercent(result.finalScore, maxP);
+      const matchPercent = hasNonBandTargets(targets)
+        ? diffToMatchPercent(result.finalScore, maxP)
+        : computeBandOnlyMatchPercent(result.city, targets);
       let ticketId = null;
       let persistError = null;
       if (persistToDb) {
