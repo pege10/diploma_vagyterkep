@@ -23,7 +23,7 @@
   --mobile-winner-sheet-peek: 120px;
   --mobile-winner-sheet-height: var(--mobile-winner-sheet-expanded);
   /* Fontos hely szerkesztő: tartalomhoz igazodó magasság (JS: --mobile-geo-sheet-height) */
-  --mobile-geo-sheet-max: min(52dvh, calc(var(--app-vh, 100dvh) * 0.52), 400px);
+  --mobile-geo-sheet-max: min(88dvh, calc(var(--app-vh, 100dvh) * 0.88), 900px);
   --mobile-geo-sheet-height: auto;
   /* Mobilon: lebegő lap a térkép fölött (nem ér a képernyő széléig) */
   --mobile-floating-sheet-inset: 12px;
@@ -5140,7 +5140,7 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
       var(--mobile-geo-sheet-max),
       calc(var(--app-vh, 100dvh) - var(--mobile-vv-bottom, 0px) - 2 * var(--mobile-floating-sheet-inset) - 8px)
     );
-    transition: bottom 120ms ease-out;
+    transition: bottom 120ms ease-out, transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   html.is-touch.mobile-geo-setup #map-container.map-container {

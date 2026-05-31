@@ -3316,10 +3316,8 @@
 
   /** Kis képernyőn kisebb fontos-hely lap (max. arány a látható magasságból). */
   function getMobileGeoSheetMaxFraction() {
-    const h = getMobileVisibleHeightPx();
-    if (h <= 620) return 0.42;
-    if (h <= 740) return 0.46;
-    return 0.52;
+    // Nagy érték: a sheet tartalma kiférjen scrollozás nélkül
+    return 0.88;
   }
 
   /** iOS: látható magasság → --app-vh (alsó panelek, max-height). */
