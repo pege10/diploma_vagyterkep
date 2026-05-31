@@ -2656,12 +2656,101 @@
     const sheet = elements.mobileGeoSheet;
     if (!sheet) return;
     if (show) {
+      // Mindig kinyitott állapotból indulunk
+      sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
+      sheet.style.removeProperty('transform');
       sheet.removeAttribute('hidden');
       sheet.setAttribute('aria-hidden', 'false');
     } else {
+      sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
+      sheet.style.removeProperty('transform');
       sheet.setAttribute('hidden', '');
       sheet.setAttribute('aria-hidden', 'true');
     }
+  }
+
+  /** Mobile geo sheet: drag-to-peek bottom sheet logika. */
+  function initMobileGeoSheetDrag() {
+    const sheet = elements.mobileGeoSheet;
+    const handle = document.getElementById('mobile-geo-sheet-handle');
+    if (!sheet || !handle) return;
+
+    const PEEK_TRANSLATE = 'calc(100% - 40px)';
+    const SNAP_THRESHOLD_PX = 60;   // ennyit kell húzni lefelé a peek-hez
+    const VELOCITY_THRESHOLD = 0.4; // px/ms — gyors legyintés elég
+
+    let startY = 0;
+    let currentDY = 0;
+    let startTime = 0;
+    let isPeek = false;
+
+    function getSheetHeight() {
+      return sheet.getBoundingClientRect().height;
+    }
+
+    function applyDrag(dy) {
+      // Csak lefelé húzás engedélyezett peek-ből felfelé, és kinyitottból lefelé
+      const base = isPeek ? getSheetHeight() - 40 : 0;
+      const clamped = Math.max(0, base + dy);
+      sheet.style.transform = 'translateY(' + clamped + 'px)';
+    }
+
+    function snapTo(peek, animate) {
+      isPeek = peek;
+      if (!animate) sheet.classList.add('mobile-geo-sheet--dragging');
+      sheet.classList.remove('mobile-geo-sheet--dragging');
+      sheet.style.removeProperty('transform');
+      if (peek) {
+        sheet.classList.add('mobile-geo-sheet--peek');
+      } else {
+        sheet.classList.remove('mobile-geo-sheet--peek');
+      }
+    }
+
+    handle.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+      currentDY = 0;
+      sheet.classList.add('mobile-geo-sheet--dragging');
+      sheet.style.removeProperty('transform');
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 1) return;
+      currentDY = e.touches[0].clientY - startY;
+      applyDrag(currentDY);
+    }, { passive: true });
+
+    handle.addEventListener('touchend', function () {
+      sheet.classList.remove('mobile-geo-sheet--dragging');
+      const elapsed = Math.max(1, Date.now() - startTime);
+      const velocity = currentDY / elapsed; // px/ms
+
+      if (isPeek) {
+        // Peek → expand: felfelé húzás vagy gyors felfelé legyintés
+        if (currentDY < -SNAP_THRESHOLD_PX || velocity < -VELOCITY_THRESHOLD) {
+          snapTo(false, true);
+        } else {
+          snapTo(true, true); // visszapattan peek-be
+        }
+      } else {
+        // Expand → peek: lefelé húzás vagy gyors lefelé legyintés
+        if (currentDY > SNAP_THRESHOLD_PX || velocity > VELOCITY_THRESHOLD) {
+          snapTo(true, true);
+        } else {
+          snapTo(false, true); // visszapattan kinyitottra
+        }
+      }
+      currentDY = 0;
+    }, { passive: true });
+
+    // Peek állapotban a teljes sheet-re koppintás kinyit
+    sheet.addEventListener('click', function (e) {
+      if (!isPeek) return;
+      if (e.target.closest('button, input, a')) return;
+      snapTo(false, true);
+    });
   }
 
   /** Mobil fontos hely szerkesztés: a térképre koppintás auto-pick (a "Térkép" gomb nem szükséges). */
@@ -3007,6 +3096,7 @@
       sheet.addEventListener('touchend', delegate, { passive: false });
     }
     bindMobileGeoSheetResizeObserver();
+    initMobileGeoSheetDrag();
   }
 
   /** Kiállítás: holisticsearch.space/exhibition — külön UX, nincs megoldás a térképen. */
@@ -10789,7 +10879,7 @@
     return rows;
   }
 
-  function buildCityInfoCardEl(city, matchPercent, targets) {
+  function buildCityInfoCardEl(city, matchPercent, targets, heatmapColorPct) {
     const wrap = document.createElement('div');
     wrap.className = 'city-info';
 
@@ -10803,13 +10893,17 @@
 
     if (matchPercent != null && Number.isFinite(Number(matchPercent))) {
       const pct = Math.round(Number(matchPercent));
+      // Szín: a heatmap relatív %-ából (ha van), különben az abszolút %-ból
+      const colorPct = (heatmapColorPct != null && Number.isFinite(Number(heatmapColorPct)))
+        ? Math.round(Number(heatmapColorPct))
+        : pct;
       const badge = document.createElement('span');
       badge.className = 'city-info__match-badge';
       badge.textContent = pct + '% egyezés';
-      const bgColor = plasmaColorForPercent(pct).replace('rgb(', 'rgba(').replace(')', ', 0.5)');
+      const bgColor = plasmaColorForPercent(colorPct).replace('rgb(', 'rgba(').replace(')', ', 0.5)');
       badge.style.background = bgColor;
       // Sötét háttéren (lila/kék tartomány) fehér szöveg, világos háttéren fekete
-      badge.style.color = pct < 50 ? '#fff' : '#111';
+      badge.style.color = colorPct < 50 ? '#fff' : '#111';
       title.appendChild(badge);
     }
 
@@ -10879,11 +10973,13 @@
     closeCityInfoPopup();
     setCityInfoSelection(featureId);
     const targets = lastSearchFeedbackMeta && lastSearchFeedbackMeta.targets;
-    // A hőtérképen látható tényleges (relatív) színhez az eltárolt feature-state pct-et használjuk
-    const heatmapPct = (featureId != null && lastHeatmapFeaturePcts[featureId] != null)
+    // Relatív heatmap-szín (legjobb=100%, legrosszabb=0%) — csak a badge színéhez
+    const heatmapColorPct = (featureId != null && lastHeatmapFeaturePcts[featureId] != null)
       ? lastHeatmapFeaturePcts[featureId]
-      : (targets ? computeMatchPercentForCity(city, targets) : null);
-    const el = buildCityInfoCardEl(city, heatmapPct, targets);
+      : null;
+    // Abszolút egyezési % — ugyanaz, mint a jobb panelen megjelenő szám
+    const absolutePct = targets ? computeMatchPercentForCity(city, targets) : null;
+    const el = buildCityInfoCardEl(city, absolutePct, targets, heatmapColorPct);
     cityInfoPopup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: false,

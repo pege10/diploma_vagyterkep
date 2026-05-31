@@ -4927,6 +4927,44 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
     border-radius: var(--mobile-floating-sheet-radius);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
     overflow: hidden;
+    /* Peek/expand animáció */
+    transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+    touch-action: none;
+  }
+
+  /* Lenyomott (peek) állapot: csak a handle-bar látszik alul */
+  .mobile-geo-sheet--peek {
+    transform: translateY(calc(100% - 40px));
+  }
+
+  /* Drag közben: nincs transition (közvetlen ujj-követés) */
+  .mobile-geo-sheet--dragging {
+    transition: none !important;
+  }
+
+  /* Drag handle sáv */
+  .mobile-geo-sheet__handle-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-geo-sheet__handle-bar:active {
+    cursor: grabbing;
+  }
+
+  .mobile-geo-sheet__handle-pill {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.22);
+    pointer-events: none;
   }
 
   html.is-touch.mobile-geo-setup .mobile-geo-sheet {
