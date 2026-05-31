@@ -4688,10 +4688,11 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   }
 
   html.is-touch.app-started.mobile-map-view:not(.mobile-param-panel-open) .sidebar-dock,
-  html.is-touch.app-started.mobile-geo-setup .sidebar-dock {
+  html.is-touch.app-started.mobile-geo-setup .sidebar-dock,
+  html.is-touch.mobile-geo-setup .sidebar-dock {
     transform: translateY(100%);
-    visibility: hidden;
-    pointer-events: none;
+    visibility: hidden !important;
+    pointer-events: none !important;
     transition: transform 0.28s ease, visibility 0s linear 0.28s;
   }
 
