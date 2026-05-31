@@ -2654,6 +2654,7 @@
 
   function showMobileGeoSheetEl(show) {
     const sheet = elements.mobileGeoSheet;
+    const backdrop = document.getElementById('mobile-geo-backdrop');
     if (!sheet) return;
     if (show) {
       // Mindig kinyitott állapotból indulunk
@@ -2661,11 +2662,19 @@
       sheet.style.removeProperty('transform');
       sheet.removeAttribute('hidden');
       sheet.setAttribute('aria-hidden', 'false');
+      if (backdrop) {
+        backdrop.removeAttribute('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+      }
     } else {
       sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
       sheet.style.removeProperty('transform');
       sheet.setAttribute('hidden', '');
       sheet.setAttribute('aria-hidden', 'true');
+      if (backdrop) {
+        backdrop.setAttribute('hidden', '');
+        backdrop.setAttribute('aria-hidden', 'true');
+      }
     }
   }
 
@@ -2673,6 +2682,7 @@
   function initMobileGeoSheetDrag() {
     const sheet = elements.mobileGeoSheet;
     const handle = document.getElementById('mobile-geo-sheet-handle');
+    const backdrop = document.getElementById('mobile-geo-backdrop');
     if (!sheet || !handle) return;
 
     const PEEK_TRANSLATE = 'calc(100% - 40px)';
@@ -2697,13 +2707,17 @@
 
     function snapTo(peek, animate) {
       isPeek = peek;
-      if (!animate) sheet.classList.add('mobile-geo-sheet--dragging');
       sheet.classList.remove('mobile-geo-sheet--dragging');
       sheet.style.removeProperty('transform');
       if (peek) {
         sheet.classList.add('mobile-geo-sheet--peek');
+        // Peek: backdrop átengedi a térkép érintéseit (pointer-events: none),
+        // de a sidebar el van fedve — a térkép van felül, a sidebar nem érhető el
+        if (backdrop) backdrop.style.pointerEvents = 'none';
       } else {
         sheet.classList.remove('mobile-geo-sheet--peek');
+        // Kinyitva: backdrop blokkolja az egész hátteret
+        if (backdrop) backdrop.style.removeProperty('pointer-events');
       }
     }
 

@@ -4909,6 +4909,21 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   }
 
   /* Fontos hely beállítás: lebegő lap a térkép fölött — kártya + Mégse / Alkalmaz */
+  /* Háttér-blokkoló réteg: geo-setup alatt, térkép felett — blokkolja az összes UI elemet */
+  .mobile-geo-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 143;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  html.is-touch.mobile-geo-setup .mobile-geo-backdrop {
+    display: block !important;
+    pointer-events: auto;
+  }
+
   .mobile-geo-sheet {
     display: none;
     position: fixed;
@@ -4918,10 +4933,8 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
     z-index: 144;
     flex-direction: column;
     height: auto;
-    max-height: min(
-      var(--mobile-geo-sheet-max),
-      calc(var(--app-vh, 100dvh) - 2 * var(--mobile-floating-sheet-inset) - 8px)
-    );
+    /* Elég magas, hogy minden elem kiférjen scrollozás nélkül */
+    max-height: calc(var(--app-vh, 100dvh) - 80px);
     background: var(--paper);
     border: 2px solid var(--ink);
     border-radius: var(--mobile-floating-sheet-radius);
