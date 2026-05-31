@@ -2847,11 +2847,8 @@
     showMobileGeoSheetEl(true);
     hideMobileWinnerSheet();
     document.documentElement.classList.remove('mobile-geo-keyboard');
-    if (showMap) {
-      setMobileMapView(true, { forGeoEditor: true });
-    } else {
-      setMobileMapView(false);
-    }
+    // Mindig térképnézetre váltunk, hogy a sidebar ne látszódjon a geo sheet mögött
+    setMobileMapView(true, { forGeoEditor: true });
     disableMobileGeoAutoPick();
     refreshGeoFilterWarning();
     updateImportantPlaceCircles();
