@@ -2657,14 +2657,14 @@
     const backdrop = document.getElementById('mobile-geo-backdrop');
     if (!sheet) return;
     if (show) {
-      // Mindig kinyitott állapotból indulunk
       sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
       sheet.style.removeProperty('transform');
       sheet.removeAttribute('hidden');
       sheet.setAttribute('aria-hidden', 'false');
       if (backdrop) {
-        backdrop.removeAttribute('hidden');
-        backdrop.setAttribute('aria-hidden', 'false');
+        backdrop.style.display = 'block';
+        backdrop.style.pointerEvents = 'auto';
+        backdrop.classList.remove('mobile-geo-backdrop--peek');
       }
     } else {
       sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
@@ -2672,8 +2672,8 @@
       sheet.setAttribute('hidden', '');
       sheet.setAttribute('aria-hidden', 'true');
       if (backdrop) {
-        backdrop.setAttribute('hidden', '');
-        backdrop.setAttribute('aria-hidden', 'true');
+        backdrop.style.display = 'none';
+        backdrop.classList.remove('mobile-geo-backdrop--peek');
       }
     }
   }
@@ -2711,13 +2711,16 @@
       sheet.style.removeProperty('transform');
       if (peek) {
         sheet.classList.add('mobile-geo-sheet--peek');
-        // Peek: backdrop átengedi a térkép érintéseit (pointer-events: none),
-        // de a sidebar el van fedve — a térkép van felül, a sidebar nem érhető el
-        if (backdrop) backdrop.style.pointerEvents = 'none';
+        if (backdrop) {
+          backdrop.style.background = 'rgba(0,0,0,0.25)';
+          backdrop.style.pointerEvents = 'none';
+        }
       } else {
         sheet.classList.remove('mobile-geo-sheet--peek');
-        // Kinyitva: backdrop blokkolja az egész hátteret
-        if (backdrop) backdrop.style.removeProperty('pointer-events');
+        if (backdrop) {
+          backdrop.style.background = 'rgba(0,0,0,0.55)';
+          backdrop.style.pointerEvents = 'auto';
+        }
       }
     }
 

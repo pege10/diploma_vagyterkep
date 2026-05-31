@@ -4909,19 +4909,15 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   }
 
   /* Fontos hely beállítás: lebegő lap a térkép fölött — kártya + Mégse / Alkalmaz */
-  /* Háttér-blokkoló réteg: geo-setup alatt, térkép felett — blokkolja az összes UI elemet */
+  /* Háttér-blokkoló réteg: JS kontrollálja display/background/pointer-events inline stílussal */
   .mobile-geo-backdrop {
     display: none;
     position: fixed;
     inset: 0;
     z-index: 143;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.55);
     pointer-events: none;
-  }
-
-  html.is-touch.mobile-geo-setup .mobile-geo-backdrop {
-    display: block !important;
-    pointer-events: auto;
+    transition: background 0.25s ease;
   }
 
   .mobile-geo-sheet {
