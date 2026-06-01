@@ -308,12 +308,14 @@
 
   const WELCOME_GLYPH_SWITCH_ON =
     '<button type="button" class="param-item__ios-switch app-welcome-demo-switch" aria-checked="true" tabindex="-1" disabled aria-hidden="true"></button>';
+  const WELCOME_GLYPH_SWITCH_OFF =
+    '<button type="button" class="param-item__ios-switch app-welcome-demo-switch" aria-checked="false" tabindex="-1" disabled aria-hidden="true"></button>';
   const WELCOME_GLYPH_PIN =
-    '<span class="app-welcome-glyph app-welcome-glyph--pin material-symbols-outlined">pin_drop</span>';
+    '<span class="app-welcome-glyph app-welcome-glyph--pin" aria-hidden="true">📍</span>';
   const WELCOME_GLYPH_SLIDER_STACK =
     '<div class="app-welcome-demo-sliders" aria-hidden="true">' +
-    '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="35" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
     '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="65" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
+    '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="40" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
     '</div>';
   function resolveAppAssetUrl(relativePath) {
     const scripts = document.getElementsByTagName('script');
@@ -348,11 +350,14 @@
     );
   }
 
+  // 4. lépés: fejléc gombok — CSS-alapú, nem függ Material Symbols betöltéstől
   const WELCOME_GLYPH_HEADER =
-    '<span class="app-welcome-glyph app-welcome-glyph--letter">S</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--ico material-symbols-outlined">toggle_on</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--letter">i</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--edge">‹</span>';
+    '<span class="app-welcome-glyph app-welcome-glyph--letter" title="Solo nézet törlése">S</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--switch-demo" title="Összes mutató be/ki">' +
+      WELCOME_GLYPH_SWITCH_ON +
+    '</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--letter" title="Útmutató">i</span>' +
+    '<span class="app-welcome-glyph app-welcome-glyph--edge" title="Bal panel becsukása">‹</span>';
 
   function buildWelcomeStepHtml(num, title, text, glyphsHtml, glyphsInline) {
     const glyphsClass =
@@ -387,26 +392,26 @@
       steps +=
         buildWelcomeStepHtml(
           1,
-          'Fontos helyek és mutatók',
-          'Kapcsold be a fontos helyeket és a mutatókat a jobb oldali kapcsolóval. Add meg a helyeket (név vagy térkép gomb), állítsd a sugarat. A mutatóknál a felső csúszka a kívánt érték, az alsó a fontosság (0 = nem számít, max = maximális).',
+          'Mutatók és fontos helyek',
+          'Kapcsold be a mutatókat a jobb oldali kapcsolóval, majd állítsd be a csúszkával a kívánt értéket és a fontosságot. Fontos helynél adj meg egy települést és sugarat — csak az azon belüli városok jönnek szóba.',
           WELCOME_GLYPH_SWITCH_ON + WELCOME_GLYPH_PIN + WELCOME_GLYPH_SLIDER_STACK
         ) +
         buildWelcomeStepHtml(
           2,
-          'Keresés',
-          'Nyomd meg a „A tökéletes helyed keresése” gombot. A csúszkák módosítására ezután automatikusan újrakeres.',
+          'Keresés indítása',
+          'Nyomd meg az „A tökéletes helyed keresése” gombot. Ezután a csúszkák módosítására az app automatikusan újrakeres.',
           WELCOME_GLYPH_SEARCH
         ) +
         buildWelcomeStepHtml(
           3,
-          'Eredmény és térkép',
-          'Nézd meg a legjobban hozzád illő települést, és böngészd a részletes adatokat. A térképen piros jelölő mutatja a találatot; keresés után a hőtérkép (H) is bekapcsolható.',
+          'Eredmény és hőtérkép',
+          'A legjobban illő település megjelenik a panelen és a térképen (piros jelölő). A H gombbal hőtérkép nézetbe váltasz, ahol minden városnak látható az egyezési szintje.',
           welcomeResultGlyphHtml()
         ) +
         buildWelcomeStepHtml(
           4,
           'Fejléc gombok',
-          '<strong>S</strong> = solo nézet törlése · kapcsoló = összes mutató be/ki · <strong>i</strong> = útmutató · ‹ = bal panel becsukása.',
+          '<strong>S</strong> = solo kiemelés törlése &nbsp;·&nbsp; kapcsoló = összes mutató be/ki &nbsp;·&nbsp; <strong>i</strong> = útmutató megnyitása &nbsp;·&nbsp; <strong>‹</strong> = bal panel összecsukása',
           WELCOME_GLYPH_HEADER,
           true
         );
@@ -414,20 +419,20 @@
       steps +=
         buildWelcomeStepHtml(
           1,
-          'Beállítás',
-          'Kapcsold be a fontos helyeket és a számodra fontos mutatókat, majd állítsd be a szimpatikus értékeket.',
-          WELCOME_GLYPH_SWITCH_ON
+          'Mutatók beállítása',
+          'Kapcsold be a számodra fontos mutatókat a jobb oldali kapcsolóval, majd állítsd be a kívánt értékeket a csúszkákkal.',
+          WELCOME_GLYPH_SWITCH_ON + WELCOME_GLYPH_SLIDER_STACK
         ) +
         buildWelcomeStepHtml(
           2,
-          'Keresés',
-          'Nyomd meg a „A tökéletes helyed keresése” gombot.',
+          'Keresés indítása',
+          'Nyomd meg az „A tökéletes helyed keresése” gombot.',
           WELCOME_GLYPH_SEARCH
         ) +
         buildWelcomeStepHtml(
           3,
-          'Eredmény',
-          'Nézd meg a legjobban hozzád illő települést, és böngészd a részletes adatokat.',
+          'Eredmény megtekintése',
+          'Nézd meg a legjobban hozzád illő települést, és böngészd a részletes adatokat a panelen.',
           welcomeResultGlyphHtml()
         );
     }

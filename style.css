@@ -1108,6 +1108,18 @@ body {
   font-size: 0.95rem;
 }
 
+/* 4. lépés: switch a glyph sorban */
+.app-welcome-glyph--switch-demo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-welcome-glyph--switch-demo .app-welcome-demo-switch {
+  pointer-events: none;
+  margin: 0;
+}
+
 .app-welcome-ok {
   display: block;
   width: 100%;
