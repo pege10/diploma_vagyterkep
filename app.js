@@ -311,7 +311,7 @@
   const WELCOME_GLYPH_SWITCH_OFF =
     '<button type="button" class="param-item__ios-switch app-welcome-demo-switch" aria-checked="false" tabindex="-1" disabled aria-hidden="true"></button>';
   const WELCOME_GLYPH_PIN =
-    '<span class="app-welcome-glyph app-welcome-glyph--pin" aria-hidden="true">📍</span>';
+    '<span class="app-welcome-geo-chip" aria-hidden="true">⬤ Budapest · 50 km</span>';
   const WELCOME_GLYPH_SLIDER_STACK =
     '<div class="app-welcome-demo-sliders" aria-hidden="true">' +
     '<div class="app-welcome-demo-slider"><div class="param-range-row"><input type="range" disabled value="65" min="0" max="100" tabindex="-1" aria-hidden="true"></div></div>' +
@@ -350,23 +350,23 @@
     );
   }
 
-  // 4. lépés: valódi fejléc cluster mini másolata inline CSS változókkal
+  // 4. lépés: valódi fejléc cluster mini másolata — CSS toggle pill, nem függ Material Symbols-tól
   const WELCOME_GLYPH_HEADER =
     '<div class="app-welcome-header-cluster-demo" aria-hidden="true">' +
-      '<div class="sidebar-header__tool-cluster" style="--hdr-fg:#fff;--hdr-cluster-surface:#0a0a0a;--hdr-cluster-fg:#fff;--hdr-cluster-divider:#fff;">' +
+      '<div class="sidebar-header__tool-cluster" style="--hdr-fg:#fff;--hdr-cluster-surface:#0a0a0a;--hdr-cluster-fg:#fff;--hdr-cluster-divider:rgba(255,255,255,0.35);">' +
         '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" disabled tabindex="-1" style="pointer-events:none">S</button>' +
-        '<button class="sidebar-header__cluster-btn" disabled tabindex="-1" style="pointer-events:none;padding:0 3px;">' +
-          '<button type="button" class="param-item__ios-switch" aria-checked="true" tabindex="-1" disabled style="pointer-events:none;margin:0;flex-shrink:0;"></button>' +
+        '<button class="sidebar-header__cluster-btn" disabled tabindex="-1" style="pointer-events:none;display:flex;align-items:center;justify-content:center;">' +
+          '<span class="app-welcome-toggle-pill"></span>' +
         '</button>' +
         '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" disabled tabindex="-1" style="pointer-events:none">i</button>' +
         '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--chevron" disabled tabindex="-1" style="pointer-events:none">‹</button>' +
       '</div>' +
     '</div>' +
     '<div class="app-welcome-header-cluster-labels" aria-hidden="true">' +
-      '<span><strong>S</strong> Solo törlése</span>' +
-      '<span>⬛ Mutatók be/ki</span>' +
-      '<span><strong>i</strong> Útmutató</span>' +
-      '<span><strong>‹</strong> Panel becsuk</span>' +
+      '<span><strong style="font-weight:800">S</strong> &nbsp;Solo kiemelés törlése</span>' +
+      '<span><span style="display:inline-block;width:12px;height:8px;border-radius:4px;background:#0a0a0a;border:1px solid #999;vertical-align:middle;"></span> &nbsp;Összes mutató be/ki</span>' +
+      '<span><strong style="font-weight:800">i</strong> &nbsp;Útmutató megnyitása</span>' +
+      '<span><strong style="font-weight:800">‹</strong> &nbsp;Bal panel összecsukása</span>' +
     '</div>';
 
   function buildWelcomeStepHtml(num, title, text, glyphsHtml, glyphsInline) {
