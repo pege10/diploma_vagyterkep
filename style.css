@@ -5095,9 +5095,9 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
     touch-action: none;
   }
 
-  /* Lenyomott (peek) állapot: csak a handle-bar látszik alul */
+  /* Lenyomott (peek) állapot: handle-bar + cím látszik */
   .mobile-geo-sheet--peek {
-    transform: translateY(calc(100% - 40px));
+    transform: translateY(calc(100% - 52px));
   }
 
   /* Drag közben: nincs transition (közvetlen ujj-követés) */
@@ -5109,12 +5109,16 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   .mobile-geo-sheet__handle-bar {
     flex: 0 0 auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 40px;
+    gap: 6px;
+    height: 52px;
     cursor: grab;
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
+    padding: 10px 16px 6px;
+    box-sizing: border-box;
   }
 
   .mobile-geo-sheet__handle-bar:active {
@@ -5127,6 +5131,26 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
     border-radius: 2px;
     background: rgba(0, 0, 0, 0.22);
     pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  /* Cím a peek sávban — normál állapotban rejtett, peek-ben látható */
+  .mobile-geo-sheet__handle-title {
+    font-family: var(--font-app);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .mobile-geo-sheet--peek .mobile-geo-sheet__handle-title {
+    opacity: 1;
   }
 
   html.is-touch.mobile-geo-setup .mobile-geo-sheet {

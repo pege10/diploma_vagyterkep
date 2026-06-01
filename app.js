@@ -2562,7 +2562,7 @@
       enterMobileGeoSetup(slot, { showMap: showMap });
     } else if (showMap) {
       setMobileMapView(true, { forGeoEditor: true });
-      showMobileGeoSheetEl(true);
+      showMobileGeoSheetEl(true, mobileGeoSetupSlot ? (geoImportantPlaceTitle[mobileGeoSetupSlot] || GEO_IMPORTANT_PLACE_DEFAULT_TITLE[mobileGeoSetupSlot] || "") : "");
     }
     if (focusTarget && typeof focusTarget.focus === 'function') {
       window.setTimeout(function () {
@@ -2601,7 +2601,7 @@
         if (!shouldUseMobileGeoEditor() || !isGeoPlaceSwitchOn(slot)) return;
         if (mobileGeoSetupSlot === slot) {
           setMobileMapView(true, { forGeoEditor: true });
-          showMobileGeoSheetEl(true);
+          showMobileGeoSheetEl(true, mobileGeoSetupSlot ? (geoImportantPlaceTitle[mobileGeoSetupSlot] || GEO_IMPORTANT_PLACE_DEFAULT_TITLE[mobileGeoSetupSlot] || "") : "");
         } else {
           openMobileGeoEditorIfNeeded(slot, null, { showMap: true });
         }
@@ -2670,7 +2670,7 @@
     }
   }
 
-  function showMobileGeoSheetEl(show) {
+  function showMobileGeoSheetEl(show, slotLabel) {
     const sheet = elements.mobileGeoSheet;
     if (!sheet) return;
     if (show) {
@@ -2678,6 +2678,9 @@
       sheet.style.removeProperty('transform');
       sheet.removeAttribute('hidden');
       sheet.setAttribute('aria-hidden', 'false');
+      // Cím beállítása a peek sávban
+      const titleEl = document.getElementById('mobile-geo-sheet-handle-title');
+      if (titleEl && slotLabel) titleEl.textContent = slotLabel;
     } else {
       sheet.classList.remove('mobile-geo-sheet--peek', 'mobile-geo-sheet--dragging');
       sheet.style.removeProperty('transform');
@@ -2862,7 +2865,8 @@
     mobileGeoSetupSlot = slot;
     document.documentElement.classList.add('mobile-geo-setup');
     document.documentElement.setAttribute('data-geo-setup-slot', slot);
-    showMobileGeoSheetEl(true);
+    const slotLabel = geoImportantPlaceTitle[slot] || GEO_IMPORTANT_PLACE_DEFAULT_TITLE[slot] || '';
+    showMobileGeoSheetEl(true, slotLabel);
     hideMobileWinnerSheet();
     document.documentElement.classList.remove('mobile-geo-keyboard');
     // Mindig térképnézetre váltunk, hogy a sidebar ne látszódjon a geo sheet mögött
@@ -3001,7 +3005,13 @@
       badge = document.createElement('div');
       badge.className = 'mobile-geo-sheet__badge';
       badge.setAttribute('role', 'status');
-      sheet.insertBefore(badge, sheet.firstChild);
+      // Handle-bar után szúrjuk be, nem előtte
+      const handleBar = document.getElementById('mobile-geo-sheet-handle');
+      if (handleBar && handleBar.parentNode === sheet) {
+        sheet.insertBefore(badge, handleBar.nextSibling);
+      } else {
+        sheet.insertBefore(badge, sheet.firstChild);
+      }
     }
     badge.textContent = text || '';
     badge.classList.remove('mobile-geo-sheet__badge--show');
@@ -10418,7 +10428,7 @@
     if (map) map.resize();
     if (mobileGeoSetupSlot) {
       setMobileMapView(true, { forGeoEditor: true });
-      showMobileGeoSheetEl(true);
+      showMobileGeoSheetEl(true, mobileGeoSetupSlot ? (geoImportantPlaceTitle[mobileGeoSetupSlot] || GEO_IMPORTANT_PLACE_DEFAULT_TITLE[mobileGeoSetupSlot] || "") : "");
       syncMobileMapDockButtons();
     }
   }
