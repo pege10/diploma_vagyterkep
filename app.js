@@ -2726,43 +2726,59 @@
       }
     }
 
-    handle.addEventListener('touchstart', function (e) {
+    let isDragging = false;
+
+    function onDragStart(e) {
       if (e.touches.length !== 1) return;
-      startY = e.touches[0].clientY;
+      // Csak a sheet felső 1/3-ában indul drag
+      const rect = sheet.getBoundingClientRect();
+      const touchY = e.touches[0].clientY;
+      if (touchY > rect.top + rect.height / 3) return;
+      isDragging = true;
+      startY = touchY;
       startTime = Date.now();
       currentDY = 0;
       sheet.classList.add('mobile-geo-sheet--dragging');
       sheet.style.removeProperty('transform');
-    }, { passive: true });
+    }
 
-    handle.addEventListener('touchmove', function (e) {
-      if (e.touches.length !== 1) return;
+    function onDragMove(e) {
+      if (!isDragging || e.touches.length !== 1) return;
       currentDY = e.touches[0].clientY - startY;
       applyDrag(currentDY);
-    }, { passive: true });
+    }
 
-    handle.addEventListener('touchend', function () {
+    function onDragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
       sheet.classList.remove('mobile-geo-sheet--dragging');
       const elapsed = Math.max(1, Date.now() - startTime);
-      const velocity = currentDY / elapsed; // px/ms
+      const velocity = currentDY / elapsed;
 
       if (isPeek) {
-        // Peek → expand: felfelé húzás vagy gyors felfelé legyintés
         if (currentDY < -SNAP_THRESHOLD_PX || velocity < -VELOCITY_THRESHOLD) {
           snapTo(false, true);
         } else {
-          snapTo(true, true); // visszapattan peek-be
+          snapTo(true, true);
         }
       } else {
-        // Expand → peek: lefelé húzás vagy gyors lefelé legyintés
         if (currentDY > SNAP_THRESHOLD_PX || velocity > VELOCITY_THRESHOLD) {
           snapTo(true, true);
         } else {
-          snapTo(false, true); // visszapattan kinyitottra
+          snapTo(false, true);
         }
       }
       currentDY = 0;
-    }, { passive: true });
+    }
+
+    // Handle és a sheet felső 1/3-a is drag zóna
+    handle.addEventListener('touchstart', onDragStart, { passive: true });
+    handle.addEventListener('touchmove', onDragMove, { passive: true });
+    handle.addEventListener('touchend', onDragEnd, { passive: true });
+
+    sheet.addEventListener('touchstart', onDragStart, { passive: true });
+    sheet.addEventListener('touchmove', onDragMove, { passive: true });
+    sheet.addEventListener('touchend', onDragEnd, { passive: true });
 
     // Peek állapotban a teljes sheet-re koppintás kinyit
     sheet.addEventListener('click', function (e) {
