@@ -1108,6 +1108,42 @@ body {
   font-size: 0.95rem;
 }
 
+/* 4. lépés: fejléc cluster demo + feliratok */
+.app-welcome-header-cluster-demo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.app-welcome-header-cluster-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
+.app-welcome-header-cluster-labels span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 1. lépés: switch + pin egy sorban */
+.app-welcome-step1-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.app-welcome-step1-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* 4. lépés: switch a glyph sorban */
 .app-welcome-glyph--switch-demo {
   display: inline-flex;

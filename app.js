@@ -350,14 +350,24 @@
     );
   }
 
-  // 4. lépés: fejléc gombok — CSS-alapú, nem függ Material Symbols betöltéstől
+  // 4. lépés: valódi fejléc cluster mini másolata inline CSS változókkal
   const WELCOME_GLYPH_HEADER =
-    '<span class="app-welcome-glyph app-welcome-glyph--letter" title="Solo nézet törlése">S</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--switch-demo" title="Összes mutató be/ki">' +
-      WELCOME_GLYPH_SWITCH_ON +
-    '</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--letter" title="Útmutató">i</span>' +
-    '<span class="app-welcome-glyph app-welcome-glyph--edge" title="Bal panel becsukása">‹</span>';
+    '<div class="app-welcome-header-cluster-demo" aria-hidden="true">' +
+      '<div class="sidebar-header__tool-cluster" style="--hdr-fg:#fff;--hdr-cluster-surface:#0a0a0a;--hdr-cluster-fg:#fff;--hdr-cluster-divider:#fff;">' +
+        '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" disabled tabindex="-1" style="pointer-events:none">S</button>' +
+        '<button class="sidebar-header__cluster-btn" disabled tabindex="-1" style="pointer-events:none;padding:0 3px;">' +
+          '<button type="button" class="param-item__ios-switch" aria-checked="true" tabindex="-1" disabled style="pointer-events:none;margin:0;flex-shrink:0;"></button>' +
+        '</button>' +
+        '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--letter" disabled tabindex="-1" style="pointer-events:none">i</button>' +
+        '<button class="sidebar-header__cluster-btn sidebar-header__cluster-btn--chevron" disabled tabindex="-1" style="pointer-events:none">‹</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="app-welcome-header-cluster-labels" aria-hidden="true">' +
+      '<span><strong>S</strong> Solo törlése</span>' +
+      '<span>⬛ Mutatók be/ki</span>' +
+      '<span><strong>i</strong> Útmutató</span>' +
+      '<span><strong>‹</strong> Panel becsuk</span>' +
+    '</div>';
 
   function buildWelcomeStepHtml(num, title, text, glyphsHtml, glyphsInline) {
     const glyphsClass =
@@ -394,7 +404,10 @@
           1,
           'Mutatók és fontos helyek',
           'Kapcsold be a mutatókat a jobb oldali kapcsolóval, majd állítsd be a csúszkával a kívánt értéket és a fontosságot. Fontos helynél adj meg egy települést és sugarat — csak az azon belüli városok jönnek szóba.',
-          WELCOME_GLYPH_SWITCH_ON + WELCOME_GLYPH_PIN + WELCOME_GLYPH_SLIDER_STACK
+          '<div class="app-welcome-step1-demo" aria-hidden="true">' +
+            '<div class="app-welcome-step1-row">' + WELCOME_GLYPH_SWITCH_ON + WELCOME_GLYPH_PIN + '</div>' +
+            WELCOME_GLYPH_SLIDER_STACK +
+          '</div>'
         ) +
         buildWelcomeStepHtml(
           2,
@@ -411,9 +424,9 @@
         buildWelcomeStepHtml(
           4,
           'Fejléc gombok',
-          '<strong>S</strong> = solo kiemelés törlése &nbsp;·&nbsp; kapcsoló = összes mutató be/ki &nbsp;·&nbsp; <strong>i</strong> = útmutató megnyitása &nbsp;·&nbsp; <strong>‹</strong> = bal panel összecsukása',
+          'A fejléc jobb sarkában lévő gombok gyors műveletekhez.',
           WELCOME_GLYPH_HEADER,
-          true
+          false
         );
     } else {
       steps +=
