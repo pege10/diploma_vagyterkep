@@ -5105,20 +5105,29 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
     transition: none !important;
   }
 
-  /* Drag handle sáv */
+  /* Drag handle sáv — nyitva kicsi, peek-ben nagyobb */
   .mobile-geo-sheet__handle-bar {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    height: 52px;
+    gap: 4px;
+    height: 28px;
     cursor: grab;
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
-    padding: 10px 16px 6px;
+    padding: 8px 16px 4px;
     box-sizing: border-box;
+    transition: height 0.34s cubic-bezier(0.32, 0.72, 0, 1),
+                padding 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+    overflow: hidden;
+  }
+
+  /* Peek állapotban: magasabb sáv, hogy cím is látszódjon */
+  .mobile-geo-sheet--peek .mobile-geo-sheet__handle-bar {
+    height: 52px;
+    padding: 10px 16px 8px;
   }
 
   .mobile-geo-sheet__handle-bar:active {
