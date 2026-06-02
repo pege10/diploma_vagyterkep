@@ -3165,7 +3165,7 @@
         }
       }
 
-      // Ha nincs semmi a lastOpenIndex után: vége, gomb eltűnik
+      // Nincs több kártya a lastOpenIndex után → gomb eltűnik
       return null;
     }
 

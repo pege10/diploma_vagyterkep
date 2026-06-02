@@ -6163,7 +6163,7 @@ html.exhibition-mode:not(.exhibition-mode--revealed) #heatmap-legend {
   position: absolute;
   right: 18px;
   bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  z-index: 25;
+  z-index: 60;
   padding: 9px 14px;
   border: 2px solid var(--ink);
   border-radius: 4px;
