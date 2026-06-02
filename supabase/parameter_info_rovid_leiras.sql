@@ -61,7 +61,7 @@ FROM (
     ),
     (
       'groceries_index',
-      'Milyen messze van tőled a legközelebbi üzlet, és hány különböző márka érhető el 5 km-en belül. Neked a mindennapi bevásárlás kényelmét méri.'
+      'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete (km). Állíts be elfogadható távolságot; az eredménynél az 5 km-en belüli üzletek is látszanak.'
     ),
     (
       'sport_index',
@@ -74,6 +74,10 @@ FROM (
     (
       'senior_index',
       'A település népességének hány százaléka 65 év felett. Állítsd be, ha neked az számít, mennyire idős vagy fiatal a közösség.'
+    ),
+    (
+      'population_2024',
+      'A település lakossága 2024-ben (fő). Állíts be elfogadható tartományt, ha a település mérete számít.'
     ),
     (
       'diploma_index',
@@ -97,11 +101,11 @@ FROM (
     ),
     (
       'sleeping_city_index',
-      'Mennyire „alvóváros” a település: a lakosság mennyire a környező nagyvárosok munkahelyei és szolgáltatásai felé jár. Neked szól, ha ez a jelleg számít.'
+      'A foglalkoztatott lakosok hány százaléka jár el más településre dolgozni. Magasabb érték = erősebb alvóváros-jelleg.'
     ),
     (
       'jobs_index',
-      'Mennyire tudsz a településen vagy annak közelében elhelyezkedni anélkül, hogy messzebb ingáznod kellene. Neked a helyi munkalehetőségek arányát mutatja.'
+      'Mennyi helyi munkahely jut a település dolgozó lakosaira. Magasabb érték = több lehetőség helyben dolgozni.'
     ),
     (
       'turism_index',

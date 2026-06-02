@@ -45,6 +45,7 @@ FROM (
     ('sport_index', 'https://nsr.gov.hu/; https://www.openstreetmap.org'),
     ('gastro_index', 'https://www.openstreetmap.org'),
     ('senior_index', 'https://nepszamlalas2022.ksh.hu/'),
+    ('population_2024', 'https://www.ksh.hu/; https://www.teir.hu'),
     ('diploma_index', 'https://nepszamlalas2022.ksh.hu/'),
     (
       'primary_school_proximity_index',

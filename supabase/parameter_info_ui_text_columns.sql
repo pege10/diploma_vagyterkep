@@ -80,9 +80,9 @@ FROM (
     ),
     (
       'sleeping_city_index',
-      'Preferált alvóváros jelleg. Népességszámlálás alapján; magasabb = többen ingáznak el dolgozni.',
-      'Preferált érték', 'Alacsonyabb', 'Magasabb',
-      'Fontosság a keresésben', 'Nem számít', 'Maximális'
+      'A lakosság hány százaléka jár más településre dolgozni — állítsd be, mit fogadsz el.',
+      'Elfogadható kijárási arány', 'Kevesebb kijáró', 'Több kijáró',
+      'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
       'turism_index',
@@ -147,8 +147,8 @@ FROM (
     ),
     (
       'groceries_index',
-      'Elfogadható bevásárlási ellátás. Üzletláncház helyei alapján; a csúszkán km és üzletszám látszik.',
-      'Elfogadható ellátás', 'Gyengébb', 'Erősebb',
+      'Elfogadható távolság a legközelebbi üzletig (km). OpenStreetMap adat alapján; a csúszkán a távolság km-ben látszik.',
+      'Elfogadható távolság', 'Távolabb', 'Közelebb',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (
@@ -159,8 +159,14 @@ FROM (
     ),
     (
       'jobs_index',
-      'Elfogadható helyi munkalehetőség. Népességszámlálás alapján; a csúszkán a helyi munkahely/lakos arány (%) látszik.',
+      'Mennyi helyi munkalehetőség van a településen — állítsd be, mit fogadsz el.',
       'Elfogadható tartomány', 'Gyengébb', 'Erősebb',
+      'Rugalmasság', 'Laza', 'Szigorú'
+    ),
+    (
+      'population_2024',
+      'Elfogadható lakosságszám. KSH / TEIR adat alapján; a csúszkán a település népessége (fő) látszik.',
+      'Elfogadható népességtartomány', 'Kisebb település', 'Nagyobb település',
       'Rugalmasság', 'Laza', 'Szigorú'
     ),
     (

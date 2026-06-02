@@ -80,9 +80,9 @@ A sáv az elfogadható tartományt jelöli; magasabb érték = gazdagabb kultur�
     ),
     (
       'groceries_index',
-      'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete, és hány különböző lánc érhető el 5 km-en belül. Adat: OpenStreetMap üzlet-helyek.
+      'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete a településről. Adat: OpenStreetMap üzlet-helyek (Aldi, Lidl, Tesco, Spar, Penny, Auchan).
 
-A sáv az elfogadható ellátást jelöli; a paraméter távolságot (km) és üzletszámot mutat.'
+A csúszkán km-ben állítod be az elfogadható távolságot: balra távolabb, jobbra közelebb. A keresés ennek megfelelően szűr; az eredménynél külön látszik, hány különböző üzlet érhető el 5 km-en belül, és melyik a legközelebbi.'
     ),
     (
       'sport_index',
@@ -101,6 +101,12 @@ A sáv az elfogadható kínálatot jelöli; a paraméter a helyek számát mutat
       'A településen élők hány százaléka 65 év felett. Adat: 2022-es népszámlálás.
 
 A csúszkán beállítod a preferált arányt; a paraméter a település tényleges értékét mutatja.'
+    ),
+    (
+      'population_2024',
+      'A település állandó lakónépessége 2024. december 31-én. Adat: KSH település-statisztika; Budapest kerületei TEIR forrásból.
+
+A sáv jelöli, mekkora közösségben szeretnél élni — kisebb falu vagy nagyobb város egyaránt beállítható.'
     ),
     (
       'diploma_index',
@@ -134,15 +140,19 @@ A sáv az elfogadható árszintet jelöli; olcsóbb irány balra, drágább jobb
     ),
     (
       'sleeping_city_index',
-      'A foglalkoztatott lakosok hány százaléka jár el más településre dolgozni. Adat: 2022-es népszámlálás.
+      'A foglalkoztatott lakosok hány százaléka nem a saját településén dolgozik, hanem máshova ingázik. Adat: 2022-es népszámlálás.
 
-Magasabb érték = erősebb alvóváros-jelleg (a lakók többsége máshol dolgozik).'
+Alacsonyabb érték = kevesen mennek el dolgozni, erősebb helyi jellegű település. Magasabb érték = tipikus alvóváros, ahol sokan más településen dolgoznak.
+
+A csúszkán beállítod az elfogadható tartományt.'
     ),
     (
       'jobs_index',
-      'Mennyi helyi munkahely jut egy foglalkoztatott lakosra. Adat: 2022-es népszámlálás.
+      'Azt mutatja, a helyi lakosokhoz képest mennyi munkahely érhető el a településen. Adat: 2022-es népszámlálás.
 
-Magasabb érték = több helyi munkalehetőség; az 1,0 körüli arány egyensúlyt jelent.'
+Ha a százalék magas, több helyi munkalehetőség van; ha alacsony, kevesebb, és sokan más városba járnak dolgozni.
+
+A csúszkán beállítod az elfogadható tartományt.'
     ),
     (
       'turism_index',

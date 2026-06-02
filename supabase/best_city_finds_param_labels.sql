@@ -35,6 +35,8 @@ ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "INGATLANPIAC_grow_p
 ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "INGATLANPIAC_avg_param_label"   text;
 
 -- Gazdaság / Demográfia
+ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "population_2024" bigint;
+ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "population_2024_param_label" text;
 ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "SLEEPING_CITY_INDEX_param_label"  text;
 ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "JOBS_INDEX_param_label"           text;
 ALTER TABLE public.best_city_finds ADD COLUMN IF NOT EXISTS "TURISM_INDEX_param_label"         text;

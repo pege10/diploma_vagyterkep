@@ -77,7 +77,7 @@
   function getBestCityFindAllowedColumns() {
     if (bestCityFindAllowedCols) return bestCityFindAllowedCols;
     bestCityFindAllowedCols = new Set(
-      'ID,settlement_name,CITYDATA_County,CITYDATA_PostalCode,CITYDATA_SettlementType,CITYDATA_Latitude,CITYDATA_Longitude,FOREST_INDEX_puffer_area_km2,FOREST_INDEX_forest_area_km2,FOREST_INDEX_forest_ratio,FOREST_INDEX_forest_index,WATER_INDEX_puffer_area_km2,WATER_INDEX_water_area_km2,WATER_INDEX_water_ratio,WATER_INDEX_water_index,TERRAIN_INDEX_puffer_m2,TERRAIN_INDEX_elev_mean,TERRAIN_INDEX_elev_min,TERRAIN_INDEX_elev_max,TERRAIN_INDEX_slope_mean,TERRAIN_INDEX_terrain_index,AIRPOLLUTION_INDEX_airpollution_index,BUDAPEST_CAR_TRAIN_INDEX_nearest_station,BUDAPEST_CAR_TRAIN_INDEX_car_to_station_min,BUDAPEST_CAR_TRAIN_INDEX_train_to_bp_min,BUDAPEST_CAR_TRAIN_INDEX_total_min,BUDAPEST_CAR_TRAIN_INDEX_budapest_car_train_index,BUDAPEST_CAR_TRAIN_INDEX_note,INTERNET_INDEX_avg_d_kbps,INTERNET_INDEX_avg_d_mbps,INTERNET_INDEX_tile_count,INTERNET_INDEX_internet_index,URBAN_MOBILITY_INDEX_tkv_forras,URBAN_MOBILITY_INDEX_gtfs_score,URBAN_MOBILITY_INDEX_teir_score,URBAN_MOBILITY_INDEX_tkv_score,URBAN_MOBILITY_INDEX_lakott_terulet_km2,URBAN_MOBILITY_INDEX_walk_score,URBAN_MOBILITY_INDEX_urban_mobility_index,TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye,TRANSPORT_FREQUENCY_INDEX_megye,TRANSPORT_FREQUENCY_INDEX_napi_jaratok,TRANSPORT_FREQUENCY_INDEX_pont,TRANSPORT_FREQUENCY_INDEX_transport_frequency_index,TRANSPORT_FREQUENCY_INDEX_modszer,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_perc,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_auto_index,BUDAPEST_ACCESS_INDEX_budapest_perc,BUDAPEST_ACCESS_INDEX_budapest_auto_index,CULTURAL_INDEX_kod,CULTURAL_INDEX_mozitermek_2024,CULTURAL_INDEX_szinhaz_2024,CULTURAL_INDEX_konyvtar_2023,CULTURAL_INDEX_reszt_mukvelodesi_2024,CULTURAL_INDEX_nepesseg_2024,CULTURAL_INDEX_mozi_score,CULTURAL_INDEX_szinhaz_score,CULTURAL_INDEX_konyvtar_score,CULTURAL_INDEX_aktivitas_score,CULTURAL_INDEX_cultural_index,GROCERIES_INDEX_lat,GROCERIES_INDEX_lon,GROCERIES_INDEX_legkozelebbi_uzlet_km,GROCERIES_INDEX_legkozelebbi_brand,GROCERIES_INDEX_unique_brandek_5km,GROCERIES_INDEX_brandek_5km_lista,GROCERIES_INDEX_s_base,GROCERIES_INDEX_s_variety,GROCERIES_INDEX_kisker_index,SPORT_INDEX_sportag_db,SPORT_INDEX_letesitmeny_db,SPORT_INDEX_sportag_index,SPORT_INDEX_letes_index,SPORT_INDEX_sport_index_nem_normalizalt,SPORT_INDEX_sport_index,GASTRO_INDEX_gasztro_db,GASTRO_INDEX_gasztro_index,SENIOR_INDEX_lakossag_osszesen,SENIOR_INDEX_fo_65_felett,SENIOR_INDEX_arany_65_felett,SENIOR_INDEX_senior_index,DIPLOMA_INDEX_lakossag_7_ev_felett_fo,DIPLOMA_INDEX_diplomasok_szama_fo,DIPLOMA_INDEX_diplomasok_aranya,DIPLOMA_INDEX_diploma_index,INGATLANPIAC_haz_emelkedes_pct,INGATLANPIAC_house_price_grow_5yrs_index,INGATLANPIAC_lakas_emelkedes_pct,INGATLANPIAC_flat_price_grow_5yrs_index,INGATLANPIAC_telek_emelkedes_pct,INGATLANPIAC_site_price_grow_5yrs_index,INGATLANPIAC_haz_atlag,INGATLANPIAC_house_avg_index,INGATLANPIAC_lakas_atlag,INGATLANPIAC_flat_avg_index,INGATLANPIAC_telek_atlag,INGATLANPIAC_site_avg_index,SLEEPING_CITY_INDEX_sleeping_city_index,SLEEPING_CITY_INDEX_kijaro_arany_nyers,JOBS_INDEX_jobs_index,JOBS_INDEX_munkalehetoseg_arany_nyers,TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo,TURISM_INDEX_turism_index,SCHOOL_PROXIMITY_INDEX_alt_sima_index,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_alt_index,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_sima_index,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_alt_index,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev'.split(',')
+      'ID,settlement_name,population_2024,CITYDATA_County,CITYDATA_PostalCode,CITYDATA_SettlementType,CITYDATA_Latitude,CITYDATA_Longitude,FOREST_INDEX_puffer_area_km2,FOREST_INDEX_forest_area_km2,FOREST_INDEX_forest_ratio,FOREST_INDEX_forest_index,WATER_INDEX_puffer_area_km2,WATER_INDEX_water_area_km2,WATER_INDEX_water_ratio,WATER_INDEX_water_index,TERRAIN_INDEX_puffer_m2,TERRAIN_INDEX_elev_mean,TERRAIN_INDEX_elev_min,TERRAIN_INDEX_elev_max,TERRAIN_INDEX_slope_mean,TERRAIN_INDEX_terrain_index,AIRPOLLUTION_INDEX_airpollution_index,BUDAPEST_CAR_TRAIN_INDEX_nearest_station,BUDAPEST_CAR_TRAIN_INDEX_car_to_station_min,BUDAPEST_CAR_TRAIN_INDEX_train_to_bp_min,BUDAPEST_CAR_TRAIN_INDEX_total_min,BUDAPEST_CAR_TRAIN_INDEX_budapest_car_train_index,BUDAPEST_CAR_TRAIN_INDEX_note,INTERNET_INDEX_avg_d_kbps,INTERNET_INDEX_avg_d_mbps,INTERNET_INDEX_tile_count,INTERNET_INDEX_internet_index,URBAN_MOBILITY_INDEX_tkv_forras,URBAN_MOBILITY_INDEX_gtfs_score,URBAN_MOBILITY_INDEX_teir_score,URBAN_MOBILITY_INDEX_tkv_score,URBAN_MOBILITY_INDEX_lakott_terulet_km2,URBAN_MOBILITY_INDEX_walk_score,URBAN_MOBILITY_INDEX_urban_mobility_index,TRANSPORT_FREQUENCY_INDEX_jaras_szekhelye,TRANSPORT_FREQUENCY_INDEX_megye,TRANSPORT_FREQUENCY_INDEX_napi_jaratok,TRANSPORT_FREQUENCY_INDEX_pont,TRANSPORT_FREQUENCY_INDEX_transport_frequency_index,TRANSPORT_FREQUENCY_INDEX_modszer,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_perc,DISTRICT_SEAT_ACCESS_INDEX_jarasszekhely_auto_index,BUDAPEST_ACCESS_INDEX_budapest_perc,BUDAPEST_ACCESS_INDEX_budapest_auto_index,CULTURAL_INDEX_kod,CULTURAL_INDEX_mozitermek_2024,CULTURAL_INDEX_szinhaz_2024,CULTURAL_INDEX_konyvtar_2023,CULTURAL_INDEX_reszt_mukvelodesi_2024,CULTURAL_INDEX_nepesseg_2024,CULTURAL_INDEX_mozi_score,CULTURAL_INDEX_szinhaz_score,CULTURAL_INDEX_konyvtar_score,CULTURAL_INDEX_aktivitas_score,CULTURAL_INDEX_cultural_index,GROCERIES_INDEX_lat,GROCERIES_INDEX_lon,GROCERIES_INDEX_legkozelebbi_uzlet_km,GROCERIES_INDEX_legkozelebbi_brand,GROCERIES_INDEX_unique_brandek_5km,GROCERIES_INDEX_brandek_5km_lista,GROCERIES_INDEX_s_base,GROCERIES_INDEX_s_variety,GROCERIES_INDEX_kisker_index,SPORT_INDEX_sportag_db,SPORT_INDEX_letesitmeny_db,SPORT_INDEX_sportag_index,SPORT_INDEX_letes_index,SPORT_INDEX_sport_index_nem_normalizalt,SPORT_INDEX_sport_index,GASTRO_INDEX_gasztro_db,GASTRO_INDEX_gasztro_index,SENIOR_INDEX_lakossag_osszesen,SENIOR_INDEX_fo_65_felett,SENIOR_INDEX_arany_65_felett,SENIOR_INDEX_senior_index,DIPLOMA_INDEX_lakossag_7_ev_felett_fo,DIPLOMA_INDEX_diplomasok_szama_fo,DIPLOMA_INDEX_diplomasok_aranya,DIPLOMA_INDEX_diploma_index,INGATLANPIAC_haz_emelkedes_pct,INGATLANPIAC_house_price_grow_5yrs_index,INGATLANPIAC_lakas_emelkedes_pct,INGATLANPIAC_flat_price_grow_5yrs_index,INGATLANPIAC_telek_emelkedes_pct,INGATLANPIAC_site_price_grow_5yrs_index,INGATLANPIAC_haz_atlag,INGATLANPIAC_house_avg_index,INGATLANPIAC_lakas_atlag,INGATLANPIAC_flat_avg_index,INGATLANPIAC_telek_atlag,INGATLANPIAC_site_avg_index,SLEEPING_CITY_INDEX_sleeping_city_index,SLEEPING_CITY_INDEX_kijaro_arany_nyers,JOBS_INDEX_jobs_index,JOBS_INDEX_munkalehetoseg_arany_nyers,TURISM_INDEX_idegenforgalmi_ado_2024_eFt_fo,TURISM_INDEX_turism_index,SCHOOL_PROXIMITY_INDEX_alt_sima_index,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_sima_legkozelebbi_telepules,SCHOOL_PROXIMITY_INDEX_alt_alt_index,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_alt_alt_legkozelebbi_telepules,SCHOOL_PROXIMITY_INDEX_gim_sima_index,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_sima_legkozelebbi_telepules,SCHOOL_PROXIMITY_INDEX_gim_alt_index,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_km,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_nev,SCHOOL_PROXIMITY_INDEX_gim_alt_legkozelebbi_telepules'.split(',')
     );
     return bestCityFindAllowedCols;
   }
@@ -144,10 +144,11 @@
     { type: 'param', id: 'budapest_access_index', megnevezes: 'Budapest autós elérhetőségi indexe' },
     { type: 'section', title: '3. Helyi szolgáltatások' },
     { type: 'param', id: 'cultural_index', megnevezes: 'Kulturális élet index' },
-    { type: 'param', id: 'groceries_index', megnevezes: 'Kiskereskedelmi ellátottsági index' },
+    { type: 'param', id: 'groceries_index', megnevezes: 'Élelmiszerüzlet elérhetőség' },
     { type: 'param', id: 'sport_index', megnevezes: 'Sport és rekreáció index' },
     { type: 'param', id: 'gastro_index', megnevezes: 'Gasztro és vendéglátás jelenlét index' },
     { type: 'section', title: '4. Társadalom és demográfia' },
+    { type: 'param', id: 'population_2024', megnevezes: 'Népességszám' },
     { type: 'param', id: 'senior_index', megnevezes: '65 év feletti lakosság aránya (Senior Index)' },
     { type: 'param', id: 'diploma_index', megnevezes: 'Diplomások normalizált indexe' },
     { type: 'param', id: 'primary_school_proximity_index', megnevezes: 'Általános iskola elérhetősége' },
@@ -156,7 +157,7 @@
     { type: 'param', id: 'real_estate_price_grow_5yrs_index', megnevezes: 'Ingatlanár-emelkedési index (5 év)' },
     { type: 'param', id: 'real_estate_price_avg5mth_index', megnevezes: 'Aktuális ingatlanár-szint (2025-2026)' },
     { type: 'param', id: 'sleeping_city_index', megnevezes: 'Alvóváros index' },
-    { type: 'param', id: 'jobs_index', megnevezes: 'Helyi munkalehetőség index' },
+    { type: 'param', id: 'jobs_index', megnevezes: 'Helyi munkalehetőségek aránya' },
     { type: 'param', id: 'turism_index', megnevezes: 'Turizmus index' },
     {
       type: 'param',
@@ -1969,6 +1970,20 @@
   function formatPopulationCountNumber(n) {
     if (n == null || !Number.isFinite(Number(n))) return '–';
     return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function formatPopulationForBandUi(n) {
+    if (n == null || !Number.isFinite(Number(n))) return '–';
+    return formatPopulationCountNumber(n) + ' fő';
+  }
+
+  function computePopulationBandStep(min, max) {
+    const span = max - min;
+    if (!Number.isFinite(span) || span <= 0) return 100;
+    if (span <= 5000) return 100;
+    if (span <= 50000) return 500;
+    if (span <= 200000) return 1000;
+    return 5000;
   }
 
   function settlementPopulationOfCity(city) {
@@ -3837,6 +3852,40 @@
       }
       return rows;
     }
+    if (isGroceriesIndexKey(indexKey)) {
+      const brandListKey = groceriesCompanionBrandListKey(indexKey);
+      const brandKey = groceriesCompanionNearestBrandKey(indexKey);
+      const storesText = formatGroceriesStoresWithin5kmForUi(city, brandListKey);
+      if (storesText && storesText !== '–') {
+        rows.push({
+          label: 'Üzletek 5 km-en belül',
+          value: storesText,
+        });
+      }
+      if (brandKey) {
+        const nearestBrand = city[brandKey];
+        if (nearestBrand != null && String(nearestBrand).trim()) {
+          rows.push({
+            label: 'Legközelebbi üzlet',
+            value: formatGroceriesBrandForUi(nearestBrand),
+          });
+        }
+      }
+      return rows;
+    }
+    if (isTurismIndexKey(indexKey)) {
+      const ifaKey = turismCompanionIfaKey(indexKey);
+      if (ifaKey) {
+        const ifa = parseNumeric(city[ifaKey]);
+        if (ifa != null) {
+          rows.push({
+            label: 'Idegenforgalmi adóbevétel lakosonként',
+            value: formatTurismTaxPerCapitaForUi(ifa),
+          });
+        }
+      }
+      return rows;
+    }
     const def = schoolVariantDefForIndexKey(indexKey);
     if (def && city) {
       const nameKey = schoolCompanionNameKey(def.companionKey);
@@ -3851,14 +3900,14 @@
       if (schoolName) {
         rows.push({ label: institutionLabel, value: schoolName });
       }
-      const eduType =
-        def.id === 'alternativ' ? 'alternatív iskola' : 'állami iskola';
-      rows.push({ label: 'Oktatás típusa', value: eduType });
       const telepulesKey = schoolCompanionTelepulesKey(def.companionKey);
       const telepulesNev = telepulesKey ? String(city[telepulesKey] || '').trim() : '';
       if (telepulesNev) {
-        rows.push({ label: 'Település', value: telepulesNev });
+        rows.push({ label: 'Iskola települése', value: telepulesNev });
       }
+      const eduType =
+        def.id === 'alternativ' ? 'alternatív iskola' : 'állami iskola';
+      rows.push({ label: 'Oktatás típusa', value: eduType });
     }
     // Ingatlan variant: megmutatjuk a kiválasztott ingatlantípust
     const ingatlanTypeLabel = ingatlanVariantLabelForIndexKey(indexKey);
@@ -3941,6 +3990,53 @@
     return indexKey.replace(/_kisker_index$/i, '_unique_brandek_5km');
   }
 
+  function groceriesCompanionNearestBrandKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_kisker_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_kisker_index$/i, '_legkozelebbi_brand');
+  }
+
+  function groceriesCompanionBrandListKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_kisker_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_kisker_index$/i, '_brandek_5km_lista');
+  }
+
+  function isGroceriesIndexKey(indexKey) {
+    const ent = getUiParamEntryForDbKey(indexKey);
+    return !!(ent && ent.id === 'groceries_index');
+  }
+
+  function formatGroceriesBrandForUi(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '–';
+    const labels = {
+      aldi: 'Aldi',
+      lidl: 'Lidl',
+      tesco: 'Tesco',
+      spar: 'Spar',
+      interspar: 'Interspar',
+      penny: 'Penny',
+      auchan: 'Auchan',
+    };
+    const key = s.toLowerCase();
+    return labels[key] || s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function formatGroceriesStoresWithin5kmForUi(city, brandListKey) {
+    if (!city) return '–';
+    const rawList = brandListKey ? String(city[brandListKey] || '').trim() : '';
+    if (!rawList) return '–';
+    const storeNames = rawList
+      .split(',')
+      .map(function (part) {
+        return formatGroceriesBrandForUi(part.trim());
+      })
+      .filter(function (name) {
+        return name && name !== '–';
+      });
+    if (!storeNames.length) return '–';
+    return storeNames.join(', ');
+  }
+
   function sportCompanionSportagDbKey(indexKey) {
     if (typeof indexKey !== 'string' || !/_sport_index$/i.test(indexKey)) return null;
     return indexKey.replace(/_sport_index$/i, '_sportag_db');
@@ -3969,6 +4065,31 @@
   function jobsCompanionMunkalehetosegAranyKey(indexKey) {
     if (typeof indexKey !== 'string' || !/_jobs_index$/i.test(indexKey)) return null;
     return indexKey.replace(/_jobs_index$/i, '_munkalehetoseg_arany_nyers');
+  }
+
+  function sleepingCityCompanionKijaroAranyKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_sleeping_city_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_sleeping_city_index$/i, '_kijaro_arany_nyers');
+  }
+
+  function turismCompanionIfaKey(indexKey) {
+    if (typeof indexKey !== 'string' || !/_turism_index$/i.test(indexKey)) return null;
+    return indexKey.replace(/_turism_index$/i, '_idegenforgalmi_ado_2024_eFt_fo');
+  }
+
+  function isSleepingCityIndexKey(indexKey) {
+    const ent = getUiParamEntryForDbKey(indexKey);
+    return !!(ent && ent.id === 'sleeping_city_index');
+  }
+
+  function isJobsIndexKey(indexKey) {
+    const ent = getUiParamEntryForDbKey(indexKey);
+    return !!(ent && ent.id === 'jobs_index');
+  }
+
+  function isTurismIndexKey(indexKey) {
+    const ent = getUiParamEntryForDbKey(indexKey);
+    return !!(ent && ent.id === 'turism_index');
   }
 
   /** Nem-törő szóköz: a szám és az egysége közé kerül, így a buborék/felirat nem tördel be
@@ -4012,6 +4133,22 @@
     return String(Math.round(n));
   }
 
+  /** Helyi munkahely / foglalkoztatott arány százalékban (100% = egyensúly). */
+  function formatMunkalehetosegPercentForUi(ratio) {
+    if (ratio == null || !Number.isFinite(ratio)) return '–';
+    const pct = Math.round(ratio * 1000) / 10;
+    const s = String(pct);
+    const t = s.indexOf('.') !== -1 ? s.replace('.', ',') : s;
+    return t + NBSP + '%';
+  }
+
+  /** Idegenforgalmi adó bevétel lakosonként (Ft/fő); a táblában eFt/fő van. */
+  function formatTurismTaxPerCapitaForUi(eftPerCapita) {
+    if (eftPerCapita == null || !Number.isFinite(eftPerCapita)) return '–';
+    const ft = Math.round(eftPerCapita * 1000);
+    return formatPopulationCountNumber(ft) + NBSP + 'Ft/fő';
+  }
+
   /** Sávos szűrő UI: elfogadható tartomány + rugalmasság. */
   var BAND_FILTER_UI_PARAM_IDS = {
     airpollution_index: true,
@@ -4030,6 +4167,8 @@
     real_estate_price_grow_5yrs_index: true,
     real_estate_price_avg5mth_index: true,
     jobs_index: true,
+    sleeping_city_index: true,
+    population_2024: true,
   };
 
   function isBandFilterUiParamId(uiParamId) {
@@ -4147,12 +4286,12 @@
     },
     groceries_index: {
       intro:
-        'Elfogadható bevásárlási ellátás. Üzletláncház helyei alapján; a csúszkán km és üzletszám látszik.',
+        'Elfogadható távolság a legközelebbi üzletig (km). OpenStreetMap adat alapján; a csúszkán a távolság km-ben látszik.',
       uiDef:
-        'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete, és hány különböző lánc érhető el 5 km-en belül. Adat: OpenStreetMap üzlet-helyek.\n\nA sáv az elfogadható ellátást jelöli; a paraméter távolságot (km) és üzletszámot mutat.',
-      bandLabel: 'Elfogadható ellátás',
-      leftHint: 'Gyengébb',
-      rightHint: 'Erősebb',
+        'Milyen messze van a legközelebbi nagy élelmiszerlánc üzlete a településről. Adat: OpenStreetMap üzlet-helyek (Aldi, Lidl, Tesco, Spar, Penny, Auchan).\n\nA csúszkán km-ben állítod be az elfogadható távolságot: balra távolabb, jobbra közelebb. A keresés ennek megfelelően szűr; az eredménynél külön látszik, hány különböző üzlet érhető el 5 km-en belül, és melyik a legközelebbi.',
+      bandLabel: 'Elfogadható távolság',
+      leftHint: 'Távolabb',
+      rightHint: 'Közelebb',
     },
     sport_index: {
       intro:
@@ -4171,6 +4310,15 @@
       bandLabel: 'Elfogadható kínálat',
       leftHint: 'Kevesebb',
       rightHint: 'Több',
+    },
+    population_2024: {
+      intro:
+        'Elfogadható lakosságszám. KSH / TEIR adat alapján; a csúszkán a település népessége (fő) látszik.',
+      uiDef:
+        'A település állandó lakónépessége 2024. december 31-én. Adat: KSH település-statisztika; Budapest kerületei TEIR forrásból.\n\nA sáv jelöli, mekkora közösségben szeretnél élni — kisebb falu vagy nagyobb város egyaránt beállítható.',
+      bandLabel: 'Elfogadható népességtartomány',
+      leftHint: 'Kisebb település',
+      rightHint: 'Nagyobb település',
     },
     senior_index: {
       intro:
@@ -4228,18 +4376,18 @@
     },
     sleeping_city_index: {
       intro:
-        'Preferált alvóváros jelleg. Népességszámlálás alapján; magasabb = többen ingáznak el dolgozni.',
+        'A lakosság hány százaléka jár más településre dolgozni — állítsd be, mit fogadsz el.',
       uiDef:
-        'A foglalkoztatott lakosok hány százaléka jár el más településre dolgozni. Adat: 2022-es népszámlálás.\n\nMagasabb érték = erősebb alvóváros-jelleg (a lakók többsége máshol dolgozik).',
-      valueLabel: 'Preferált érték',
-      leftHint: 'Alacsonyabb',
-      rightHint: 'Magasabb',
+        'A foglalkoztatott lakosok hány százaléka nem a saját településén dolgozik, hanem máshova ingázik. Adat: 2022-es népszámlálás.\n\nAlacsonyabb érték = kevesen mennek el dolgozni, erősebb helyi jellegű település. Magasabb érték = tipikus alvóváros, ahol sokan más településen dolgoznak.\n\nA csúszkán beállítod az elfogadható tartományt.',
+      bandLabel: 'Elfogadható kijárási arány',
+      leftHint: 'Kevesebb kijáró',
+      rightHint: 'Több kijáró',
     },
     jobs_index: {
       intro:
-        'Elfogadható helyi munkalehetőség. Népességszámlálás alapján; a csúszkán a helyi munkahely/lakos arány (%) látszik.',
+        'Mennyi helyi munkalehetőség van a településen — állítsd be, mit fogadsz el.',
       uiDef:
-        'Mennyi helyi munkahely jut egy foglalkoztatott lakosra. Adat: 2022-es népszámlálás.\n\nMagasabb érték = több helyi munkalehetőség; az 1,0 körüli arány egyensúlyt jelent.',
+        'Azt mutatja, a helyi lakosokhoz képest mennyi munkahely érhető el a településen. Adat: 2022-es népszámlálás.\n\nHa a százalék magas, több helyi munkalehetőség van; ha alacsony, kevesebb, és sokan más városba járnak dolgozni.\n\nA csúszkán beállítod az elfogadható tartományt.',
       bandLabel: 'Elfogadható tartomány',
       leftHint: 'Gyengébb',
       rightHint: 'Erősebb',
@@ -4316,6 +4464,7 @@
     groceries_index: 'https://www.openstreetmap.org',
     sport_index: 'https://nsr.gov.hu/; https://www.openstreetmap.org',
     gastro_index: 'https://www.openstreetmap.org',
+    population_2024: 'https://www.ksh.hu/; https://www.teir.hu',
     senior_index: 'https://nepszamlalas2022.ksh.hu/',
     diploma_index: 'https://nepszamlalas2022.ksh.hu/',
     primary_school_proximity_index:
@@ -4397,12 +4546,79 @@
       case 'gastro_index':
         preset = indexBand;
         break;
-      case 'groceries_index':
-        preset = Object.assign({}, indexBand, { scorePrefer: 'higher' });
+      case 'groceries_index': {
+        const kmMr = computeNumericColumnRange(
+          groceriesCompanionKmKey(dbKey) || dbKey,
+          parseNumeric
+        );
+        preset = Object.assign({}, flexSliderDefaults, {
+          invertScale: true,
+          intro:
+            'Elfogadható távolság a legközelebbi üzletig (km). OpenStreetMap adat alapján; a csúszkán a távolság km-ben látszik.',
+          bandLabel: 'Elfogadható távolság',
+          leftHint: 'Távolabb',
+          rightHint: 'Közelebb',
+          formatValue: formatKmForUi,
+          parseValue: parseNumeric,
+          step: kmMr.max - kmMr.min <= 10 ? 0.1 : 0.5,
+          defaultMaxDelta: 5,
+          scorePrefer: 'lower',
+          flexTitle: flexTitle,
+        });
         break;
-      case 'jobs_index':
-        preset = indexBand;
+      }
+      case 'jobs_index': {
+        preset = Object.assign({}, flexSliderDefaults, {
+          invertScale: false,
+          intro:
+            'Mennyi helyi munkalehetőség van a településen — állítsd be, mit fogadsz el.',
+          bandLabel: 'Elfogadható tartomány',
+          leftHint: 'Gyengébb',
+          rightHint: 'Erősebb',
+          formatValue: formatMunkalehetosegPercentForUi,
+          parseValue: parseNumeric,
+          step: 0.05,
+          defaultMaxDelta: 0.5,
+          scorePrefer: 'higher',
+          flexTitle: flexTitle,
+        });
         break;
+      }
+      case 'sleeping_city_index': {
+        preset = Object.assign({}, flexSliderDefaults, {
+          invertScale: false,
+          intro:
+            'A lakosság hány százaléka jár más településre dolgozni — állítsd be, mit fogadsz el.',
+          bandLabel: 'Elfogadható kijárási arány',
+          leftHint: 'Kevesebb kijáró',
+          rightHint: 'Több kijáró',
+          formatValue: formatForestRatioForUi,
+          parseValue: parseNumeric,
+          step: 0.01,
+          defaultMaxDelta: 0.15,
+          scorePrefer: 'lower',
+          flexTitle: flexTitle,
+        });
+        break;
+      }
+      case 'population_2024': {
+        const popMr = computeNumericColumnRange('population_2024', parseNumeric);
+        preset = Object.assign({}, flexSliderDefaults, {
+          invertScale: false,
+          intro:
+            'Elfogadható lakosságszám. KSH / TEIR adat alapján; a csúszkán a település népessége (fő) látszik.',
+          bandLabel: 'Elfogadható népességtartomány',
+          leftHint: 'Kisebb település',
+          rightHint: 'Nagyobb település',
+          formatValue: formatPopulationForBandUi,
+          parseValue: parseNumeric,
+          step: computePopulationBandStep(popMr.min, popMr.max),
+          defaultMaxDelta: null,
+          scorePrefer: 'higher',
+          flexTitle: flexTitle,
+        });
+        break;
+      }
       case 'primary_school_proximity_index':
       case 'high_school_proximity_index': {
         if (!schoolVariantDefForIndexKey(dbKey)) return null;
@@ -4445,6 +4661,7 @@
   /** Sáv: utazási idő mutatóknál szűrés/perc oszlop; egyébként index (dbKey). */
   function enrichBandFilterConfig(indexKey, preset) {
     const info = findCompanionInfoForIndexKey(indexKey);
+    const ent = getUiParamEntryForDbKey(indexKey);
     let filterCol = indexKey;
     let out = Object.assign({}, preset);
     if (info && info.companionKey && info.format === formatMinutesForUi) {
@@ -4455,6 +4672,37 @@
         formatValue: formatDurationMinutesForUi,
         parseValue: parseNumeric,
       });
+    } else if (ent && ent.id === 'groceries_index') {
+      const kmKey = groceriesCompanionKmKey(indexKey);
+      if (kmKey) {
+        filterCol = kmKey;
+        out = Object.assign({}, preset, {
+          scorePrefer: 'lower',
+          invertScale: true,
+          formatValue: formatKmForUi,
+          parseValue: parseNumeric,
+        });
+      }
+    } else if (ent && ent.id === 'jobs_index') {
+      const aranyKey = jobsCompanionMunkalehetosegAranyKey(indexKey);
+      if (aranyKey) {
+        filterCol = aranyKey;
+        out = Object.assign({}, preset, {
+          scorePrefer: 'higher',
+          formatValue: formatMunkalehetosegPercentForUi,
+          parseValue: parseNumeric,
+        });
+      }
+    } else if (ent && ent.id === 'sleeping_city_index') {
+      const kijaroKey = sleepingCityCompanionKijaroAranyKey(indexKey);
+      if (kijaroKey) {
+        filterCol = kijaroKey;
+        out = Object.assign({}, preset, {
+          scorePrefer: 'lower',
+          formatValue: formatForestRatioForUi,
+          parseValue: parseNumeric,
+        });
+      }
     }
     out.filterCol = filterCol;
     out.indexKey = indexKey;
@@ -5518,6 +5766,16 @@
       if (schoolIndexKeyPresent(k, row) && out.indexOf(k) === -1) out.push(k);
     }
     return out;
+  }
+
+  function augmentIndexParamKeysWithPopulation(keys, sampleRow) {
+    if (!sampleRow || typeof sampleRow !== 'object') return keys;
+    const hasPop =
+      sampleRow.population_2024 != null &&
+      parseNumeric(sampleRow.population_2024) != null;
+    if (!hasPop) return keys;
+    if (keys.indexOf('population_2024') !== -1) return keys;
+    return keys.concat(['population_2024']);
   }
 
   function augmentIndexParamKeysWithSchool(keys) {
@@ -7136,6 +7394,9 @@
     if (!uiParamId || uiParamId === 'telepules_nev_egysegesites') return false;
     const k = dbKey.toUpperCase();
 
+    if (uiParamId === 'population_2024') {
+      return dbKey === 'population_2024';
+    }
     if (uiParamId === 'real_estate_price_grow_5yrs_index') {
       return k.startsWith('INGATLANPIAC_') && k.indexOf('PRICE_GROW_5YRS_INDEX') !== -1;
     }
@@ -10771,8 +11032,20 @@
     if (!citiesData.length) return null;
     if (!targets || Object.keys(targets).length === 0) return null;
 
+    // Fontos hely koordinátái — döntetlen esetén geo-távolság tiebreak
+    let geoLat = NaN, geoLng = NaN;
+    const slotA = geoSlotState && geoSlotState.a;
+    const slotB = geoSlotState && geoSlotState.b;
+    if (slotA && Number.isFinite(slotA.lat) && Number.isFinite(slotA.lng)) {
+      geoLat = slotA.lat; geoLng = slotA.lng;
+    } else if (slotB && Number.isFinite(slotB.lat) && Number.isFinite(slotB.lng)) {
+      geoLat = slotB.lat; geoLng = slotB.lng;
+    }
+    const hasGeo = Number.isFinite(geoLat) && Number.isFinite(geoLng);
+
     let best = null;
     let minSum = Infinity;
+    let bestGeoDistKm = Infinity;
 
     for (let i = 0; i < citiesData.length; i++) {
       const city = citiesData[i];
@@ -10780,9 +11053,19 @@
       if (!cityPassesActiveBandFilters(city, targets)) continue;
       const scored = computeCitySearchScore(city, targets);
       if (scored.used === 0) continue;
+
       if (scored.sum < minSum) {
         minSum = scored.sum;
         best = city;
+        bestGeoDistKm = hasGeo
+          ? haversineKm(geoLat, geoLng, cityLat(city), cityLng(city))
+          : Infinity;
+      } else if (scored.sum === minSum && hasGeo) {
+        const d = haversineKm(geoLat, geoLng, cityLat(city), cityLng(city));
+        if (d < bestGeoDistKm) {
+          best = city;
+          bestGeoDistKm = d;
+        }
       }
     }
 
@@ -10935,13 +11218,7 @@
       return { companionKey: budapestAccessCompanionPercKey(key), format: formatMinutesForUi };
     }
     if (id === 'groceries_index') {
-      return {
-        pair: {
-          a: groceriesCompanionKmKey(key),
-          b: groceriesCompanionBrandsKey(key),
-          formatPair: formatGroceriesPairForUi,
-        },
-      };
+      return { companionKey: groceriesCompanionKmKey(key), format: formatKmForUi };
     }
     if (id === 'sport_index') {
       return {
@@ -10955,12 +11232,21 @@
     if (id === 'gastro_index') {
       return { companionKey: gastroCompanionGasztroDbKey(key), format: formatVendeglatohelyForUi };
     }
+    if (id === 'population_2024') {
+      return { companionKey: 'population_2024', format: formatPopulationForBandUi };
+    }
     if (id === 'senior_index') {
       return { companionKey: seniorCompanionArany65Key(key), format: formatForestRatioForUi };
     }
     if (id === 'jobs_index') {
       return {
         companionKey: jobsCompanionMunkalehetosegAranyKey(key),
+        format: formatMunkalehetosegPercentForUi,
+      };
+    }
+    if (id === 'sleeping_city_index') {
+      return {
+        companionKey: sleepingCityCompanionKijaroAranyKey(key),
         format: formatForestRatioForUi,
       };
     }
@@ -11823,6 +12109,7 @@
     }
 
     indexParamKeys = discoverIndexKeys(citiesData[0]);
+    indexParamKeys = augmentIndexParamKeysWithPopulation(indexParamKeys, citiesData[0]);
     indexParamKeys = augmentIndexParamKeysWithSchool(indexParamKeys);
     indexParamKeys = orderIndexKeysForUi(indexParamKeys);
     sliderRanges = {};
@@ -11979,13 +12266,25 @@
       flyMapToWinningCity(lng, lat);
     }
 
-    const pinMarker = new maplibregl.Marker({ color: '#d81515', scale: 1.35 })
+    // Ha a győztes közel van egy fontos hely jelölőhöz, kicsit feljebb toljuk
+    const OVERLAP_KM = 2;
+    let winnerOffsetY = 0;
+    const geoSlots = [geoSlotState && geoSlotState.a, geoSlotState && geoSlotState.b];
+    for (let si = 0; si < geoSlots.length; si++) {
+      const st = geoSlots[si];
+      if (!st || !Number.isFinite(st.lat) || !Number.isFinite(st.lng)) continue;
+      if (haversineKm(lat, lng, st.lat, st.lng) < OVERLAP_KM) {
+        winnerOffsetY = -38; // px felfelé tolás
+        break;
+      }
+    }
+    const pinMarker = new maplibregl.Marker({ color: '#d81515', scale: 1.35, offset: [0, winnerOffsetY] })
       .setLngLat([lng, lat])
       .addTo(map);
     const cardMarker = new maplibregl.Marker({
       element: buildWinningCardEl(name),
       anchor: 'bottom',
-      offset: [0, -58],
+      offset: [0, -58 + winnerOffsetY],
     })
       .setLngLat([lng, lat])
       .addTo(map);
@@ -12029,6 +12328,7 @@
     groceries_index:                   'GROCERIES_INDEX_param_label',
     sport_index:                       'SPORT_INDEX_param_label',
     gastro_index:                      'GASTRO_INDEX_param_label',
+    population_2024:                   'population_2024_param_label',
     senior_index:                      'SENIOR_INDEX_param_label',
     diploma_index:                     'DIPLOMA_INDEX_param_label',
     primary_school_proximity_index:    'SCHOOL_PROXIMITY_INDEX_alt_param_label',
@@ -12148,7 +12448,9 @@
     var activePrefixes = new Set();
     activePrefixes.add('CITYDATA_'); // alap metadata mindig kell
     var activeParams = collectActiveParamKeysFromDom();
+    var activePopulation = false;
     for (var ai = 0; ai < activeParams.length; ai++) {
+      if (activeParams[ai].key === 'population_2024') activePopulation = true;
       var prefix = columnGroupPrefix(activeParams[ai].key);
       if (prefix) activePrefixes.add(prefix);
     }
@@ -12158,7 +12460,10 @@
       if (!isBestCityFindDataColumn(key)) continue;
       if (shouldNullVariantColumn(key, vs)) continue;
       // Metadata oszlopok mindig bekerülnek; a többit prefix alapján szűrjük
-      var alwaysInclude = key === 'ID' || key === 'settlement_name';
+      var alwaysInclude =
+        key === 'ID' ||
+        key === 'settlement_name' ||
+        (key === 'population_2024' && activePopulation);
       if (!alwaysInclude) {
         var colPrefix = columnGroupPrefix(key);
         if (!colPrefix || !activePrefixes.has(colPrefix)) continue;
