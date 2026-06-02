@@ -94,6 +94,8 @@
   let bestCityFindInsertKeys = null;
   /** Kiállítás: cetli után várakozó találat (td_triggered felfedésre). */
   let exhibitionPendingReveal = null;
+  /** Utolsó mentett jegy adatai — „Dobj újra” ugyanazzal a találattal, új sorszámmal. */
+  let lastTicketSaveContext = null;
   let exhibitionSolutionRevealed = false;
   let exhibitionRevealRealtimeChannel = null;
   let exhibitionTdPollTimer = null;
@@ -491,6 +493,7 @@
     resultBox: null,
     ticketOverlay: null,
     ticketNumber: null,
+    ticketRerollBtn: null,
     startOverlay: null,
     mapPickingBanner: null,
     mapPickingBannerText: null,
@@ -544,6 +547,7 @@
     elements.resultBox = document.getElementById('result-box');
     elements.ticketOverlay = document.getElementById('ticket-overlay');
     elements.ticketNumber = document.getElementById('ticket-number');
+    elements.ticketRerollBtn = document.getElementById('ticket-reroll-btn');
     elements.startOverlay = document.getElementById('start-overlay');
     elements.mapPickingBanner = document.getElementById('map-picking-banner');
     elements.mapPickingBannerText = document.getElementById('map-picking-banner-text');
@@ -3331,6 +3335,24 @@
     exhibitionPendingReveal = null;
     exhibitionSolutionRevealed = false;
     document.documentElement.classList.remove('exhibition-mode--revealed');
+  }
+
+  function getTicketRerollContext() {
+    if (lastTicketSaveContext && lastTicketSaveContext.city) {
+      return lastTicketSaveContext;
+    }
+    const pending = exhibitionPendingReveal;
+    if (pending && pending.city) {
+      return {
+        city: pending.city,
+        matchPercent: pending.matchPercent,
+        targets: pending.targets || {},
+        finalScore: pending.finalScore,
+        maxPossible: pending.maxPossible,
+        ticketId: pending.findId,
+      };
+    }
+    return null;
   }
 
   function stopExhibitionTdPoll() {
@@ -12438,36 +12460,44 @@
     return prefixParts.join('_') + '_';
   }
 
+  /** Aktív paraméterkártyák UI azonosítói (iskola / ingatlan variant szétválasztással). */
+  function collectActiveUiParamIdsFromDom() {
+    const ids = new Set();
+    const active = collectActiveParamKeysFromDom();
+    for (let i = 0; i < active.length; i++) {
+      const ent = getUiParamEntryForDbKey(active[i].key);
+      if (ent && ent.id) ids.add(ent.id);
+    }
+    return ids;
+  }
+
+  /**
+   * Egy best_city_finds oszlop tartozik-e az aktív UI mutatókhoz.
+   * keyMatchesParamUiId: population_2024, INGATLANPIAC grow/avg, iskola variantok.
+   */
+  function isBestCityFindColumnActiveForUi(key, activeUiParamIds) {
+    if (key === 'ID' || key === 'settlement_name') return true;
+    if (key.indexOf('CITYDATA_') === 0) return true;
+    var matched = false;
+    activeUiParamIds.forEach(function (uiId) {
+      if (!matched && keyMatchesParamUiId(key, uiId)) matched = true;
+    });
+    return matched;
+  }
+
   function buildBestCityFindRow(winningCity, matchPercent) {
     if (!bestCityFindInsertKeys) rebuildBestCityFindInsertKeys();
     const row = {};
     const keys = bestCityFindInsertKeys || Object.keys(winningCity);
     var vs = collectVariantSelections();
-
-    // Aktív paraméter kártyák oszlop-prefixei (pl. 'FOREST_INDEX_', 'WATER_INDEX_', ...)
-    var activePrefixes = new Set();
-    activePrefixes.add('CITYDATA_'); // alap metadata mindig kell
     var activeParams = collectActiveParamKeysFromDom();
-    var activePopulation = false;
-    for (var ai = 0; ai < activeParams.length; ai++) {
-      if (activeParams[ai].key === 'population_2024') activePopulation = true;
-      var prefix = columnGroupPrefix(activeParams[ai].key);
-      if (prefix) activePrefixes.add(prefix);
-    }
+    var activeUiParamIds = collectActiveUiParamIdsFromDom();
 
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       if (!isBestCityFindDataColumn(key)) continue;
       if (shouldNullVariantColumn(key, vs)) continue;
-      // Metadata oszlopok mindig bekerülnek; a többit prefix alapján szűrjük
-      var alwaysInclude =
-        key === 'ID' ||
-        key === 'settlement_name' ||
-        (key === 'population_2024' && activePopulation);
-      if (!alwaysInclude) {
-        var colPrefix = columnGroupPrefix(key);
-        if (!colPrefix || !activePrefixes.has(colPrefix)) continue;
-      }
+      if (!isBestCityFindColumnActiveForUi(key, activeUiParamIds)) continue;
       if (Object.prototype.hasOwnProperty.call(winningCity, key)) {
         row[key] = winningCity[key];
       }
@@ -12533,12 +12563,95 @@
     elements.ticketNumber.textContent = ticketId != null ? String(ticketId) : '–';
     elements.ticketOverlay.removeAttribute('hidden');
     elements.ticketOverlay.setAttribute('aria-hidden', 'false');
+    syncTicketRerollButton(ticketId);
+  }
+
+  function syncTicketRerollButton(ticketId) {
+    if (!elements.ticketRerollBtn) return;
+    const ctx = getTicketRerollContext();
+    const canReroll = ticketId != null && ctx && ctx.city;
+    if (canReroll) {
+      elements.ticketRerollBtn.removeAttribute('hidden');
+      elements.ticketRerollBtn.disabled = false;
+      elements.ticketRerollBtn.removeAttribute('aria-busy');
+      elements.ticketRerollBtn.setAttribute(
+        'aria-label',
+        'Új sorszám kérése ugyanazzal a találattal'
+      );
+    } else {
+      elements.ticketRerollBtn.setAttribute('hidden', '');
+      elements.ticketRerollBtn.disabled = false;
+      elements.ticketRerollBtn.removeAttribute('aria-busy');
+    }
+  }
+
+  async function rerollTicketSave() {
+    const ctx = getTicketRerollContext();
+    if (!ctx || !ctx.city || !elements.ticketRerollBtn) return;
+    if (elements.ticketRerollBtn.disabled) return;
+
+    const btn = elements.ticketRerollBtn;
+    const defaultLabelHtml =
+      'Nem sikerült? <span class="ticket-reroll-btn__action">Dobj újra</span>';
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'Új sorszám…';
+
+    try {
+      const saved = await saveSearchResult(ctx.city, ctx.matchPercent);
+      const newId = saved && saved.id != null ? saved.id : null;
+
+      if (newId == null) {
+        btn.innerHTML = defaultLabelHtml;
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        const errMsg =
+          saved && saved.error ? saved.error : 'Az új sorszám mentése sikertelen.';
+        if (elements.resultBox) {
+          elements.resultBox.textContent = 'Új sorszám mentése sikertelen: ' + errMsg;
+        }
+        console.warn('Új sorszám mentése:', errMsg);
+        return;
+      }
+
+      ctx.ticketId = newId;
+      lastTicketSaveContext = ctx;
+      btn.innerHTML = defaultLabelHtml;
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      showTicketOverlay(newId);
+
+      if (isExhibitionMode()) {
+        exhibitionPendingReveal = {
+          findId: newId,
+          city: ctx.city,
+          matchPercent: ctx.matchPercent,
+          targets: ctx.targets || {},
+          finalScore: ctx.finalScore,
+          maxPossible: ctx.maxPossible,
+        };
+        startExhibitionTdPoll(newId);
+      }
+
+      if (elements.resultBox && !shouldRevealSearchSolutionToUser()) {
+        elements.resultBox.textContent =
+          'Keresés mentve — a sorszámod a jegyen látszik. (#' + newId + ')';
+      }
+    } catch (err) {
+      btn.innerHTML = defaultLabelHtml;
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      syncTicketRerollButton(ctx.ticketId);
+      console.warn('Új sorszám mentése:', err);
+    }
   }
 
   function hideTicketOverlay() {
     if (!elements.ticketOverlay) return;
     elements.ticketOverlay.setAttribute('hidden', '');
     elements.ticketOverlay.setAttribute('aria-hidden', 'true');
+    lastTicketSaveContext = null;
+    syncTicketRerollButton(null);
     if (elements.resultBox) elements.resultBox.textContent = '';
     removeWinningMarker();
   }
@@ -12715,13 +12828,27 @@
         : computeBandOnlyMatchPercent(result.city, targets);
       let ticketId = null;
       let persistError = null;
+      if (isExhibitionMode()) {
+        resetExhibitionRevealState();
+      }
       if (persistToDb) {
         const saved = await saveSearchResult(result.city, matchPercent);
         ticketId = saved && saved.id != null ? saved.id : null;
         persistError = saved && saved.error ? saved.error : null;
-      }
-      if (isExhibitionMode()) {
-        resetExhibitionRevealState();
+        if (ticketId != null) {
+          lastTicketSaveContext = {
+            city: result.city,
+            matchPercent: matchPercent,
+            targets: targets,
+            finalScore: result.finalScore,
+            maxPossible: maxP,
+            ticketId: ticketId,
+          };
+        } else {
+          lastTicketSaveContext = null;
+        }
+      } else {
+        lastTicketSaveContext = null;
       }
       let anchorY = NaN;
       if (layoutAnchor && scroller) {
@@ -13120,6 +13247,13 @@
     });
 
     /* Sorszám-cetli: háttérkattintás nem zár — csak későbbi felfedés (pl. TouchDesigner jel). */
+
+    if (elements.ticketRerollBtn) {
+      elements.ticketRerollBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        void rerollTicketSave();
+      });
+    }
 
     if (elements.startOverlay) {
       elements.startOverlay.addEventListener('click', dismissStartOverlay);
