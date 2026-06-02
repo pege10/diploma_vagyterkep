@@ -4637,7 +4637,7 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   }
 
   html.is-touch .sidebar-header {
-    padding: 12px 18px 10px;
+    padding: 20px 18px 18px;
   }
 
   /* Telefon (fő + /exhibition): nincs összes be/kikapcsolás, nincs solo */
@@ -5416,10 +5416,10 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   }
 
   html.is-touch.app-started .sidebar-header {
-    padding-top: 10px;
+    padding-top: 18px;
     padding-left: 18px;
     padding-right: 18px;
-    padding-bottom: 6px;
+    padding-bottom: 16px;
   }
 
   html.is-touch.app-started .sidebar-scroll {
