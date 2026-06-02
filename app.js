@@ -216,6 +216,7 @@
   let mobileGeoSetupSlot = null;
   let mobileGeoSetupRestore = null;
   let mobileGeoSetupTurnedOnBySheet = false;
+  let _mobileGeoSheetSnapFn = null; // initMobileGeoSheetDrag állítja be
   /** @type {ResizeObserver|null} */
   let mobileGeoSheetResizeObserver = null;
   /** @type {ResizeObserver|null} */
@@ -538,6 +539,7 @@
   function initElements() {
     elements.mapContainer = document.getElementById('map-container');
     elements.searchBtn = document.getElementById('search-btn');
+    elements.mobileNextParamBtn = document.getElementById('mobile-next-param-btn');
     elements.resultBox = document.getElementById('result-box');
     elements.ticketOverlay = document.getElementById('ticket-overlay');
     elements.ticketNumber = document.getElementById('ticket-number');
@@ -610,14 +612,33 @@
    * @param {Element | null | undefined} anchorEl pl. .param-item__head-row
    * @param {() => void} fn
    */
-  function preserveSidebarScrollAnchor(anchorEl, fn) {
+  /**
+   * Kinyitás után a range input thumb-ok pozícióját rAF-on frissíti.
+   * display:none → display:block átmenetnél a böngésző rosszul számolja a thumb helyet.
+   */
+  function fixRangeThumbsAfterReveal(wrap) {
+    if (!wrap) return;
+    requestAnimationFrame(function () {
+      const inputs = wrap.querySelectorAll('input[type="range"]');
+      for (let i = 0; i < inputs.length; i++) {
+        const inp = inputs[i];
+        const v = inp.value;
+        inp.value = String(parseFloat(v) + 0.0001);
+        inp.value = v;
+      }
+    });
+  }
+
+  function preserveSidebarScrollAnchor(anchorEl, fn, wrapForThumbFix) {
     const scroller = getSidebarScrollEl();
     if (!scroller || !anchorEl) {
       fn();
+      if (wrapForThumbFix) fixRangeThumbsAfterReveal(wrapForThumbFix);
       return;
     }
     const y = anchorEl.getBoundingClientRect().top;
     fn();
+    if (wrapForThumbFix) fixRangeThumbsAfterReveal(wrapForThumbFix);
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         const y2 = anchorEl.getBoundingClientRect().top;
@@ -2630,6 +2651,8 @@
         clearSliderMapTimer();
         openMobileGeoEditorIfNeeded(slot, pickBtn, { showMap: true });
         startPick(slot === 'a' ? 'geoA' : 'geoB');
+        // Sheet lecsukódik, hogy a térkép látható legyen
+        setMobileGeoSheetPeek(true);
       }
       pickBtn.addEventListener(
         'touchend',
@@ -2786,6 +2809,13 @@
       if (e.target.closest('button, input, a')) return;
       snapTo(false, true);
     });
+
+    // Külső hozzáférés: pin gomb / pick visszatérés
+    _mobileGeoSheetSnapFn = snapTo;
+  }
+
+  function setMobileGeoSheetPeek(peek) {
+    if (_mobileGeoSheetSnapFn) _mobileGeoSheetSnapFn(peek, true);
   }
 
   /** Mobil fontos hely szerkesztés: a térképre koppintás auto-pick (a "Térkép" gomb nem szükséges). */
@@ -3080,6 +3110,134 @@
     if (!vv) return;
     vv.addEventListener('resize', syncMobileGeoSheetForKeyboard);
     vv.addEventListener('scroll', syncMobileGeoSheetForKeyboard);
+  }
+
+  /** Mobil "Következő" gomb: következő inaktív/összecsukott param kártya kinyitása + bekapcsolása. */
+  function initMobileNextParamBtn() {
+    const btn = elements.mobileNextParamBtn;
+    if (!btn) return;
+
+    /**
+     * Megkeresi a következő lépést a legutolsó kinyitott/aktív kártya UTÁN.
+     * Soha nem nyit ki olyat, ami a legutolsó kinyitott FÖLÖTT van.
+     * Visszaad: { group, card } — group: ha a csoport is össze van csukva
+     */
+    function findNextStep() {
+      const host = elements.paramCategoriesHost;
+      if (!host) return null;
+
+      const allCards = Array.from(
+        host.querySelectorAll('.param-item:not(.param-item--geo-place)')
+      );
+      if (allCards.length === 0) return null;
+
+      // Legutolsó kinyitott (aktív ÉS nem összecsukott) kártya indexe
+      let lastOpenIndex = -1;
+      for (let i = 0; i < allCards.length; i++) {
+        const c = allCards[i];
+        if (
+          c.getAttribute('data-param-active') === '1' &&
+          !c.classList.contains('param-item--collapsed')
+        ) {
+          lastOpenIndex = i;
+        }
+      }
+
+      // A lastOpenIndex UTÁN keressen aktívandó kártyát
+      const startFrom = lastOpenIndex + 1;
+      for (let i = startFrom; i < allCards.length; i++) {
+        const card = allCards[i];
+        // Inaktív kártya → bekapcolandó
+        if (card.getAttribute('data-param-active') === '0') {
+          // Ellenőrizzük, hogy a csoportja nyitva van-e
+          const group = card.closest('.param-group');
+          if (group && group.classList.contains('param-group--collapsed')) {
+            return { group: group, card: card };
+          }
+          return { group: null, card: card };
+        }
+        // Aktív de összecsukott kártya → kinyitandó
+        if (
+          card.getAttribute('data-param-active') === '1' &&
+          card.classList.contains('param-item--collapsed')
+        ) {
+          return { group: null, card: card };
+        }
+      }
+
+      // Ha nincs semmi a lastOpenIndex után: vége, gomb eltűnik
+      return null;
+    }
+
+    function activateAndExpandCard(card) {
+      if (!card) return;
+      // Bekapcsol
+      if (card.getAttribute('data-param-active') === '0') {
+        const sw = card.querySelector('.param-item__ios-switch');
+        if (sw) sw.click();
+      }
+      // Kinyit
+      if (card.classList.contains('param-item--collapsed')) {
+        const toggle = card.querySelector('.param-item__toggle');
+        if (toggle) toggle.click();
+      }
+      // Képernyő közepére görgeti
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      });
+    }
+
+    btn.addEventListener('click', function () {
+      const step = findNextStep();
+      if (!step) return;
+      if (step.group) {
+        // Csoport kinyitása, aztán az első kártya bekapcsolása
+        const groupToggle = step.group.querySelector('.param-group__toggle');
+        if (groupToggle) groupToggle.click();
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            const firstCard = step.group.querySelector('.param-item:not(.param-item--geo-place)');
+            activateAndExpandCard(firstCard);
+          });
+        });
+      } else {
+        activateAndExpandCard(step.card);
+      }
+      // Ha nincs több lépés, gomb eltűnik
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (!findNextStep()) {
+            btn.setAttribute('hidden', '');
+            btn.setAttribute('aria-hidden', 'true');
+          }
+        });
+      });
+    });
+
+    // Gomb frissítése keresés után és param változáskor
+    function syncNextBtn() {
+      if (!isTouchMobileAppStarted()) return;
+      const next = findNextStep();
+      if (next) {
+        btn.removeAttribute('hidden');
+        btn.setAttribute('aria-hidden', 'false');
+      } else {
+        btn.setAttribute('hidden', '');
+        btn.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    // Hallgatózzuk a param state változásokat
+    const host = elements.paramCategoriesHost;
+    if (host && typeof MutationObserver !== 'undefined') {
+      const mo = new MutationObserver(syncNextBtn);
+      mo.observe(host, { attributes: true, subtree: true, attributeFilter: ['data-param-active', 'class'] });
+    }
+
+    // Első szinkronizálás app-started után
+    window.addEventListener('app-started-mobile', syncNextBtn);
   }
 
   function initMobileGeoSheet() {
@@ -4628,10 +4786,11 @@
       if (pr && pr.lo != null && pr.hi != null && Math.abs(pr.hi - pr.lo) >= step) {
         const vmin = cfg.invertScale ? pr.hi : pr.lo;
         const vmax = cfg.invertScale ? pr.lo : pr.hi;
-        return {
-          valueMin: snapBandFilterStep(vmin, mr.min, mr.max, step),
-          valueMax: snapBandFilterStep(vmax, mr.min, mr.max, step),
-        };
+        let rMin = snapBandFilterStep(vmin, mr.min, mr.max, step);
+        let rMax = snapBandFilterStep(vmax, mr.min, mr.max, step);
+        if (cfg.scorePrefer === 'higher') rMax = snapBandFilterStep(mr.max, mr.min, mr.max, step);
+        else if (cfg.scorePrefer === 'lower') rMin = snapBandFilterStep(mr.min, mr.min, mr.max, step);
+        return { valueMin: rMin, valueMax: rMax };
       }
     }
     const span = mr.max - mr.min;
@@ -4639,20 +4798,25 @@
       cfg.defaultMaxDelta != null
         ? Math.min(cfg.defaultMaxDelta, span)
         : Math.max(step, span * 0.35);
+    let vMin, vMax;
     if (cfg.invertScale) {
       const hi = Math.min(mr.max, mr.min + delta);
       const lo = Math.max(mr.min, mr.max - delta);
-      return {
-        valueMin: snapBandFilterStep(lo, mr.min, mr.max, step),
-        valueMax: snapBandFilterStep(hi, mr.min, mr.max, step),
-      };
+      vMin = snapBandFilterStep(lo, mr.min, mr.max, step);
+      vMax = snapBandFilterStep(hi, mr.min, mr.max, step);
+    } else {
+      const midLo = mr.min + span * 0.3;
+      const midHi = mr.min + span * 0.7;
+      vMin = snapBandFilterStep(midLo, mr.min, mr.max, step);
+      vMax = snapBandFilterStep(midHi, mr.min, mr.max, step);
     }
-    const midLo = mr.min + span * 0.3;
-    const midHi = mr.min + span * 0.7;
-    return {
-      valueMin: snapBandFilterStep(midLo, mr.min, mr.max, step),
-      valueMax: snapBandFilterStep(midHi, mr.min, mr.max, step),
-    };
+    // scorePrefer: 'higher' → felső csúszka max-ra; 'lower' → alsó csúszka min-re
+    if (cfg.scorePrefer === 'higher') {
+      vMax = snapBandFilterStep(mr.max, mr.min, mr.max, step);
+    } else if (cfg.scorePrefer === 'lower') {
+      vMin = snapBandFilterStep(mr.min, mr.min, mr.max, step);
+    }
+    return { valueMin: vMin, valueMax: vMax };
   }
 
   function bandValuesNeedFriendlyReset(bandMin, bandMax, mr) {
@@ -7926,7 +8090,7 @@
       preserveSidebarScrollAnchor(headRow, function () {
         const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
         toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-      });
+      }, wrap);
     });
 
     const itemBody = document.createElement('div');
@@ -8097,7 +8261,7 @@
     wInput.min = '0';
     wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
     wInput.step = '1';
-    wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
+    wInput.value = String(Math.round(PARAM_WEIGHT_SLIDER_MAX / 2)); // alapérték: 5
     const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
     weightWrap.appendChild(wStack);
     mountWeightSliderUi(weightWrap, wStack, variantSliderUi);
@@ -8344,7 +8508,7 @@
       preserveSidebarScrollAnchor(headRow, function () {
         const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
         toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-      });
+      }, wrap);
     });
 
     return wrap;
@@ -8482,7 +8646,7 @@
       preserveSidebarScrollAnchor(headRow, function () {
         const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
         toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-      });
+      }, wrap);
     });
 
     const itemBody = document.createElement('div');
@@ -8762,7 +8926,7 @@
     wInput.min = '0';
     wInput.max = String(PARAM_WEIGHT_SLIDER_MAX);
     wInput.step = '1';
-    wInput.value = String(PARAM_WEIGHT_SLIDER_MAX);
+    wInput.value = String(Math.round(PARAM_WEIGHT_SLIDER_MAX / 2)); // alapérték: 5
 
     const wStack = buildParamRangeRowWithExtrema(wInput, 1, 0, PARAM_WEIGHT_SLIDER_MAX);
     weightWrap.appendChild(wStack);
@@ -8776,7 +8940,7 @@
       preserveSidebarScrollAnchor(headRow, function () {
         const nowCollapsed = wrap.classList.toggle('param-item--collapsed');
         toggle.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-      });
+      }, wrap);
     });
 
     bindParamRangeTrackSeek(input);
@@ -10445,6 +10609,8 @@
     if (mobileGeoSetupSlot) {
       setMobileMapView(true, { forGeoEditor: true });
       showMobileGeoSheetEl(true, mobileGeoSetupSlot ? (geoImportantPlaceTitle[mobileGeoSetupSlot] || GEO_IMPORTANT_PLACE_DEFAULT_TITLE[mobileGeoSetupSlot] || "") : "");
+      // Sheet visszanyílik pick után
+      setMobileGeoSheetPeek(false);
       syncMobileMapDockButtons();
     }
   }
@@ -12159,6 +12325,9 @@
 
     document.documentElement.classList.add('app-started', 'mobile-map-view');
     syncMobileMapDockButtons();
+    // Mobilon a guided flow zavart okoz — letiltjuk, szabad görgetés van
+    guidedFlowDisabledPermanently = true;
+    window.dispatchEvent(new Event('app-started-mobile'));
     if (shouldUseMobileGeoEditor() && isGeoPlaceSwitchOn('a')) {
       mobileGeoAutoOpenSlot = 'a';
     }
@@ -12512,6 +12681,7 @@
     maybeOpenAppWelcomeModal();
     initStrictParamsModal();
     initMobileGeoSheet();
+    initMobileNextParamBtn();
     initMobileWinnerSheetDrag();
     initMobileRangeFocusRingFix();
     initMobileGeoKeyboardGuard();

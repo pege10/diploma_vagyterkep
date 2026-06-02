@@ -229,7 +229,7 @@ body {
 
 .sidebar-header {
   flex-shrink: 0;
-  padding: 20px 18px 12px;
+  padding: 26px 18px 28px;
   /* Sötét sáv: fehér felirat; gombcsoport invert (fekete felület, fehér ikon, fehér keret). */
   --hdr-bg: #0a0a0a;
   --hdr-fg: #ffffff;
@@ -6154,4 +6154,36 @@ html.exhibition-mode:not(.exhibition-mode--revealed) #heatmap-legend {
   html.is-touch .orientation-lock-overlay {
     display: flex !important;
   }
+}
+
+/* ── Mobil "Következő" lebegő gomb ─────────────────────────── */
+.mobile-next-param-btn {
+  display: none;
+  /* Abszolút pozíció a .sidebar-on belül — footer szélétől ugyanannyi, mint search btn lentebb */
+  position: absolute;
+  right: 18px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  padding: 9px 14px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-app);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.mobile-next-param-btn:active {
+  background: #333;
+}
+
+html.is-touch.app-started:not(.mobile-map-view) .mobile-next-param-btn:not([hidden]) {
+  display: block;
 }
