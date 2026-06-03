@@ -9,6 +9,7 @@
   <script>document.documentElement.classList.add('exhibition-mode');</script>
   <link rel="manifest" href="/exhibition/manifest.json">
   <meta name="theme-color" content="#0a0a0a">
+  <meta name="color-scheme" content="dark">
   <meta name="description" content="Holistic Search Engine — kiállítás (sorszám a keresés után)." />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -146,11 +147,29 @@
     <div class="start-content">
       <p class="start-title">Holistic Search Engine</p>
       <p class="start-subtitle">Találd meg a számodra legtökéletesebb magyarországi települést!</p>
-      <div class="start-tap-hint">
+      <div class="start-tap-hint" id="start-tap-hint-default">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 8 16 8"/>
         </svg>
         <span>Koppints az indításhoz</span>
+      </div>
+      <!-- iOS Safari (nem standalone) esetén megjelenő útmutató: csak ekkor érhető el a valódi teljes képernyős nézet -->
+      <div class="start-ios-hint" id="start-ios-hint" hidden aria-hidden="true">
+        <p class="start-ios-hint__lead">A legjobb (teljes képernyős) élményhez add hozzá a kezdőképernyődhöz:</p>
+        <ol class="start-ios-hint__steps">
+          <li>
+            <span>Koppints a Safari</span>
+            <svg class="start-ios-hint__share" xmlns="http://www.w3.org/2000/svg" width="18" height="22" viewBox="0 0 24 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Megosztás">
+              <path d="M12 2v16"/>
+              <polyline points="7 7 12 2 17 7"/>
+              <path d="M5 11h-1a2 2 0 0 0 -2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2 -2v-11a2 2 0 0 0 -2 -2h-1"/>
+            </svg>
+            <span>Megosztás gombjára</span>
+          </li>
+          <li>Válaszd: <strong>Főképernyőhöz adás</strong></li>
+          <li>Nyisd meg az appot a főképernyőről</li>
+        </ol>
+        <button type="button" id="start-ios-continue-btn" class="start-ios-continue-btn">Most folytatom a böngészőben</button>
       </div>
     </div>
   </div>
