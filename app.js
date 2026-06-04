@@ -12563,6 +12563,7 @@
     elements.ticketNumber.textContent = ticketId != null ? String(ticketId) : '–';
     elements.ticketOverlay.removeAttribute('hidden');
     elements.ticketOverlay.setAttribute('aria-hidden', 'false');
+    syncMobileAppViewportHeight();
     syncTicketRerollButton(ticketId);
   }
 

@@ -5709,12 +5709,21 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
   align-items: center;
   justify-content: center;
   padding: 24px;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
 }
 
 @media (max-width: 900px) {
   html.is-touch .ticket-overlay:not([hidden]) {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    /* iOS Safari: ne a layout viewport aljára pin-eljük a gombot (ott a címsor takarja) */
+    height: var(--app-vh, 100dvh);
+    max-height: var(--app-vh, 100dvh);
+    padding: max(20px, env(safe-area-inset-top, 0px)) 24px
+      max(32px, calc(24px + env(safe-area-inset-bottom, 0px)));
     animation: tb-overlay-in 0.28s ease;
   }
 }
@@ -5805,6 +5814,17 @@ body:has(#feedback-panel.feedback-panel--search-details:not([hidden])) #heatmap-
 
 .ticket-reroll-btn[hidden] {
   display: none;
+}
+
+@media (max-width: 900px) {
+  html.is-touch .ticket-reroll-btn:not([hidden]) {
+    position: static;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    flex-shrink: 0;
+    max-width: min(360px, 100%);
+  }
 }
 
 .ticket-reroll-btn:hover:not(:disabled),
